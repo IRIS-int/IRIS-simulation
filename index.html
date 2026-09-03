@@ -3,23 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IRIS — Hyperrealistic LEO Earth</title>
+<title>IRIS — Hyperrealistic LEO Earth [DIRECTX/WebGPU]</title>
 <script src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
 <script type="importmap">
 {
   "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/"
   }
 }
 </script>
 <script>
-// loader safety — hides even if module fails
 window.addEventListener('DOMContentLoaded', ()=>{
   setTimeout(()=>{
     const el=document.getElementById('loader');
     if(el && !el.classList.contains('hide')) el.classList.add('hide');
-  }, 4000);
+  }, 5000);
 });
 </script>
 <style>
@@ -41,15 +40,16 @@ window.addEventListener('DOMContentLoaded', ()=>{
   .top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .pill{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;padding:6px 10px;border-radius:999px;border:1px solid rgba(96,165,250,0.25);background:rgba(15,23,42,0.7);backdrop-filter:blur(8px)}
   .pill.live{color:#22c55e;border-color:rgba(34,197,94,0.35)}
+  .pill.dx{background:rgba(16,185,129,0.15);border-color:rgba(16,185,129,0.4);color:#6ee7b7}
   .btn{cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.08em;padding:8px 14px;border-radius:8px;border:1px solid rgba(96,165,250,0.3);background:rgba(37,99,235,0.9);color:white}
   .btn.ghost{background:rgba(15,23,42,0.6);color:#cbd5e1}
   .panel{position:absolute;background:rgba(10,18,36,0.72);backdrop-filter:blur(14px);border:1px solid rgba(96,165,250,0.18);border-radius:16px;pointer-events:none;box-shadow:0 12px 40px rgba(0,0,0,0.45)}
   .panel *{pointer-events:auto}
   .panel .kicker,.panel .coords,.panel .legend,.panel h3,.panel p{pointer-events:none}
   .panel button,.panel input,.panel .stat{pointer-events:auto}
-  .panel-left{left:14px;top:70px;width:340px;padding:14px}
+  .panel-left{left:14px;top:70px;width:340px;padding:14px;max-height:calc(100vh - 220px);overflow-y:auto;overflow-x:hidden}
   .panel-right{right:14px;top:70px;width:300px;padding:14px}
-  .panel-bottom{left:50%;transform:translateX(-50%);bottom:14px;width:min(860px, calc(100vw - 28px));padding:10px 14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .panel-bottom{left:368px;right:224px;transform:none;bottom:14px;width:auto;max-width:none;padding:10px 14px;display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;z-index:3}
   .kicker{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.16em;opacity:0.55;margin-bottom:8px;display:flex;align-items:center;gap:8px}
   .kicker::before{content:'';width:6px;height:6px;border-radius:50%;background:#38bdf8;box-shadow:0 0 8px #38bdf8;display:inline-block}
   .alt-big{font-size:42px;font-weight:300;letter-spacing:-0.04em;line-height:1}
@@ -93,11 +93,11 @@ window.addEventListener('DOMContentLoaded', ()=>{
   @keyframes spin{to{transform:rotate(360deg)}}
   .loader-card h2{font-weight:300;letter-spacing:0.18em;font-size:13px}
   .loader-card p{font-family:'JetBrains Mono',monospace;font-size:11px;opacity:0.6;margin-top:6px}
-  .drag-hint{position:absolute;left:50%;bottom:84px;transform:translateX(-50%);background:rgba(10,18,36,0.78);border:1px solid rgba(96,165,250,0.22);padding:7px 12px;border-radius:999px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;opacity:0.85;pointer-events:none;backdrop-filter:blur(8px);transition:0.4s;white-space:nowrap}
+  .drag-hint{position:absolute;left:50%;bottom:118px;transform:translateX(-50%);background:rgba(10,18,36,0.78);border:1px solid rgba(96,165,250,0.22);padding:7px 12px;border-radius:999px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;opacity:0.85;pointer-events:none;backdrop-filter:blur(8px);transition:0.4s;white-space:nowrap;max-width:calc(100vw - 420px);overflow:hidden;text-overflow:ellipsis}
   .drag-hint.hide{opacity:0;transform:translateX(-50%) translateY(8px)}
   .panel-toggle{display:none;position:absolute;top:66px;right:12px;z-index:5;pointer-events:auto}
   .panel-toggle button{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;padding:7px 10px;border-radius:999px;border:1px solid rgba(96,165,250,0.28);background:rgba(10,18,36,0.88);color:#cbd5e1;backdrop-filter:blur(10px)}
-  .zone-bar{position:absolute;right:12px;top:50%;transform:translateY(-50%);width:198px;background:rgba(10,18,36,0.78);backdrop-filter:blur(16px);border:1px solid rgba(96,165,250,0.18);border-radius:16px;padding:10px;pointer-events:auto;box-shadow:0 12px 40px rgba(0,0,0,0.45);display:flex;flex-direction:column;gap:7px;z-index:4}
+  .zone-bar{position:absolute;right:12px;top:70px;bottom:110px;transform:none;width:198px;background:rgba(10,18,36,0.78);backdrop-filter:blur(16px);border:1px solid rgba(96,165,250,0.18);border-radius:16px;padding:10px;pointer-events:auto;box-shadow:0 12px 40px rgba(0,0,0,0.45);display:flex;flex-direction:column;gap:7px;z-index:4;overflow-y:auto;overflow-x:hidden;justify-content:flex-start}
   .zone-bar-title{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.16em;opacity:0.62;text-align:center;padding:4px 0 6px;border-bottom:1px solid rgba(96,165,250,0.12);margin-bottom:2px}
   .zone-btn{width:100%;display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(15,23,42,0.72);color:#e6eef8;cursor:pointer;text-align:left;transition:0.18s}
   .zone-btn:hover{transform:translateX(-2px);border-color:var(--c);background:rgba(15,23,42,0.95);box-shadow:0 0 14px var(--c, #38bdf8)}
@@ -108,20 +108,52 @@ window.addEventListener('DOMContentLoaded', ()=>{
   .zone-btn i{margin-left:auto;font-style:normal;font-size:13px;opacity:0.5}
   .zone-btn.active i{opacity:0.9}
   .zb-dot{width:9px;height:9px;border-radius:50%;background:var(--c);box-shadow:0 0 10px var(--c);flex:none}
-  @media(max-width:860px){ .zone-bar{right:8px;top:auto;bottom:182px;transform:none;width:168px;padding:8px} .zone-btn{padding:7px 8px} .zone-btn b{font-size:10px} }
+  /* Mobile: 4-region rule — only top bar + toggle visible by default */
   @media(max-width:860px){
-    .topbar{height:auto;min-height:56px;padding:10px 12px;flex-wrap:wrap;gap:8px}
+    .topbar{height:56px;min-height:56px;padding:8px 12px;flex-wrap:nowrap;gap:8px}
     .logo h1{font-size:13px}
-    .logo p{font-size:8px}
-    .top-actions{width:100%}
-    .panel-left{width:calc(100vw - 20px);max-width:none;left:10px;top:92px;padding:12px;max-height:52vh;overflow:auto}
-    .panel-right{display:none}
-    .panel-bottom{flex-direction:column;align-items:stretch;bottom:10px;width:calc(100vw - 20px);gap:10px}
+    .logo p{display:none}
+    .top-actions{width:auto;flex-wrap:nowrap;gap:6px}
+    .top-actions .pill{padding:4px 8px;font-size:9px}
+    .btn{padding:6px 10px;font-size:10px}
+    /* hide all panels by default on mobile — shown via body.panels-open */
+    .panel-left, .panel-bottom, .zone-bar{display:none}
+    body.panels-open .panel-left{display:block}
+    body.panels-open .panel-bottom{display:flex}
+    body.panels-open .zone-bar{display:flex}
+    .panel-left{left:10px;right:10px;width:auto;top:62px;max-height:46vh;overflow:auto;-webkit-overflow-scrolling:touch}
+    .panel-bottom{left:10px;right:10px;transform:none;width:auto;bottom:10px;flex-direction:column;align-items:stretch;gap:8px;max-height:36vh;overflow:auto}
+    .zone-bar{left:10px;right:10px;top:auto;bottom:72px;transform:none;width:auto;flex-direction:row;overflow-x:auto;overflow-y:hidden;gap:6px;padding:8px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;max-height:64px}
+    .zone-bar .zone-bar-title{display:none}
+    .zone-btn{flex:0 0 auto;min-width:138px;scroll-snap-align:start;padding:7px 8px}
+    .zone-btn b{font-size:10px}
+    .zone-btn small{font-size:8px}
     .slider-row{min-width:0}
     .alt-big{font-size:34px}
-    .enter-notify{top:132px;font-size:10px;padding:8px 12px;max-width:92vw;text-align:center}
+    .enter-notify{top:62px;font-size:10px;padding:8px 12px;max-width:92vw;text-align:center}
     .panel-toggle{display:block}
     .drag-hint{bottom:120px;font-size:9px}
+  }
+  @media(min-width:861px){
+    .panel-left, .panel-bottom, .zone-bar{display:flex}
+    .panel-left{display:block}
+  }
+  /* Laptop: prevent bottom-bar / side-placard overlap + zone-bar running off-screen */
+  @media(min-width:861px) and (max-width:1320px){
+    .panel-left{width:300px}
+    .panel-bottom{left:326px;right:196px;gap:10px;padding:8px 10px}
+    .zone-bar{width:172px}
+    .slider-row{min-width:140px}
+    .bottom-stats .stat{min-width:88px;padding:6px 8px}
+    .drag-hint{max-width:calc(100vw - 540px);font-size:9px}
+  }
+  @media(min-width:861px) and (max-height:760px){
+    .panel-left{max-height:calc(100vh - 190px);padding:10px}
+    .alt-big{font-size:32px}
+    .grid2{gap:6px;margin-top:8px}
+    .coords{font-size:10px;padding:8px}
+    .zone-btn{padding:7px 8px}
+    .panel-bottom{padding:8px 10px;gap:8px}
   }
 </style>
 </head>
@@ -130,8 +162,8 @@ window.addEventListener('DOMContentLoaded', ()=>{
 <div id="loader">
   <div class="loader-card">
     <div class="loader-ring"></div>
-    <h2>IRIS — LEO SIMULATOR</h2>
-    <p>Loading hyperrealistic Earth · LEO 160–2000 km</p>
+    <h2>IRIS — HYPERREAL DIRECTX</h2>
+    <p id="loaderText">Initializing DirectX 12 via WebGPU · Hyperreal Earth</p>
   </div>
 </div>
 <div id="tooltip"></div>
@@ -140,74 +172,62 @@ window.addEventListener('DOMContentLoaded', ()=>{
     <div class="logo">
       <div class="logo-mark"><i></i></div>
       <div>
-        <h1>IRIS <span>/ LEO EARTH</span></h1>
-        <p>HYPERREALISTIC · 160–2000 KM · DRAG TO ROTATE 360°</p>
+        <h1>IRIS <span>/ DIRECTX LEO</span></h1>
+        <p>HYPERREAL · DIRECTX 12 / WEBGPU · 160–2000 KM</p>
       </div>
     </div>
     <div class="top-actions">
+      <span class="pill dx" id="pillRenderer">◇ DETECTING...</span>
       <span class="pill live">● LIVE</span>
       <span class="pill" id="pillCount">— OBJECTS</span>
-      <button class="btn ghost" id="btnReset">RESET VIEW</button>
-      <button class="btn" id="btnFocusRandom">◎ RANDOM SAT</button>
+      <button class="btn" id="btnFPS" title="Toggle FPS game mode (WASD)">▶ FPS MODE</button>
+      <button class="btn ghost" id="btnOrbitsTop" title="Show/hide orbit lines (O)">◉ ORBITS ON</button>
+      <button class="btn ghost" id="btnReset" title="Reset camera (Esc)">↺ RESET VIEW</button>
     </div>
   </div>
   <div class="panel-toggle" id="panelToggle"><button id="btnTogglePanels">◧ PANELS</button></div>
   <div class="enter-notify" id="enterNotify"><span>🛰</span> <span id="enterText">ENTERING <b>LEO</b></span></div>
-  <div class="drag-hint" id="dragHint">🖱 DRAG to rotate 360° · SCROLL/PINCH to zoom · RIGHT-DRAG to pan</div>
+  <div class="drag-hint" id="dragHint">🖱 DRAG 360° · ←→↑↓ ARROWS rotate · SCROLL zoom · WASD roam · Q/E/C up/down · SHIFT+WASD ⚡INSANE ×25 · F roam · X intercept sat</div>
   <div class="zone-bar" id="zoneBar">
-    <div class="zone-bar-title">◆ ZONES — TELEPORT</div>
-    <button class="zone-btn" data-zone="outer" style="--c:#a78bfa"><span class="zb-dot"></span><span><b>UPPER LEO</b><small>800–2000 km · OneWeb</small></span><i>⤵</i></button>
-    <button class="zone-btn" data-zone="leo" style="--c:#38bdf8"><span class="zb-dot"></span><span><b>LEO CORE</b><small>450–800 km · Starlink</small></span><i>⤵</i></button>
-    <button class="zone-btn" data-zone="vleo" style="--c:#facc15"><span class="zb-dot"></span><span><b>VLEO</b><small>160–450 km · ISS</small></span><i>⤵</i></button>
-    <button class="zone-btn" data-zone="karman" style="--c:#93c5fd"><span class="zb-dot"></span><span><b>KÁRMÁN</b><small>100–160 km · Edge</small></span><i>⤵</i></button>
-    <button class="zone-btn" data-zone="atmo" style="--c:#94a3b8"><span class="zb-dot"></span><span><b>ATMOSPHERE</b><small>0–100 km · Air</small></span><i>⤵</i></button>
-    <button class="zone-btn" data-zone="outer-space" style="--c:#22c55e"><span class="zb-dot"></span><span><b>OUTER VIEW</b><small>>2000 km · Overview</small></span><i>⤵</i></button>
+    <div class="zone-bar-title">◆ ZONES — TELEPORT (VAST ×30)</div>
+    <button class="zone-btn" data-zone="outer" style="--c:#a78bfa"><span class="zb-dot"></span><span><b>UPPER LEO</b><small>800–2000 km · 4.77–10.42</small></span><i>⤵</i></button>
+    <button class="zone-btn" data-zone="leo" style="--c:#38bdf8"><span class="zb-dot"></span><span><b>LEO CORE</b><small>450–800 km · 3.12–4.77</small></span><i>⤵</i></button>
+    <button class="zone-btn" data-zone="vleo" style="--c:#facc15"><span class="zb-dot"></span><span><b>VLEO</b><small>160–450 km · 1.75–3.12</small></span><i>⤵</i></button>
+    <button class="zone-btn" data-zone="karman" style="--c:#93c5fd"><span class="zb-dot"></span><span><b>KÁRMÁN</b><small>100–160 km · 1.47–1.75</small></span><i>⤵</i></button>
+    <button class="zone-btn" data-zone="meo" style="--c:#f472b6"><span class="zb-dot"></span><span><b>MEO / GPS</b><small>20,200 km · 96.1</small></span><i>⤵</i></button>
+    <button class="zone-btn" data-zone="geo" style="--c:#facc15"><span class="zb-dot"></span><span><b>GEO</b><small>35,786 km · 169.5</small></span><i>⤵</i></button>
   </div>
-  <div id="dimensionOverlay" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(0.96);background:radial-gradient(520px 320px at 50% 0%, rgba(99,102,241,0.22), rgba(10,18,36,0.86) 62%, rgba(2,6,23,0.94));border:1px solid rgba(167,139,250,0.32);border-radius:22px;padding:18px 20px;width:min(480px, 88vw);text-align:center;opacity:0;pointer-events:none;transition:0.55s;backdrop-filter:blur(16px);box-shadow:0 18px 60px rgba(0,0,0,0.55),0 0 28px rgba(99,102,241,0.28)">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.18em;color:#a78bfa">◆ DIMENSION ENTERED</div>
-    <div style="font-size:22px;font-weight:700;letter-spacing:0.04em;margin:6px 0 4px">UPPER LEO — 800–2000 KM</div>
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;opacity:0.78">You are inside the outer LEO volume.<br>OneWeb 1200 km · 3200 micro-debris + 14 tracked objects.<br><span style="color:#7dd3fc">Drag to explore · Scroll to dive · Double-click satellite to inspect</span></div>
-    <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
-      <span class="pill" style="border-color:rgba(167,139,250,0.35);color:#d8b4fe">VOLUMETRIC FOG</span>
-      <span class="pill" style="border-color:rgba(56,189,248,0.35);color:#7dd3fc">800 km FLOOR</span>
-      <span class="pill" style="border-color:rgba(250,204,21,0.35);color:#fde68a">3200 PARTICLES</span>
-    </div>
-  </div>
+
   <div class="panel panel-left" id="panelLeft">
-    <div class="kicker">CAMERA TELEMETRY — NADIR</div>
+    <div class="kicker">TELEMETRY — <span style="font-size:9px;letter-spacing:0.08em;opacity:0.55">left-drag rotate · scroll zoom · right-drag pan</span></div>
     <div class="alt-big" id="altBig">— <small>KM ALT</small></div>
     <div class="layer-badge atmo" id="layerBadge">ATMOSPHERE</div>
-    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:0.55;margin-top:6px" id="layerDesc">Drag anywhere to rotate gol-gol. Scroll to travel through spheres.</div>
     <div class="grid2">
       <div class="stat"><label>VELOCITY</label><b id="vStat">—</b><i>km/s</i></div>
       <div class="stat"><label>PERIOD</label><b id="periodStat">—</b><i>min</i></div>
-      <div class="stat"><label>LAT</label><b id="latStat">—</b></div>
-      <div class="stat"><label>LON</label><b id="lonStat">—</b></div>
     </div>
-    <div class="coords">
+    <button class="btn ghost" id="btnDetails" style="width:100%;margin-top:10px;font-size:10px">Details ▾</button>
+    <div id="detailsCoords" class="coords" style="display:none;margin-top:10px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div class="stat"><label>LAT</label><b id="latStat">—</b></div>
+        <div class="stat"><label>LON</label><b id="lonStat">—</b></div>
+      </div>
       <span>ECI (km):</span> <b id="eciPos">—</b><br>
       <span>GEODETIC:</span> <b id="geodetic">—</b><br>
       <span>LEO:</span> <b id="leoRegion">—</b> · <span id="kmToLeo">—</span><br>
       <span>NEXT:</span> <b id="nextBoundary">—</b>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:10px">
-      <button class="btn ghost" style="flex:1" id="btnToggleShells">TOGGLE SHELLS</button>
-      <button class="btn ghost" style="flex:1" id="btnToggleOrbits">ORBIT LINES</button>
-    </div>
-  </div>
-  <div class="panel panel-right">
-    <div class="kicker">LEO STRUCTURE</div>
-    <h3 style="font-size:13px;margin-bottom:4px">Earth → LEO Spheres <span style="font-weight:300;opacity:0.6">(to scale)</span></h3>
-    <div class="legend">
-      <div class="legend-item"><span class="dot" style="background:#93c5fd;color:#93c5fd"></span><div><strong>Kármán 100 km</strong><small>Edge of space</small></div></div>
-      <div class="legend-item"><span class="dot" style="background:#facc15;color:#facc15"></span><div><strong>VLEO 160–450 km</strong><small>ISS 408 km</small></div></div>
-      <div class="legend-item"><span class="dot" style="background:#38bdf8;color:#38bdf8"></span><div><strong>LEO CORE 450–800 km</strong><small>Starlink · Hubble</small></div></div>
-      <div class="legend-item"><span class="dot" style="background:#a78bfa;color:#a78bfa"></span><div><strong>Upper LEO 800–2000 km</strong><small>OneWeb</small></div></div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn ghost" style="flex:1" id="btnToggleShells">SHELLS</button>
+        <button class="btn ghost" style="flex:1" id="btnToggleOrbits">ORBITS</button>
+      </div>
+      <div style="margin-top:8px;padding:6px 8px;background:rgba(15,23,42,0.6);border-radius:8px;font-size:10px;opacity:0.7"><span id="dxInfo">WebGL2 only — raw GLSL</span></div>
     </div>
   </div>
   <div class="panel panel-bottom">
     <div class="slider-row"><label>⏱ TIME</label><input id="timeSlider" type="range" min="0" max="100" value="18"><span id="timeLabel" style="font-family:'JetBrains Mono',monospace;font-size:11px;min-width:54px">1.0×</span></div>
     <div class="slider-row"><label>👁 FOV</label><input id="fovSlider" type="range" min="25" max="75" value="45"><span id="fovLabel" style="font-family:'JetBrains Mono',monospace;font-size:11px;min-width:54px">45°</span></div>
+    <div class="slider-row"><label>✦ BLOOM</label><input id="bloomSlider" type="range" min="0" max="100" value="28"><span id="bloomLabel" style="font-family:'JetBrains Mono',monospace;font-size:11px;min-width:54px">0.28</span></div>
+    <div class="slider-row"><label>🚀 SPEED</label><input id="fpsSpeedSlider" type="range" min="1" max="100" value="30"><span id="fpsSpeedLabel" style="font-family:'JetBrains Mono',monospace;font-size:11px;min-width:54px">1.0×</span></div>
     <div class="bottom-stats">
       <div class="stat"><label>DEBRIS</label><b id="debrisCount">—</b></div>
       <div class="stat"><label>ACTIVE</label><b id="activeCount">—</b></div>
@@ -219,37 +239,91 @@ window.addEventListener('DOMContentLoaded', ()=>{
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
-const R_EARTH_KM = 6371;
-const R_EARTH = 1;
+const KM_PER_UNIT = 6371; // real Earth radius = 6371km
+const ALT_EXAG = 30.0; // VAST SHELLS + SMALL EARTH (checkpoint you wanted) — zones stretched 30×, Earth small R=1, you roam vast tiles
+const R_EARTH_KM = KM_PER_UNIT; // legacy alias, keep for readability
+const R_EARTH = 1.0; // SMALL EARTH — visual radius 1 unit. Kármán 100km = 0.157u, VLEO huge, UPPER 1200km = 5.65u thick
 const MU = 398600.4418;
-const toScene = km => km / R_EARTH_KM;
+const toScene = km => km / KM_PER_UNIT * ALT_EXAG; // 1km = 30/6371 = 0.004708u
+const sceneRadius = altKm => R_EARTH + altKm / KM_PER_UNIT * ALT_EXAG; // CHECKPOINT: 0km=1.0, 100km=1.47, 160km=1.75, 450km=3.12, 800km=4.77, 2000km=10.42, MEO=96.1, GEO=169.5
+const altFromRadius = r => (r - R_EARTH) * KM_PER_UNIT / ALT_EXAG; // inverse — real km from scene radius
 const RAD = Math.PI/180;
 
+// Single source of truth for LEO bands — was duplicated in 3 places (defs, getLayer, layers[])
+const LEO_BOUNDARIES = [100,160,450,800,2000,20200,35786];
+const LEO_SHELL_DEFS = [
+  {name:'Kármán',km:100,color:0x93c5fd,op:0.11},
+  {name:'VLEO inner',km:160,color:0xfacc15,op:0.09},
+  {name:'VLEO outer',km:450,color:0xfacc15,op:0.06},
+  {name:'LEO CORE outer',km:800,color:0x38bdf8,op:0.10},
+  {name:'Upper LEO outer',km:2000,color:0xa78bfa,op:0.08},
+];
+const LEO_LAYER_BANDS_BASE = [
+  {id:'karman', name:'KÁRMÁN LINE', cls:'karman', min:100, max:160, color:'#93c5fd', desc:'100 km · Edge of space · DX scatter', label:'KÁRMÁN — 100-160 KM'},
+  {id:'vleo', name:'VLEO', cls:'vleo', min:160, max:450, color:'#facc15', desc:'160–450 km · ISS 408 km · PBR Ocean', label:'VLEO — 160-450 KM'},
+  {id:'leo', name:'LEO CORE ★', cls:'leo', min:450, max:800, color:'#38bdf8', desc:'450–800 km · Starlink · Hubble · DX12', label:'LEO CORE — 450-800 KM'},
+  {id:'outer', name:'UPPER LEO', cls:'outer', min:800, max:2000, color:'#a78bfa', desc:'800–2000 km · OneWeb · Rayleigh', label:'UPPER LEO — 800-2000 KM'},
+];
+
 const canvas = document.getElementById('canvas');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 2.05;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
+const loaderText = document.getElementById('loaderText');
+const pillRenderer = document.getElementById('pillRenderer');
+const dxInfo = document.getElementById('dxInfo');
+
+// --- RENDERER: WebGL2 (WebGPU/TSL not used) ---
+// NOTE: WebGPURenderer in three@0.162 requires TSL NodeMaterials (MeshStandardNodeMaterial etc.).
+// This file uses THREE.ShaderMaterial with raw GLSL (texture2D, varying, dFdx) which is WebGL-only.
+// Using WebGPURenderer with those materials silently produces black/broken Earth/clouds/atmosphere.
+// So we intentionally stay on WebGLRenderer. When/if we migrate shaders to TSL, re-enable WebGPU path.
+// On Windows Chrome/Edge, WebGL2 via ANGLE still hits D3D11, giving DirectX-style rendering without TSL breakage.
+let renderer, composer, bloomPass;
+let usePostProcessing = true;
+
+function initRenderer(){
+  // WebGLRenderer only — WebGPU/TSL path removed per spec (raw GLSL ShaderMaterial incompatible with WebGPURenderer)
+  renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'high-performance', stencil:false });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.1;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.shadowMap.enabled = false;
+  pillRenderer.textContent = '◇ WEBGL2 · GLSL SHADERS';
+  dxInfo.textContent = 'WebGL2 only — raw GLSL requires WebGL (TSL would be needed for WebGPU)';
+  loaderText.textContent = 'WebGL2 ready';
+  console.log('[IRIS-DX] Using WebGLRenderer only (WebGPU path removed per physically accurate scale spec).');
+}
+initRenderer();
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x02040a);
+scene.background = new THREE.Color(0x020510);
 
-const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 200);
-camera.position.set(0, 1.9, 3.2);
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.001, 3000);
+// CHECKPOINT small-earth vast-shells: start at 5500km → sceneRadius = 1+5500/6371×30 = 26.9 (Earth R=1 small, shells vast, you roam)
+camera.position.set(0, sceneRadius(5500)*0.62, sceneRadius(5500)*0.82);
+
+// Postprocessing setup — WebGLRenderer only (WebGPU removed per physically accurate scale spec)
+if(usePostProcessing){
+  composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+}
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.dampingFactor = 0.045;
+controls.dampingFactor = 0.08;
 controls.enableRotate = true;
 controls.enableZoom = true;
 controls.enablePan = true;
 controls.rotateSpeed = 1.2;
 controls.zoomSpeed = 1.1;
 controls.panSpeed = 1.0;
-controls.minDistance = 1.02;
-controls.maxDistance = 22;
+// Limits derived from KM_PER_UNIT — min just above surface (8km), max beyond GEO (40000km)
+controls.minDistance = sceneRadius(8);
+controls.maxDistance = sceneRadius(40000);
 controls.minPolarAngle = 0;
 controls.maxPolarAngle = Math.PI;
 controls.target.set(0,0,0);
@@ -257,50 +331,225 @@ renderer.domElement.tabIndex = 0;
 renderer.domElement.style.touchAction = 'none';
 controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
 controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
-controls.addEventListener('start', ()=> { canvas.classList.add('grabbing'); });
-controls.addEventListener('end', ()=> { canvas.classList.remove('grabbing'); });
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.62));
-const sunLight = new THREE.DirectionalLight(0xffffff, 4.6);
+// === ROAM MODE — microorganism free-fly, explore vast tiles ===
+// WASD always roams (no button needed). ✈ ROAM button switches drag: orbit ↔ look.
+let fpsMode=false, fpsSpeed=1.0;
+const keys={};
+addEventListener('keydown', e=>{
+  const k=e.key.toLowerCase();
+  keys[k]=true;
+  if(k==='shift') keys['shift']=true;
+  // arrows → camera 360° turn (hijack from sliders/scroll)
+  if(k.startsWith('arrow')){
+    e.preventDefault();
+    // blur range sliders so arrows return to camera after tweaking TIME/FOV/BLOOM/SPEED
+    if(document.activeElement && document.activeElement.tagName==='INPUT') document.activeElement.blur();
+    renderer.domElement.focus();
+    return;
+  }
+  if(k==='f'){ setRoamMode(!fpsMode); return; } // F toggles roam
+  if(k==='o'){ try{ setOrbitsVisible(!window._orbitsVisible); }catch(_){} return; } // O toggles orbits on/off
+  // intercept / dispose when hovering satellite (guarded — hovered declared later). D kept for strafe-right, so dispose = Delete.
+  if(k==='x'){ try{ if(hovered){ e.preventDefault(); interceptSat(hovered); } }catch(_){} }
+  if((k==='delete'||k==='backspace') && fpsMode){ try{ if(hovered){ e.preventDefault(); disposeSat(hovered); } }catch(_){} }
+  if(['w','a','s','d','q','e','c',' '].includes(k)){
+    if(document.activeElement && document.activeElement.tagName==='INPUT') document.activeElement.blur();
+    e.preventDefault();
+  }
+});
+addEventListener('keyup', e=>{ const k=e.key.toLowerCase(); keys[k]=false; if(k==='shift') keys['shift']=false; });
+addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; });
+function setRoamMode(on){
+  fpsMode=on;
+  const btn=document.getElementById('btnFPS');
+  if(btn) btn.textContent=on?'■ EXIT ROAM':'✈ ROAM';
+  controls.enableRotate=!on; // off in roam — drag = look (custom below), on = orbit
+  controls.enablePan=!on; // pan only in orbit; roam uses WASD+drag-look
+  if(on){
+    const fwd=new THREE.Vector3(); camera.getWorldDirection(fwd);
+    controls.target.copy(camera.position).addScaledVector(fwd, 1.5); // look-target in front — stable lookAt
+    renderer.domElement.focus();
+    try{
+      enterT.innerHTML=`ROAM MODE — <b>WASD</b> fly · <b>Q/E</b> down/up · <b>drag</b> look · <b>SHIFT+WASD</b> ⚡INSANE ×25 · <b>F</b> exit`;
+      enterN.classList.add('show'); clearTimeout(nt); nt=setTimeout(()=>enterN.classList.remove('show'),2400);
+    }catch(_){}
+  }
+}
+// drag-look in roam mode (mouse + touch via pointer events) — OrbitControls rotate is off, we yaw/pitch directly
+(function(){
+  let dragging=false, lx=0, ly=0;
+  const el=renderer.domElement;
+  el.addEventListener('pointerdown', e=>{ if(fpsMode && e.button!==1){ dragging=true; lx=e.clientX; ly=e.clientY; try{el.setPointerCapture(e.pointerId);}catch(_){} } });
+  addEventListener('pointermove', e=>{
+    if(!dragging || !fpsMode) return;
+    const dx=e.clientX-lx, dy=e.clientY-ly; lx=e.clientX; ly=e.clientY;
+    const eu=new THREE.Euler().setFromQuaternion(camera.quaternion,'YXZ');
+    eu.y-=dx*0.0032;
+    eu.x-=dy*0.0032;
+    eu.x=THREE.MathUtils.clamp(eu.x,-1.55,1.55);
+    eu.z=0;
+    camera.quaternion.setFromEuler(eu);
+    const dist=Math.max(0.3,camera.position.distanceTo(controls.target));
+    const fwd=new THREE.Vector3(); camera.getWorldDirection(fwd);
+    controls.target.copy(camera.position).addScaledVector(fwd,dist);
+  });
+  addEventListener('pointerup', ()=>{ dragging=false; });
+  addEventListener('pointercancel', ()=>{ dragging=false; });
+})();
+function interceptSat(s){
+  // fly to satellite — first-person intercept + neon-green selection
+  try{ selectSat(s); }catch(_){}
+  focusSat(s);
+  try{
+    enterT.innerHTML=`INTERCEPT <b style="color:#39ff14">${s.type.toUpperCase()}</b> — ${(s.currentAlt||0).toFixed(0)}km`;
+    enterN.classList.add('show'); clearTimeout(nt); nt=setTimeout(()=>enterN.classList.remove('show'),1800);
+  }catch(_){}
+}
+function disposeSat(s){
+  try{ if(typeof selected!=='undefined' && selected===s){ try{ if(s.userData && s.userData._tube){ scene.remove(s.userData._tube); s.userData._tube.geometry.dispose(); s.userData._tube.material.dispose(); } }catch(_){} selected=null; } }catch(_){}
+  const idx=sats.indexOf(s);
+  if(idx>=0){
+    // explosion effect
+    s.mesh.visible=false; s.orbit.visible=false; s.trailLine.visible=false;
+    scene.remove(s.group);
+    sats.splice(idx,1);
+    document.getElementById('pillCount').textContent=sats.length+' OBJECTS';
+    enterT.innerHTML=`DISPOSED <b>${s.type.toUpperCase()}</b>`;
+    enterN.classList.add('show'); clearTimeout(nt); nt=setTimeout(()=>enterN.classList.remove('show'),1800);
+    hovered=null; tip.classList.remove('show');
+  }
+}
+function updateFPS(dt){
+  // ROAM translate — always on so you can wander vast tiles with WASD, orbit or roam-look. Earth R=30, so steps scaled for microorganism feel.
+  const altKm = Math.max(0,altFromRadius(camera.position.length()));
+  const base = 0.008 * fpsSpeed; // CHECKPOINT fast roam — small Earth R=1 vast shells, WASD snappy (Kármán ~0.6s, UPPER ~12s, SHIFT = INSANE hyperspeed)
+  const altFactor = 0.35 + Math.log10(Math.max(20, altKm+50))*0.22; // 0.8 near VLEO, 2.1 in GEO
+  const speed = base * altFactor * dt*60 * (keys['shift']?25:1); // SHIFT = insanely fast ×25
+  const forward=new THREE.Vector3(); camera.getWorldDirection(forward);
+  const right=new THREE.Vector3().crossVectors(forward, camera.up).normalize();
+  const up=new THREE.Vector3(0,1,0);
+  const move=new THREE.Vector3();
+  if(keys['w']) move.addScaledVector(forward, speed);
+  if(keys['s']) move.addScaledVector(forward, -speed);
+  if(keys['a']) move.addScaledVector(right, -speed);
+  if(keys['d']) move.addScaledVector(right, speed);
+  if(keys['q']||keys['c']) move.addScaledVector(up, -speed);
+  if(keys['e']) move.addScaledVector(up, speed);
+  if(keys[' ']) move.addScaledVector(up, speed); // space up
+  if(move.lengthSq()>0){
+    camera.position.add(move);
+    controls.target.add(move);
+    // clamp to not go inside Earth
+    if(camera.position.length() < sceneRadius(12)) {
+      const dir=camera.position.clone().normalize();
+      camera.position.copy(dir.multiplyScalar(sceneRadius(12)));
+    }
+  }
+}
+function updateArrowKeys(dt){
+  const left=!!keys['arrowleft'], right=!!keys['arrowright'], up=!!keys['arrowup'], down=!!keys['arrowdown'];
+  if(!left && !right && !up && !down) return;
+  const boost=keys['shift']?2.8:1.0;
+  const rotSpeed=0.9*boost; // CHECKPOINT fast turn — small Earth 360° in ~7s, Shift = ~2.5s (was 0.08 = 79s = too slow)
+  const dTheta=((left?1:0)-(right?1:0))*rotSpeed*dt; // ←/→ yaw 360° unlimited
+  const dPhi=((up?1:0)-(down?1:0))*rotSpeed*0.9*dt; // ↑/↓ pitch
+  if(fpsMode){
+    // FPS look — turn head in place, keep target in front so OrbitControls doesn't snap back
+    const eu=new THREE.Euler().setFromQuaternion(camera.quaternion,'YXZ');
+    eu.y+=dTheta;
+    eu.x+=dPhi;
+    eu.x=THREE.MathUtils.clamp(eu.x,-1.55,1.55);
+    eu.z=0;
+    camera.quaternion.setFromEuler(eu);
+    const dist=Math.max(0.05,camera.position.distanceTo(controls.target));
+    const fwd=new THREE.Vector3(); camera.getWorldDirection(fwd);
+    controls.target.copy(camera.position).addScaledVector(fwd,dist);
+  } else {
+    // Orbit 360° around target (Earth / zone focus) — same as drag but via keyboard
+    const offset=camera.position.clone().sub(controls.target);
+    if(offset.lengthSq()<1e-8) return;
+    const sph=new THREE.Spherical().setFromVector3(offset);
+    sph.theta+=dTheta;
+    sph.phi-=dPhi;
+    sph.phi=THREE.MathUtils.clamp(sph.phi,0.02,Math.PI-0.02);
+    offset.setFromSpherical(sph);
+    camera.position.copy(controls.target).add(offset);
+    camera.lookAt(controls.target);
+  }
+}
+
+// Bloom + output (camera already correct in RenderPass)
+if(composer){
+  bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.28, 0.85, 0.55);
+  composer.addPass(bloomPass);
+  composer.addPass(new OutputPass());
+}
+
+// Lighting — tuned to index.html normal (was too bright)
+scene.add(new THREE.AmbientLight(0xffffff, 0.52));
+const sunLight = new THREE.DirectionalLight(0xffffff, 3.2);
 sunLight.position.set(5, 1.4, 2.2);
 scene.add(sunLight);
-const fillLight = new THREE.DirectionalLight(0x93c5fd, 0.82);
+const fillLight = new THREE.DirectionalLight(0x93c5fd, 0.55);
 fillLight.position.set(-4, -1, -3);
 scene.add(fillLight);
-const hemiLight = new THREE.HemisphereLight(0xffffff, 0x0a1a2e, 0.55);
+const hemiLight = new THREE.HemisphereLight(0xffffff, 0x0a1a2e, 0.45);
 scene.add(hemiLight);
+// Sun mesh for hyperreal glare source — pushed out for MICRO-VAST scale (GEO=169.5, maxDist=212.9)
+const sunGeo = new THREE.SphereGeometry(25, 32,32);
+const sunMat = new THREE.MeshBasicMaterial({ color:0xfff1c8, transparent:true, opacity:0.0 });
+const sunMesh = new THREE.Mesh(sunGeo, sunMat);
+sunMesh.position.copy(sunLight.position.clone().normalize().multiplyScalar(500));
+scene.add(sunMesh);
+// sun glow sprite (lens flare fake)
+const sunFlareCanvas = document.createElement('canvas'); sunFlareCanvas.width=256; sunFlareCanvas.height=256;
+const sctx = sunFlareCanvas.getContext('2d');
+const grad=sctx.createRadialGradient(128,128,0,128,128,128);
+grad.addColorStop(0,'rgba(255,244,210,1)'); grad.addColorStop(0.18,'rgba(255,220,120,0.85)'); grad.addColorStop(0.35,'rgba(255,160,40,0.35)'); grad.addColorStop(1,'rgba(0,0,0,0)');
+sctx.fillStyle=grad; sctx.fillRect(0,0,256,256);
+const sunFlareTex = new THREE.CanvasTexture(sunFlareCanvas);
+const sunFlareMat = new THREE.SpriteMaterial({ map:sunFlareTex, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false, opacity:0.42 });
+const sunFlare = new THREE.Sprite(sunFlareMat);
+sunFlare.position.copy(sunMesh.position);
+sunFlare.scale.set(60,60,1);
+scene.add(sunFlare);
 
-// stars
+// stars — pushed out for MICRO-VAST scale (must stay beyond GEO 169.5 + maxDist 212.9)
 (function(){
   const g=new THREE.BufferGeometry();
-  const N=12000;
-  const pos=new Float32Array(N*3), col=new Float32Array(N*3);
+  const N=8000;
+  const pos=new Float32Array(N*3), col=new Float32Array(N*3), size=new Float32Array(N);
   for(let i=0;i<N;i++){
-    const r=60+Math.random()*60, th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1);
+    const r=600+Math.random()*600, th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1);
     pos[i*3]=r*Math.sin(ph)*Math.cos(th);
     pos[i*3+1]=r*Math.sin(ph)*Math.sin(th);
     pos[i*3+2]=r*Math.cos(ph);
-    const c=0.7+Math.random()*0.3; col[i*3]=c; col[i*3+1]=c; col[i*3+2]=c;
+    const t=Math.random();
+    let cr,cg,cb;
+    if(t<0.6){ cr=0.95+Math.random()*0.05; cg=0.95+Math.random()*0.05; cb=1.0; } 
+    else if(t<0.8){ cr=1.0; cg=0.92+Math.random()*0.08; cb=0.75; }
+    else { cr=0.78; cg=0.85; cb=1.0; }
+    col[i*3]=cr; col[i*3+1]=cg; col[i*3+2]=cb;
+    size[i]=Math.random()<0.02?0.28:0.11+Math.random()*0.08;
   }
   g.setAttribute('position', new THREE.BufferAttribute(pos,3));
   g.setAttribute('color', new THREE.BufferAttribute(col,3));
-  const m=new THREE.PointsMaterial({size:0.14, vertexColors:true, sizeAttenuation:true, transparent:true, opacity:0.95, blending:THREE.AdditiveBlending, depthWrite:false});
+  const m=new THREE.PointsMaterial({size:1.8, vertexColors:true, sizeAttenuation:false, transparent:true, opacity:0.88, blending:THREE.AdditiveBlending, depthWrite:false});
   scene.add(new THREE.Points(g,m));
 })();
 
-// Earth — try local first, fallback to CDN, then fallback to procedural
+// --- HYPERREAL EARTH ---
 const loader = new THREE.TextureLoader();
 loader.setCrossOrigin('anonymous');
-let earthMesh, cloudsMesh;
-let earthMat;
+let earthMesh, cloudsMesh, earthMat;
 let _loaded=0;
 function hideLoader(){ _loaded++; if(_loaded>=1) document.getElementById('loader')?.classList.add('hide'); }
-setTimeout(()=>hideLoader(), 3500);
+setTimeout(()=>hideLoader(), 4000);
 
 function makeFallbackTex(kind){
   const c=document.createElement('canvas'); c.width=1024; c.height=512;
   const ctx=c.getContext('2d');
-  // realistic fallback — muted NASA-like, not theme-park
   ctx.fillStyle = kind==='night' ? '#020617' : '#0e2f4a';
   ctx.fillRect(0,0,1024,512);
   if(kind==='night'){
@@ -318,144 +567,295 @@ function makeFallbackTex(kind){
   const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t;
 }
 
+// Generate specular mask placeholder — real water mask is built by updateSpecularFromDay() once day texture loads, so avoid heavy sine loop that gets discarded
+function generateSpecularMap(dayTex){
+  const c=document.createElement('canvas'); c.width=2; c.height=2;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#777777'; ctx.fillRect(0,0,2,2); // neutral mid-gray until real mask computed
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.NoColorSpace; return t;
+}
+
 function createEarth(){
-  const geo=new THREE.SphereGeometry(R_EARTH, 128, 128);
-  // start with fallback canvas so planet is never black, then hot-swap real texture when it loads
+  const geo=new THREE.SphereGeometry(R_EARTH, 180, 180); // high tess for realistic displacement
   const tryLoad = (local, cdn, fallbackKind, onOk)=>{
     const tex=makeFallbackTex(fallbackKind);
-    tex.colorSpace=THREE.SRGBColorSpace; tex.anisotropy=4;
-    // try local first
+    tex.colorSpace=THREE.SRGBColorSpace; tex.anisotropy=8; tex.minFilter=THREE.LinearMipmapLinearFilter; tex.magFilter=THREE.LinearFilter;
     loader.load(local, (loaded)=>{
-      console.log('[IRIS] loaded local', local);
-      tex.image=loaded.image; tex.needsUpdate=true; if(onOk) onOk();
+      console.log('[IRIS-DX] loaded local', local);
+      tex.image=loaded.image; tex.needsUpdate=true; tex.anisotropy=8; if(onOk) onOk(tex);
     }, undefined, ()=>{
       console.warn('local fail, trying CDN', local);
       loader.load(cdn, (loaded2)=>{
-        console.log('[IRIS] loaded CDN', cdn);
-        tex.image=loaded2.image; tex.needsUpdate=true; if(onOk) onOk();
+        console.log('[IRIS-DX] loaded CDN', cdn);
+        tex.image=loaded2.image; tex.needsUpdate=true; tex.anisotropy=8; if(onOk) onOk(tex);
       }, undefined, ()=>{
         console.warn('CDN fail, keep fallback', local);
-        if(onOk) onOk();
+        if(onOk) onOk(tex);
       });
     });
     return tex;
   };
-  const dayTex=tryLoad('./libs/earth-day.jpg','https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-day.jpg','day', ()=>hideLoader());
-  const nightTex=tryLoad('./libs/earth-night.jpg','https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-night.jpg','night', ()=>{});
-  const bumpTex=tryLoad('./libs/earth-topology.png','https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-topology.png','day', ()=>{});
+  const dayTex=tryLoad('./libs/earth-day.jpg','https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-day.jpg','day', (t)=>{ hideLoader(); if(earthMat && earthMat.uniforms) earthMat.uniforms.dayTexture.value=t; updateSpecularFromDay(t); });
+  const nightTex=tryLoad('./libs/earth-night.jpg','https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-night.jpg','night', (t)=>{ if(earthMat && earthMat.uniforms) earthMat.uniforms.nightTexture.value=t; });
+  const bumpTex=tryLoad('./libs/earth-topology.png','https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-topology.png','day', (t)=>{ if(earthMat && earthMat.uniforms) earthMat.uniforms.bumpTexture.value=t; t.colorSpace=THREE.NoColorSpace; t.anisotropy=8; });
   setTimeout(()=>hideLoader(), 3800);
 
-  // shader that blends day/night — fallback to Phong if shader fails
+  // Specular map (water mask) — procedural initially, then derived from day texture if possible
+  const specularTex = generateSpecularMap(dayTex);
+  specularTex.anisotropy=8;
+  function updateSpecularFromDay(tex){
+    // try to generate better water mask by analyzing day texture if loaded
+    try{
+      if(!tex.image || !tex.image.width) return;
+      const w=512, h=256;
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      const ctx=c.getContext('2d'); ctx.drawImage(tex.image,0,0,w,h);
+      const img=ctx.getImageData(0,0,w,h);
+      const out=document.createElement('canvas'); out.width=w; out.height=h;
+      const octx=out.getContext('2d'); const oimg=octx.createImageData(w,h);
+      for(let i=0;i<w*h;i++){
+        const r=img.data[i*4], g=img.data[i*4+1], b=img.data[i*4+2];
+        // ocean is more blue than land: detect water as b > r+10 and b > g
+        const isWater = (b > r+12 && b > g+2 && b>60);
+        const spec = isWater ? 235 : 18 + (r+g)*0.08;
+        oimg.data[i*4]=spec; oimg.data[i*4+1]=spec; oimg.data[i*4+2]=spec; oimg.data[i*4+3]=255;
+      }
+      octx.putImageData(oimg,0,0);
+      const nt=new THREE.CanvasTexture(out); nt.colorSpace=THREE.NoColorSpace; nt.anisotropy=8; nt.needsUpdate=true;
+      specularTex.image = nt.image; specularTex.needsUpdate=true;
+      if(earthMat && earthMat.uniforms) earthMat.uniforms.specularTexture.value = specularTex;
+    }catch(e){ console.warn('specular gen fail',e); }
+  }
+
+  // Cloud specular / shadow map placeholder — will be loaded
+  let cloudTex = makeFallbackTex('day');
+  cloudTex.colorSpace=THREE.SRGBColorSpace;
+  (()=>{ const c=document.createElement('canvas'); c.width=512; c.height=256; const ctx=c.getContext('2d'); ctx.fillStyle='rgba(0,0,0,0)'; ctx.fillRect(0,0,512,256); ctx.fillStyle='rgba(255,255,255,0.22)'; for(let i=0;i<70;i++){ const x=Math.random()*512,y=Math.random()*256,r=8+Math.random()*20; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); } const t=new THREE.CanvasTexture(c); cloudTex.image=t.image; cloudTex.needsUpdate=true; })();
+  // Clouds disabled per user request — keep minimal placeholder (invisible) to avoid extra uploads
+  // Still load texture for invisible mesh only if needed, but don't bind to earth shader (no cloudTexture uniform)
+  loader.load('./libs/earth_clouds_1024.png', (loaded)=>{ cloudTex.image=loaded.image; cloudTex.needsUpdate=true; hideLoader(); if(cloudsMesh) cloudsMesh.material.map=cloudTex; if(cloudsMesh.visible) cloudsMesh.material.needsUpdate=true; }, undefined, ()=>{
+    loader.load('https://threejs.org/examples/textures/planets/earth_clouds_1024.png', (loaded2)=>{ cloudTex.image=loaded2.image; cloudTex.needsUpdate=true; hideLoader(); }, undefined, ()=>{ hideLoader(); });
+  });
+
+  // --- HYPERREAL DIRECTX SHADER ---
+  // Features: PBR ocean specular, cloud shadows, bump normal perturbation, Fresnel, atmospheric rim, ACES, city lights bloom
   try{
     earthMat=new THREE.ShaderMaterial({
-      uniforms:{ dayTexture:{value:dayTex}, nightTexture:{value:nightTex}, bumpTexture:{value:bumpTex}, sunDirection:{value:sunLight.position.clone().normalize()} },
-      vertexShader:`varying vec2 vUv; varying vec3 vPos; void main(){ vUv=uv; vPos=(modelMatrix*vec4(position,1.0)).xyz; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-      fragmentShader:`uniform sampler2D dayTexture; uniform sampler2D nightTexture; uniform sampler2D bumpTexture; uniform vec3 sunDirection; varying vec2 vUv; varying vec3 vPos;
+      uniforms:{ 
+        dayTexture:{value:dayTex}, 
+        nightTexture:{value:nightTex}, 
+        bumpTexture:{value:bumpTex}, 
+        specularTexture:{value:specularTex},
+        sunDirection:{value:sunLight.position.clone().normalize()},
+        cameraPos:{value:camera.position.clone()},
+        time:{value:0}
+      },
+      vertexShader:`
+        uniform sampler2D bumpTexture;
+        varying vec2 vUv; 
+        varying vec3 vPos; 
+        varying vec3 vNormal;
+        void main(){ 
+          vUv=uv; 
+          float h = texture2D(bumpTexture, uv).r;
+          // CHECKPOINT smooth terrain — 0.018u = 1.8% of small Earth R=1 (0.54u was for big Earth R=30 = 54% = spiky)
+          vec3 displaced = position + normal * (h - 0.5) * ${(0.018*1).toFixed(3)};
+          // micro ridges second octave
+          float h2 = texture2D(bumpTexture, uv*2.7).r * 0.22;
+          displaced += normal * h2 * ${(0.007*1).toFixed(3)};
+          vPos=(modelMatrix*vec4(displaced,1.0)).xyz; 
+          vNormal=normalize(normalMatrix*normal);
+          gl_Position=projectionMatrix*modelViewMatrix*vec4(displaced,1.0); 
+        }`,
+      fragmentShader:`
+        uniform sampler2D dayTexture; 
+        uniform sampler2D nightTexture; 
+        uniform sampler2D bumpTexture; 
+        uniform sampler2D specularTexture;
+        uniform vec3 sunDirection; 
+        uniform vec3 cameraPos;
+        varying vec2 vUv; 
+        varying vec3 vPos;
+        varying vec3 vNormal;
+        
+        // DirectX-style ACES approx
+        vec3 aces(vec3 x){
+          const float a=2.51; const float b=0.03; const float c=2.43; const float d=0.59; const float e=0.14;
+          return clamp((x*(a*x+b))/(x*(c*x+d)+e),0.0,1.0);
+        }
+
         void main(){
           vec3 day=texture2D(dayTexture,vUv).rgb;
           vec3 night=texture2D(nightTexture,vUv).rgb;
-          // MUCH brighter — keep real maps but lift massively
-          day = pow(day, vec3(0.88)) * 1.85;
-          night = pow(night, vec3(0.90)) * 1.65;
-          vec3 n=normalize(vPos);
-          float sd=dot(n, normalize(sunDirection));
-          float dm=smoothstep(-0.30,0.30,sd);
-          float nm=smoothstep(0.15,-0.28,sd);
-          vec3 col=mix(night*1.55, day, dm);
           float bump=texture2D(bumpTexture,vUv).r;
-          col += (bump - 0.5) * 0.16 * dm;
-          float fres=pow(1.0-max(dot(n, normalize(cameraPosition - vPos)),0.0),3.0);
-          col+=fres*vec3(0.28,0.60,1.0)*0.62*dm;
-          float spec=pow(max(dot(reflect(-normalize(sunDirection), n), normalize(cameraPosition - vPos)),0.0),48.0)*0.72*dm*(1.0-bump*0.28);
-          col+=spec;
-          col=mix(col, night*1.85, nm*0.28);
-          col *= 1.32;
-          // keep from washing to white but very bright
-          col = pow(col, vec3(0.90));
+          float specMask=texture2D(specularTexture,vUv).r; // 1=water, 0=land
+
+          // Bright morning — land + sea clearly visible (was too dark)
+          day = pow(day, vec3(0.8)) * 1.15;
+
+          night = vec3(0.0); // no night side — morning everywhere, no sun
+          // Night lights only on land, attenuated by specMask
+          float landFactor = 1.0 - smoothstep(0.2,0.55,specMask);
+          night *= landFactor * 0.9;
+
+          vec3 n=normalize(vNormal);
+          // REALISTIC TOPOGRAPHY — Sobel gradient normal perturbation, ridges literally pop in 3D
+          float du = 0.85/1024.0;
+          float dv = 0.85/512.0;
+          float hL = texture2D(bumpTexture, vUv + vec2(-du,0)).r;
+          float hR = texture2D(bumpTexture, vUv + vec2(du,0)).r;
+          float hD = texture2D(bumpTexture, vUv + vec2(0,-dv)).r;
+          float hU = texture2D(bumpTexture, vUv + vec2(0,dv)).r;
+          float hL2 = texture2D(bumpTexture, vUv*2.7 + vec2(-du,0)).r*0.5;
+          float hR2 = texture2D(bumpTexture, vUv*2.7 + vec2(du,0)).r*0.5;
+          float hD2 = texture2D(bumpTexture, vUv*2.7 + vec2(0,-dv)).r*0.5;
+          float hU2 = texture2D(bumpTexture, vUv*2.7 + vec2(0,dv)).r*0.5;
+          vec2 grad = vec2((hR - hL)+(hR2 - hL2)*0.32, (hU - hD)+(hU2 - hD2)*0.32) * 4.2;
+          vec3 dpdx = dFdx(vPos);
+          vec3 dpdy = dFdy(vPos);
+          vec3 tx = normalize(cross(n, dpdy));
+          vec3 ty = normalize(cross(dpdx, n));
+          vec3 bumpNormal = normalize(n - grad.x * tx - grad.y * ty);
+          n = normalize(mix(n, bumpNormal, 0.95));
+
+          vec3 viewDir=normalize(cameraPos - vPos);
+          float fres=pow(1.0-max(dot(n, viewDir),0.0),3.0);
+          // NO SUN — morning everywhere: uniform daylight, no terminator, no sun-glare white blowout
+          vec3 col=day;
+          // Pure NASA colors — subtle height shading (no sun direction)
+          float height = bump;
+          col += (height - 0.5) * 0.08; // subtle relief
+          float ao = 1.0 - length(grad)*0.32;
+          ao = clamp(ao, 0.72, 1.0);
+          col *= mix(1.0, ao, 0.3); // soft valleys
+          col += fres*vec3(0.28,0.60,1.0)*0.18; // constant morning rim all around (no dayMix)
+          // sun specular + night lights REMOVED — they caused white blowout + dark side
+          // terminator thermal aurora REMOVED — was blue thermostat glow
+          
+          // Bright morning exposure — vivid land/sea
+          col *= 1.05;
+          col = aces(col);
+          col = pow(col, vec3(0.94));
+          
           gl_FragColor=vec4(col,1.0);
         }`
     });
   } catch(e){
-    console.warn('shader fail',e);
-    earthMat=new THREE.MeshPhongMaterial({ map:dayTex, emissiveMap:nightTex, emissive:0x333333, shininess:22 });
+    console.warn('hyperreal shader fail',e);
+    earthMat=new THREE.MeshPhongMaterial({ map:dayTex, emissiveMap:nightTex, emissive:0x333333, shininess:28, specular:0x222222 });
   }
   earthMesh=new THREE.Mesh(geo, earthMat);
+  earthMesh.castShadow=false; earthMesh.receiveShadow=false;
   scene.add(earthMesh);
 
-  // clouds — start with translucent fallback, hot-swap real
-  const cloudTex=makeFallbackTex('day');
-  cloudTex.colorSpace=THREE.SRGBColorSpace;
-  // make it cloudy-like initially
-  (()=>{ const c=document.createElement('canvas'); c.width=512; c.height=256; const ctx=c.getContext('2d'); ctx.fillStyle='rgba(0,0,0,0)'; ctx.fillRect(0,0,512,256); ctx.fillStyle='rgba(255,255,255,0.22)'; for(let i=0;i<70;i++){ const x=Math.random()*512,y=Math.random()*256,r=8+Math.random()*20; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); } const t=new THREE.CanvasTexture(c); cloudTex.image=t.image; cloudTex.needsUpdate=true; })();
-  loader.load('./libs/earth_clouds_1024.png', (loaded)=>{ cloudTex.image=loaded.image; cloudTex.needsUpdate=true; hideLoader(); }, undefined, ()=>{
-    loader.load('https://threejs.org/examples/textures/planets/earth_clouds_1024.png', (loaded2)=>{ cloudTex.image=loaded2.image; cloudTex.needsUpdate=true; hideLoader(); }, undefined, ()=>{ hideLoader(); });
+  // Clouds — REMOVED per user request (no white spots) — radius derived from KM_PER_UNIT (12km above surface)
+  const cg=new THREE.SphereGeometry(sceneRadius(12), 64,64);
+  const cm=new THREE.MeshStandardMaterial({ 
+    map:cloudTex, 
+    transparent:true, 
+    opacity:0.0, 
+    depthWrite:false,
+    roughness:0.95,
+    metalness:0.0,
+    alphaTest:0.01
   });
-  const cg=new THREE.SphereGeometry(R_EARTH*1.003, 64,64);
-  const cm=new THREE.MeshLambertMaterial({ map:cloudTex, transparent:true, opacity:0.34, depthWrite:false });
   cloudsMesh=new THREE.Mesh(cg, cm);
+  cloudsMesh.visible=false;
   scene.add(cloudsMesh);
 
-  // atmosphere — store for LOD
-  const ag=new THREE.SphereGeometry(R_EARTH*1.035,64,64);
-  const am=new THREE.ShaderMaterial({ side:THREE.BackSide, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false,
-    vertexShader:`varying vec3 vN; void main(){ vN=normalize(normalMatrix*normal); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-    fragmentShader:`varying vec3 vN; void main(){ float i=pow(0.72 - dot(vN, vec3(0,0,1)),4.0); vec3 g=vec3(0.18,0.55,1.0)*i; gl_FragColor=vec4(g,0.85*i); }` });
+  // Atmosphere — dimmer like index.html (was too bright) — derived: outer 220km halo, inner 70km
+  // Outer (space view) — scene radius = 1 + alt/KM_PER_UNIT
+  const ag=new THREE.SphereGeometry(sceneRadius(220), 64,64);
+  const am=new THREE.ShaderMaterial({ 
+    side:THREE.BackSide, 
+    transparent:true, 
+    blending:THREE.AdditiveBlending, 
+    depthWrite:false,
+    uniforms:{ sunDirection:{value:sunLight.position.clone().normalize()}, cameraPos:{value:camera.position.clone()} },
+    vertexShader:`varying vec3 vPos; varying vec3 vNormal; void main(){ vPos=(modelMatrix*vec4(position,1.0)).xyz; vNormal=normalize(normalMatrix*normal); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+    fragmentShader:`
+      uniform vec3 sunDirection; uniform vec3 cameraPos;
+      varying vec3 vPos; varying vec3 vNormal;
+      void main(){
+        vec3 n=normalize(vNormal);
+        vec3 viewDir=normalize(cameraPos - vPos);
+        float NdotV=max(dot(n, viewDir),0.0);
+        float NdotL=max(dot(n, normalize(sunDirection)),0.0);
+        // Rayleigh: pure blue, Mie reduced — no thermal orange
+        float rayleigh = pow(1.0 - NdotV, 3.8) * (0.6 + NdotL*0.45);
+        float mie = pow(max(dot(viewDir, normalize(sunDirection)),0.0), 42.0)*0.32;
+        vec3 rayleighCol = vec3(0.18,0.48,1.0)* rayleigh * 0.95;
+        vec3 mieCol = vec3(1.0,0.82,0.45)* mie * 0.45;
+        float alpha = rayleigh*0.88 + mie*0.32;
+        gl_FragColor=vec4(rayleighCol + mieCol, alpha*0.85);
+      }`
+  });
   window._atmoOuter=new THREE.Mesh(ag,am); scene.add(window._atmoOuter);
-  const rg=new THREE.SphereGeometry(R_EARTH*1.012,64,64);
-  const rm=new THREE.ShaderMaterial({ transparent:true, blending:THREE.AdditiveBlending, depthWrite:false,
-    vertexShader:`varying vec3 vP; void main(){ vP=(modelMatrix*vec4(position,1.0)).xyz; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-    fragmentShader:`varying vec3 vP; void main(){ vec3 n=normalize(vP); float f=pow(1.0-max(dot(n, normalize(cameraPosition - vP)),0.0),6.0); gl_FragColor=vec4(vec3(0.4,0.75,1.0)*f*0.6, f*0.5); }` });
+  
+  // Inner glow (horizon) — 70km = 1.0110
+  const rg=new THREE.SphereGeometry(sceneRadius(70), 64,64);
+  const rm=new THREE.ShaderMaterial({ 
+    transparent:true, 
+    blending:THREE.AdditiveBlending, 
+    depthWrite:false,
+    uniforms:{ sunDirection:{value:sunLight.position.clone().normalize()}, cameraPos:{value:camera.position.clone()} },
+    vertexShader:`varying vec3 vP; varying vec3 vN; void main(){ vP=(modelMatrix*vec4(position,1.0)).xyz; vN=normalize(normalMatrix*normal); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+    fragmentShader:`
+      uniform vec3 sunDirection; uniform vec3 cameraPos;
+      varying vec3 vP; varying vec3 vN;
+      void main(){
+        vec3 n=normalize(vN);
+        vec3 v=normalize(cameraPos - vP);
+        float f=pow(1.0-max(dot(n, v),0.0),5.5);
+        float sunAlign = max(dot(n, normalize(sunDirection)),0.0);
+        vec3 col = vec3(0.38,0.72,1.0)*f*0.62 * (0.45+sunAlign*0.55);
+        // orange thermal REMOVED — pure blue atmosphere like index.html
+        gl_FragColor=vec4(col, f*0.52);
+      }`
+  });
   window._atmoInner=new THREE.Mesh(rg,rm); scene.add(window._atmoInner);
 }
 createEarth();
 
-// LEO shells
+// LEO shells — derived from single LEO_SHELL_DEFS constant
 const shellsGroup=new THREE.Group(); scene.add(shellsGroup);
-const defs=[
-  {name:'Kármán',km:100,color:0x93c5fd,op:0.11},
-  {name:'VLEO inner',km:160,color:0xfacc15,op:0.09},
-  {name:'VLEO outer',km:450,color:0xfacc15,op:0.06},
-  {name:'LEO CORE outer',km:800,color:0x38bdf8,op:0.10},
-  {name:'Upper LEO outer',km:2000,color:0xa78bfa,op:0.08},
-];
+const defs=LEO_SHELL_DEFS;
 const shellMeshes=[];
 const shellLabels=[];
 defs.forEach(d=>{
   const r=R_EARTH+toScene(d.km);
   const isUpper = d.km >= 800;
   const g=new THREE.SphereGeometry(r,64,64);
-  // all shells a little blur — soften wireframe + add halo
   const baseOp = d.op * (isUpper ? 0.58 : 0.72);
   const m=new THREE.MeshBasicMaterial({color:d.color, transparent:true, opacity: baseOp, wireframe:true, depthWrite:false});
   const mesh=new THREE.Mesh(g,m); mesh.userData=d; mesh.userData.isUpper=isUpper; shellsGroup.add(mesh); shellMeshes.push(mesh);
-  // blur halo for every shell — upper gets stronger haze
   const haloOp = isUpper ? 0.032 : 0.022;
   const haloOp2 = isUpper ? 0.022 : 0.014;
-  const hg=new THREE.SphereGeometry(r*1.005, 48,48);
+  // halo radii VAST: shell + 8km and shell - 6km in exaggerated units
+  const hg=new THREE.SphereGeometry(r + 8/KM_PER_UNIT*ALT_EXAG, 48,48);
   const hm=new THREE.MeshBasicMaterial({color:d.color, transparent:true, opacity:haloOp, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.BackSide});
   const halo=new THREE.Mesh(hg,hm); halo.userData={isHalo:true, parentKm:d.km}; shellsGroup.add(halo);
-  const hg2=new THREE.SphereGeometry(r*0.995, 48,48);
+  const hg2=new THREE.SphereGeometry(r - 6/KM_PER_UNIT*ALT_EXAG, 48,48);
   const hm2=new THREE.MeshBasicMaterial({color:d.color, transparent:true, opacity:haloOp2, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.FrontSide});
   const halo2=new THREE.Mesh(hg2,hm2); halo2.userData={isHalo:true, parentKm:d.km}; shellsGroup.add(halo2);
   mesh.userData.halos=[halo,halo2];
-  const rg2=new THREE.RingGeometry(r-0.002,r+0.002,128); rg2.rotateX(Math.PI/2);
+  const haloThick = 6/KM_PER_UNIT*ALT_EXAG; // 6km exaggerated thickness
+  const rg2=new THREE.RingGeometry(r - haloThick, r + haloThick, 128); rg2.rotateX(Math.PI/2);
   const rm2=new THREE.MeshBasicMaterial({color:d.color, transparent:true, opacity: isUpper ? 0.09 : 0.13, side:THREE.DoubleSide, depthWrite:false});
   const ring=new THREE.Mesh(rg2,rm2); ring.userData={isRing:true, parentKm:d.km, isUpper}; shellsGroup.add(ring);
   mesh.userData.ring=ring;
-  // label
   const c=document.createElement('canvas'); c.width=512; c.height=96;
   const ctx=c.getContext('2d'); ctx.fillStyle='rgba(8,14,30,0.85)'; ctx.strokeStyle='rgba(120,180,255,0.35)'; ctx.lineWidth=2;
   ctx.beginPath(); ctx.roundRect(8,12,496,72,14); ctx.fill(); ctx.stroke();
   ctx.fillStyle='#e6eef8'; ctx.font='600 18px JetBrains Mono'; ctx.textAlign='center'; ctx.fillText(`${d.name} — ${d.km} km`,256,48);
   ctx.fillStyle='#93c5fd'; ctx.font='11px JetBrains Mono'; ctx.fillText('LEO SHELL',256,68);
   const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace;
-  const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, transparent:true, depthWrite:false})); spr.scale.set(0.5,0.095,1);
-  const ang=(d.km%2===0?18:-28)*RAD; spr.position.set(Math.cos(ang)*r,0.16,Math.sin(ang)*r); spr.userData={km:d.km, baseScale:0.5}; shellsGroup.add(spr); shellLabels.push(spr);
+  const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, transparent:true, depthWrite:false, depthTest:false})); const vastBase=0.35+r*0.18; spr.scale.set(vastBase,vastBase*0.19,1); spr.renderOrder=10;
+  const ang=(d.km%2===0?18:-28)*RAD; spr.position.set(Math.cos(ang)*r,0,Math.sin(ang)*r); spr.userData={km:d.km, baseScale:vastBase, ang}; shellsGroup.add(spr); shellLabels.push(spr);
 });
-// --- PER-LAYER DIMENSIONS — each LEO slice is its own huge world ---
 function createLayerDimension(name, innerKm, outerKm, color, count){
   const g=new THREE.Group(); g.visible=false; g.name=name; scene.add(g);
-  const iR=R_EARTH+toScene(innerKm), oR=R_EARTH+toScene(outerKm);
+  const iR=sceneRadius(innerKm), oR=sceneRadius(outerKm);
   const fogG=new THREE.SphereGeometry(oR, 56,56);
   const fogM=new THREE.ShaderMaterial({
     side:THREE.BackSide, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
@@ -464,11 +864,12 @@ function createLayerDimension(name, innerKm, outerKm, color, count){
     fragmentShader:`varying vec3 vPos; uniform float innerR; uniform float outerR; uniform vec3 col;
       void main(){
         float r=length(vPos);
-        float d=smoothstep(innerR-0.035, innerR+0.02, r)*(1.0 - smoothstep(outerR-0.035, outerR+0.02, r));
+        // MICRO-VAST thickness: 12km/8km/18km exaggerated ×${ALT_EXAG.toFixed(1)} (was 12.0/6371.0 etc at 1×)
+        float d=smoothstep(innerR-12.0/6371.0*${ALT_EXAG.toFixed(1)}, innerR+8.0/6371.0*${ALT_EXAG.toFixed(1)}, r)*(1.0 - smoothstep(outerR-18.0/6371.0*${ALT_EXAG.toFixed(1)}, outerR+12.0/6371.0*${ALT_EXAG.toFixed(1)}, r));
         float fres=pow(1.0-abs(dot(normalize(vPos), vec3(0,1,0))),2.0)*0.20;
         float a=d*(0.09+fres*0.32);
         vec3 c=mix(col*0.55, col*1.15, smoothstep(innerR, outerR, r));
-        float grid=step(0.987, fract(r*32.0))*0.05;
+        float grid=step(0.987, fract(r*4.0))*0.05;
         c+=vec3(0.7,0.8,1.0)*grid;
         gl_FragColor=vec4(c, a);
       }`
@@ -491,11 +892,12 @@ function createLayerDimension(name, innerKm, outerKm, color, count){
   }
   pGeo.setAttribute('position', new THREE.BufferAttribute(pPos,3));
   pGeo.setAttribute('color', new THREE.BufferAttribute(pCol,3));
-  const pMat=new THREE.PointsMaterial({size:0.013, vertexColors:true, transparent:true, opacity:0.68, sizeAttenuation:true, blending:THREE.AdditiveBlending, depthWrite:false});
+  const pMat=new THREE.PointsMaterial({size:0.18, vertexColors:true, transparent:true, opacity:0.68, sizeAttenuation:true, blending:THREE.AdditiveBlending, depthWrite:false});
   g.add(new THREE.Points(pGeo,pMat));
   for(let i=0;i<5;i++){
     const rad=iR + (i+0.6)/5*(oR-iR);
-    const rg=new THREE.RingGeometry(rad-0.001, rad+0.001, 96);
+    const ringHalf = 0.001*ALT_EXAG; // VAST ring thickness
+    const rg=new THREE.RingGeometry(rad-ringHalf, rad+ringHalf, 96);
     rg.rotateX((38+i*13)*RAD); rg.rotateY((i*37)*RAD);
     const rm=new THREE.MeshBasicMaterial({color:color, transparent:true, opacity:0.10, side:THREE.DoubleSide, depthWrite:false, blending:THREE.AdditiveBlending});
     g.add(new THREE.Mesh(rg, rm));
@@ -506,20 +908,55 @@ const upperLeoGroup=createLayerDimension('UPPER', 800, 2000, 0xa78bfa, 3200);
 const leoCoreGroup=createLayerDimension('CORE', 450, 800, 0x38bdf8, 2200);
 const vleoGroup=createLayerDimension('VLEO', 160, 450, 0xfacc15, 1800);
 const karmanGroup=createLayerDimension('KARMAN', 100, 160, 0x93c5fd, 900);
-// keep legacy names for existing LOD code
-const fogMesh=upperLeoGroup.userData.fog; // for old uniform camAlt compat
-if(fogMesh) fogMesh.material.uniforms.camAlt={value:1200};
+// Crystal fields OFF per user request — orbit holds only sats + orbit lines. Layer fog/particles/rings/wireframes stay hidden.
+window._noCrystals=true;
+[upperLeoGroup,leoCoreGroup,vleoGroup,karmanGroup].forEach(g=>{ g.visible=false; });
+const fogMesh=upperLeoGroup.userData.fog;
+// removed dead uniform camAlt — shader never declared/used it
 
-// satellites — simple Kepler
+// satellites — Kepler + DirectX PBR materials — EXACT PROPORTION (Earth R=30, 1km=0.004708u)
+// Real sats 10m = 0.01km → 0.000047u sub-pixel, so meshes exaggerated to stay visible vs Earth 30; tooltip shows REAL m/km.
 function solveKepler(M,e){ let E=M; for(let i=0;i<6;i++){ let f=E - e*Math.sin(E) - M, fp=1 - e*Math.cos(E); E-=f/fp; } return E; }
 class Sat{
   constructor(o){ this.type=o.type; this.a=o.a; this.e=o.e||0; this.inc=o.inc*RAD; this.raan=o.raan*RAD; this.argP=o.argP*RAD; this.M0=o.M0*RAD; this.mass=o.mass||800; this.spin=o.spin||0;
-    this.group=new THREE.Group(); this.trail=[]; this.trailMax=180;
+    // Real physical size for tooltip (m) — not mesh scale
+    if(this.type==='debris') this.realSizeM = o.realSizeM || (0.5 + Math.random()*2.5); // 0.5–3m debris
+    else if(this.type==='active') this.realSizeM = o.realSizeM || 10; // Starlink ~10m with panels, OneWeb ~3m
+    else if(this.type==='sensory') this.realSizeM = o.realSizeM || 1.2;
+    else this.realSizeM = o.realSizeM || 4.5; // action
+    this.realSizeKm = this.realSizeM / 1000;
+    // mesh 0.54u = 114.7km real vs 0.002km real → ~57k× (scaled ×30 to match Earth R=30, same screen ratio as before)
+    this.exaggeration = ((0.018*R_EARTH*KM_PER_UNIT/ALT_EXAG)/this.realSizeKm).toFixed(0);
+    this.group=new THREE.Group(); this.trail=[]; this.trailMax=90;
     let mesh;
-    if(this.type==='debris'){ const g=new THREE.BoxGeometry(0.018,0.012,0.022); const m=new THREE.MeshStandardMaterial({color:0xf87171, emissive:0x7f1d1d, emissiveIntensity:0.35}); mesh=new THREE.Mesh(g,m); }
-    else if(this.type==='active'){ const g=new THREE.BoxGeometry(0.022,0.016,0.016); const m=new THREE.MeshStandardMaterial({color:0x22c55e, emissive:0x14532d, emissiveIntensity:0.25}); mesh=new THREE.Mesh(g,m); const pg=new THREE.BoxGeometry(0.028,0.001,0.016); const pm=new THREE.MeshStandardMaterial({color:0x1e3a8a}); const p1=new THREE.Mesh(pg,pm); p1.position.set(0,0,0.018); mesh.add(p1); const p2=p1.clone(); p2.position.set(0,0,-0.018); mesh.add(p2); }
-    else if(this.type==='sensory'){ const g=new THREE.OctahedronGeometry(0.012,0); const m=new THREE.MeshStandardMaterial({color:0xfacc15, emissive:0xf59e0b, emissiveIntensity:0.55}); mesh=new THREE.Mesh(g,m); const cg=new THREE.ConeGeometry(0.018,0.04,16,1,true); const cm=new THREE.MeshBasicMaterial({color:0xfacc15, transparent:true, opacity:0.12, side:THREE.DoubleSide}); const cone=new THREE.Mesh(cg,cm); cone.rotation.x=Math.PI; cone.position.y=-0.03; mesh.add(cone); }
-    else { const g=new THREE.CylinderGeometry(0.008,0.011,0.032,12); const m=new THREE.MeshStandardMaterial({color:0xfb923c, emissive:0x9a3412, emissiveIntensity:0.45}); mesh=new THREE.Mesh(g,m); mesh.rotation.z=Math.PI/2; }
+    const SZ=R_EARTH; // scale sat meshes with Earth so they stay visible (Earth 1→30, sats ×30)
+    if(this.type==='debris'){ 
+      const g=new THREE.BoxGeometry(0.018*SZ,0.012*SZ,0.022*SZ);
+      const m=new THREE.MeshStandardMaterial({color:0xf87171, emissive:0x7f1d1d, emissiveIntensity:0.42, roughness:0.58, metalness:0.22}); 
+      mesh=new THREE.Mesh(g,m); 
+    }
+    else if(this.type==='active'){ 
+      const g=new THREE.BoxGeometry(0.022*SZ,0.016*SZ,0.016*SZ);
+      const m=new THREE.MeshStandardMaterial({color:0x22c55e, emissive:0x14532d, emissiveIntensity:0.32, roughness:0.42, metalness:0.45}); 
+      mesh=new THREE.Mesh(g,m); 
+      const pg=new THREE.BoxGeometry(0.028*SZ,0.001*SZ,0.016*SZ); 
+      const pm=new THREE.MeshStandardMaterial({color:0x1e3a8a, roughness:0.25, metalness:0.78}); 
+      const p1=new THREE.Mesh(pg,pm); p1.position.set(0,0,0.018*SZ); mesh.add(p1); 
+      const p2=p1.clone(); p2.position.set(0,0,-0.018*SZ); mesh.add(p2); 
+    }
+    else if(this.type==='sensory'){ 
+      const g=new THREE.OctahedronGeometry(0.012*SZ,0);
+      const m=new THREE.MeshStandardMaterial({color:0xfacc15, emissive:0xf59e0b, emissiveIntensity:0.62, roughness:0.35, metalness:0.55}); 
+      mesh=new THREE.Mesh(g,m); 
+      const cg=new THREE.ConeGeometry(0.018*SZ,0.04*SZ,16,1,true); 
+      const cm=new THREE.MeshBasicMaterial({color:0xfacc15, transparent:true, opacity:0.14, side:THREE.DoubleSide}); 
+      const cone=new THREE.Mesh(cg,cm); cone.rotation.x=Math.PI; cone.position.y=-0.03*SZ; mesh.add(cone); 
+    }
+    else { 
+      const g=new THREE.CylinderGeometry(0.008*SZ,0.011*SZ,0.032*SZ,12); 
+      const m=new THREE.MeshStandardMaterial({color:0xfb923c, emissive:0x9a3412, emissiveIntensity:0.52, roughness:0.48, metalness:0.35}); 
+      mesh=new THREE.Mesh(g,m); mesh.rotation.z=Math.PI/2; 
+    }
     this.mesh=mesh; this.group.add(mesh);
     const col=this.type==='debris'?0xf87171:this.type==='active'?0x22c55e:this.type==='sensory'?0xfacc15:0xfb923c;
     const og=new THREE.BufferGeometry(); const pts=[]; for(let a=0;a<=360;a+=2){ const p=this.at((a/360)*(2*Math.PI/Math.sqrt(MU/Math.pow(this.a,3)))); pts.push(p.x,p.y,p.z); } og.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
@@ -527,20 +964,19 @@ class Sat{
     this.trailLine=new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({color:col, transparent:true, opacity:0.8, depthWrite:false})); scene.add(this.trailLine);
     scene.add(this.group);
   }
-  at(t){ const n=Math.sqrt(MU/Math.pow(this.a,3)), M=this.M0+n*t; let r,nu; if(this.e<1e-4){ r=this.a; nu=M%(2*Math.PI);} else { const E=solveKepler(((M%(2*Math.PI))+2*Math.PI)%(2*Math.PI), this.e); nu=2*Math.atan2(Math.sqrt(1+this.e)*Math.sin(E/2), Math.sqrt(1-this.e)*Math.cos(E/2)); r=this.a*(1 - this.e*Math.cos(E)); } const p=r*Math.cos(nu), q=r*Math.sin(nu); const co=Math.cos(this.raan), so=Math.sin(this.raan), ci=Math.cos(this.inc), si=Math.sin(this.inc), cw=Math.cos(this.argP), sw=Math.sin(this.argP); const x=(co*cw - so*sw*ci)*p + (-co*sw - so*cw*ci)*q; const y=(so*cw + co*sw*ci)*p + (-so*sw + co*cw*ci)*q; const z=(sw*si)*p + (cw*si)*q; return new THREE.Vector3(x/R_EARTH_KM, z/R_EARTH_KM, y/R_EARTH_KM); }
+  at(t){ const n=Math.sqrt(MU/Math.pow(this.a,3)), M=this.M0+n*t; let r,nu; if(this.e<1e-4){ r=this.a; nu=M%(2*Math.PI);} else { const E=solveKepler(((M%(2*Math.PI))+2*Math.PI)%(2*Math.PI), this.e); nu=2*Math.atan2(Math.sqrt(1+this.e)*Math.sin(E/2), Math.sqrt(1-this.e)*Math.cos(E/2)); r=this.a*(1 - this.e*Math.cos(E)); } const p=r*Math.cos(nu), q=r*Math.sin(nu); const co=Math.cos(this.raan), so=Math.sin(this.raan), ci=Math.cos(this.inc), si=Math.sin(this.inc), cw=Math.cos(this.argP), sw=Math.sin(this.argP); const x=(co*cw - so*sw*ci)*p + (-co*sw - so*cw*ci)*q; const y=(so*cw + co*sw*ci)*p + (-so*sw + co*cw*ci)*q; const z=(sw*si)*p + (cw*si)*q; const rk=Math.sqrt(x*x+y*y+z*z); const exR=sceneRadius(rk-KM_PER_UNIT); const s=exR/rk; return new THREE.Vector3(x*s, z*s, y*s); }
   upd(t,dt){ const pos=this.at(t); this.group.position.copy(pos); if(this.type==='debris'){ this.mesh.rotation.x+=this.spin*dt*0.8; this.mesh.rotation.y+=this.spin*dt*0.6; } else if(this.type==='sensory') this.mesh.rotation.y+=dt*0.25; else if(this.type==='active') this.mesh.rotation.y+=dt*0.08;
-    this.trail.push(pos.clone()); if(this.trail.length>this.trailMax) this.trail.shift(); const arr=new Float32Array(this.trail.length*3); for(let i=0;i<this.trail.length;i++){ arr[i*3]=this.trail[i].x; arr[i*3+1]=this.trail[i].y; arr[i*3+2]=this.trail[i].z; } this.trailLine.geometry.setAttribute('position', new THREE.BufferAttribute(arr,3)); this.trailLine.geometry.setDrawRange(0,this.trail.length); this.trailLine.geometry.attributes.position.needsUpdate=true; this.currentAlt=pos.length()*R_EARTH_KM - R_EARTH_KM; }
+    this.trail.push(pos.clone()); if(this.trail.length>this.trailMax) this.trail.shift(); const arr=new Float32Array(this.trail.length*3); for(let i=0;i<this.trail.length;i++){ arr[i*3]=this.trail[i].x; arr[i*3+1]=this.trail[i].y; arr[i*3+2]=this.trail[i].z; } this.trailLine.geometry.setAttribute('position', new THREE.BufferAttribute(arr,3)); this.trailLine.geometry.setDrawRange(0,this.trail.length); this.trailLine.geometry.attributes.position.needsUpdate=true; this.currentAlt=altFromRadius(pos.length()); }
 }
 function rand(a,b){ return a+Math.random()*(b-a); }
 const sats=[];
-for(let i=0;i<30;i++){ const alt=i<10?rand(190,420):i<20?rand(520,780):rand(820,1500); sats.push(new Sat({type:'debris',a:R_EARTH_KM+alt,e:Math.random()<0.7?rand(0,0.02):rand(0.03,0.08),inc:rand(28,98),raan:rand(0,360),argP:rand(0,360),M0:rand(0,360),mass:rand(500,1800),spin:rand(0.4,1.6)})); }
-for(let i=0;i<18;i++){ const alt=[550,540,560,1200,740,420][i%6]+rand(-10,10); sats.push(new Sat({type:'active',a:R_EARTH_KM+alt,e:rand(0,0.008),inc:i<12?rand(42,53):rand(70,98),raan:rand(0,360),argP:rand(0,360),M0:rand(0,360)})); }
-for(let i=0;i<10;i++) sats.push(new Sat({type:'sensory',a:R_EARTH_KM+rand(480,620),e:0,inc:rand(50,86),raan:(i/10)*360+rand(-5,5),argP:0,M0:(i/10)*360}));
-for(let i=0;i<6;i++) sats.push(new Sat({type:'action',a:R_EARTH_KM+rand(500,640),e:0,inc:rand(52,82),raan:rand(0,360),argP:0,M0:rand(0,360)}));
+for(let i=0;i<30;i++){ const alt=i<10?rand(190,420):i<20?rand(520,780):rand(820,1500); sats.push(new Sat({type:'debris',a:KM_PER_UNIT+alt,e:Math.random()<0.7?rand(0,0.02):rand(0.03,0.08),inc:rand(28,98),raan:rand(0,360),argP:rand(0,360),M0:rand(0,360),mass:rand(500,1800),spin:rand(0.4,1.6)})); }
+for(let i=0;i<18;i++){ const alt=[550,540,560,1200,740,420][i%6]+rand(-10,10); sats.push(new Sat({type:'active',a:KM_PER_UNIT+alt,e:rand(0,0.008),inc:i<12?rand(42,53):rand(70,98),raan:rand(0,360),argP:rand(0,360),M0:rand(0,360)})); }
+// REMOVED crystal swarm (10 sensory octahedrons + cones, 6 action cylinders) per user request — orbit holds only realistic sats + orbit lines.
 document.getElementById('pillCount').textContent=sats.length+' OBJECTS';
 document.getElementById('debrisCount').textContent='30';
 document.getElementById('activeCount').textContent='18';
-document.getElementById('swarmCount').textContent='16';
+document.getElementById('swarmCount').textContent='0';
 
 // tooltip
 const ray=new THREE.Raycaster(), mouse=new THREE.Vector2(); let hovered=null; const tip=document.getElementById('tooltip');
@@ -548,63 +984,141 @@ renderer.domElement.addEventListener('pointermove', e=>{
   mouse.x=(e.clientX/innerWidth)*2-1; mouse.y=-(e.clientY/innerHeight)*2+1; ray.setFromCamera(mouse,camera);
   const meshes=sats.map(s=>s.mesh); const its=ray.intersectObjects(meshes,true);
   if(its.length){ let m=its[0].object, sat=null; for(const s of sats){ if(m===s.mesh || s.mesh.children.includes(m)) sat=s; } if(!sat){ let cur=m; while(cur){ for(const s of sats) if(s.mesh===cur) sat=s; cur=cur?.parent; if(sat) break; } }
-    if(sat){ hovered=sat; const alt=(sat.currentAlt??(sat.a-R_EARTH_KM)).toFixed(0); const vel=Math.sqrt(MU/sat.a).toFixed(2); tip.innerHTML=`<b>${sat.type.toUpperCase()}</b><br>Alt <b>${alt} km</b> · Vel <b>${vel} km/s</b>`; tip.style.left=e.clientX+'px'; tip.style.top=e.clientY+'px'; tip.classList.add('show'); document.body.style.cursor='pointer'; return; }
+    if(sat){ hovered=sat; const alt=(sat.currentAlt??(sat.a-KM_PER_UNIT)).toFixed(0); const vel=Math.sqrt(MU/sat.a).toFixed(2); const realM=sat.realSizeM.toFixed(1); const realKm=(sat.realSizeM/1000).toFixed(4); tip.innerHTML=`<b>${sat.type.toUpperCase()}</b><br>Real Alt <b>${alt} km</b> (scene r=${sceneRadius(alt).toFixed(4)} ×${ALT_EXAG})<br>Real size <b>${realM} m</b> (${realKm} km) · mesh ×${sat.exaggeration}<br>Vel <b>${vel} km/s</b>`; tip.style.left=e.clientX+'px'; tip.style.top=e.clientY+'px'; tip.classList.add('show'); document.body.style.cursor='pointer'; return; }
   }
   hovered=null; tip.classList.remove('show'); document.body.style.cursor='default';
 });
-renderer.domElement.addEventListener('click', ()=>{ if(hovered) focusSat(hovered); });
-function focusSat(s){ const tgt=s.group.position.clone(); const dir=tgt.clone().normalize(); const dist=tgt.length()+0.28; const camPos=dir.clone().multiplyScalar(dist).add(new THREE.Vector3(0,0.16,0)); const s0=camera.position.clone(), st0=controls.target.clone(); const t0=performance.now(); (function anim(now){ const p=Math.min(1,(now-t0)/900), e=1-Math.pow(1-p,3); camera.position.lerpVectors(s0,camPos,e); controls.target.lerpVectors(st0,tgt,e); controls.update(); if(p<1) requestAnimationFrame(anim); })(performance.now()); }
+renderer.domElement.addEventListener('click', ()=>{ if(hovered){ selectSat(hovered); focusSat(hovered); } else deselectSat(); });
+// Neon-green selection — clicked debris/sat orbit turns neon green, restores on re-select/empty-click
+const NEON_GREEN=0x39ff14;
+let selected=null;
+function selectSat(s){
+  if(selected===s) return;
+  deselectSat(true);
+  selected=s;
+  s.userData=s.userData||{};
+  s.userData._orbitCol=s.orbit.material.color.getHex();
+  s.userData._trailCol=s.trailLine.material.color.getHex();
+  s.userData._trailBlend=s.trailLine.material.blending;
+  s.userData._trailMax=s.trailMax;
+  s.userData._emis=s.mesh.material.emissive.getHex();
+  s.userData._emisI=s.mesh.material.emissiveIntensity;
+  // full orbit neon
+  s.orbit.material.color.setHex(NEON_GREEN);
+  s.orbit.material.opacity=0.9;
+  // NEON TAIL — long comet tail: 90 → 420 points, additive glow so bloom picks it up
+  s.trailMax=420;
+  s.trailLine.material.color.setHex(NEON_GREEN);
+  s.trailLine.material.opacity=1.0;
+  s.trailLine.material.blending=THREE.AdditiveBlending;
+  s.trailLine.material.needsUpdate=true;
+  // THICK NEON ORBIT — fat tube around the thin ellipse (WebGL lines are stuck at 1px, tube gives real thickness)
+  try{
+    const pos=s.orbit.geometry.getAttribute('position');
+    const pts=[];
+    for(let i=0;i<pos.count;i+=3) pts.push(new THREE.Vector3().fromBufferAttribute(pos,i));
+    if(pts.length>2){
+      pts.push(pts[0].clone());
+      const curve=new THREE.CatmullRomCurve3(pts,true);
+      const tGeo=new THREE.TubeGeometry(curve,360,0.025,8,true);
+      const tMat=new THREE.MeshBasicMaterial({color:NEON_GREEN,transparent:true,opacity:0.85,blending:THREE.AdditiveBlending,depthWrite:false});
+      const tube=new THREE.Mesh(tGeo,tMat);
+      tube.renderOrder=6;
+      tube.visible=window._orbitsVisible!==false;
+      scene.add(tube);
+      s.userData._tube=tube;
+    }
+  }catch(_){}
+  s.mesh.material.emissive.setHex(NEON_GREEN);
+  s.mesh.material.emissiveIntensity=0.85;
+  try{
+    enterT.innerHTML=`TRACKING <b style="color:#39ff14">${s.type.toUpperCase()}</b> — ${(s.currentAlt||0).toFixed(0)}km · <b style="color:#39ff14">NEON TAIL</b>`;
+    enterN.classList.add('show'); clearTimeout(nt); nt=setTimeout(()=>enterN.classList.remove('show'),1800);
+  }catch(_){}
+}
+function deselectSat(silent){
+  if(!selected) return;
+  const s=selected; selected=null;
+  try{
+    if(s.userData){
+      if(s.userData._orbitCol!==undefined) s.orbit.material.color.setHex(s.userData._orbitCol);
+      if(s.userData._trailCol!==undefined) s.trailLine.material.color.setHex(s.userData._trailCol);
+      if(s.userData._trailBlend!==undefined){ s.trailLine.material.blending=s.userData._trailBlend; s.trailLine.material.needsUpdate=true; }
+      if(s.userData._tube){ try{ scene.remove(s.userData._tube); s.userData._tube.geometry.dispose(); s.userData._tube.material.dispose(); }catch(_){} s.userData._tube=null; }
+      if(s.userData._trailMax!==undefined){ s.trailMax=s.userData._trailMax; if(s.trail.length>s.trailMax) s.trail.splice(0, s.trail.length-s.trailMax); }
+      if(s.userData._emis!==undefined) s.mesh.material.emissive.setHex(s.userData._emis);
+      if(s.userData._emisI!==undefined) s.mesh.material.emissiveIntensity=s.userData._emisI;
+    }
+  }catch(_){}
+  if(!silent){ try{ tip.classList.remove('show'); }catch(_){} }
+}
+function focusSat(s){
+  const tgt=s.group.position.clone();
+  const dir=tgt.clone().normalize();
+  const dist=tgt.length()+ 400/KM_PER_UNIT*ALT_EXAG; // CHECKPOINT 400km offset = 1.88u with small Earth
+  const camPos=dir.clone().multiplyScalar(dist).add(new THREE.Vector3(0,0.16,0));
+  const s0=camera.position.clone(), st0=controls.target.clone();
+  const t0=performance.now();
+  (function anim(now){ const p=Math.min(1,(now-t0)/900), e=1-Math.pow(1-p,3); camera.position.lerpVectors(s0,camPos,e); controls.target.lerpVectors(st0,tgt,e); controls.update(); if(p<1) requestAnimationFrame(anim); })(performance.now());
+}
 
 // telemetry
-const altBig=document.getElementById('altBig'), badge=document.getElementById('layerBadge'), desc=document.getElementById('layerDesc');
+const altBig=document.getElementById('altBig'), badge=document.getElementById('layerBadge'), desc=document.getElementById('layerDesc'); // layerDesc may be absent after layout refactor — guarded below
 const vStat=document.getElementById('vStat'), periodStat=document.getElementById('periodStat'), latStat=document.getElementById('latStat'), lonStat=document.getElementById('lonStat');
 const eciEl=document.getElementById('eciPos'), geoEl=document.getElementById('geodetic'), leoEl=document.getElementById('leoRegion'), kmEl=document.getElementById('kmToLeo'), nextEl=document.getElementById('nextBoundary');
 const enterN=document.getElementById('enterNotify'), enterT=document.getElementById('enterText');
 function getLayer(a){
-  if(a<12) return {id:'tropo',name:'TROPOSPHERE',cls:'atmo',desc:'0–12 km · Weather'};
-  if(a<50) return {id:'strato',name:'STRATOSPHERE',cls:'atmo',desc:'12–50 km · Ozone'};
+  if(a<12) return {id:'tropo',name:'TROPOSPHERE',cls:'atmo',desc:'0–12 km · Weather · DirectX fog'};
+  if(a<50) return {id:'strato',name:'STRATOSPHERE',cls:'atmo',desc:'12–50 km · Ozone · PBR'};
   if(a<80) return {id:'meso',name:'MESOSPHERE',cls:'atmo',desc:'50–80 km · Meteors'};
   if(a<100) return {id:'thermo',name:'THERMOSPHERE',cls:'atmo',desc:'80–100 km · Aurora'};
-  if(a<160) return {id:'karman',name:'KÁRMÁN LINE',cls:'karman',desc:'100 km · Edge of space'};
-  if(a<450) return {id:'vleo',name:'VLEO',cls:'vleo',desc:'160–450 km · ISS 408 km'};
-  if(a<800) return {id:'leo',name:'LEO CORE ★',cls:'leo',desc:'450–800 km · Starlink · Hubble'};
-  if(a<2000) return {id:'outer',name:'UPPER LEO',cls:'outer',desc:'800–2000 km · OneWeb'};
-  if(a<35786) return {id:'meo',name:'MEO',cls:'meo',desc:'2000–35786 km · GPS'};
-  return {id:'geo',name:'GEO',cls:'meo',desc:'35786 km · Geostationary'};
+  for(const b of LEO_LAYER_BANDS_BASE){ if(a>=b.min && a<b.max) return {id:b.id,name:b.name,cls:b.cls,desc:b.desc}; }
+  if(a<20200) return {id:'meo',name:'MEO',cls:'meo',desc:'2000–20200 km · GPS 20200km (r=4.171)'};
+  if(a<35786) return {id:'heo',name:'HEO',cls:'meo',desc:'20200–35786 km · Transfer'};
+  return {id:'geo',name:'GEO',cls:'meo',desc:'35786 km · 6.618 — Geostationary'};
 }
 let lastId=null, nt=null;
 function updTel(){
-  const alt=Math.max(0,(camera.position.length()-R_EARTH)*R_EARTH_KM);
+  const alt=Math.max(0,altFromRadius(camera.position.length())); // MICRO-VAST inverse — real km
+  // Logarithmic camera scaling for MICRO-VAST: Kármán 1.47–1.75 vs GEO 169.5 — avoid one-scroll overshoot
+  const sceneAlt = alt / KM_PER_UNIT * ALT_EXAG; // exaggerated scene thickness
+  const logAlt = Math.log10(Math.max(10, alt+10));
+  controls.zoomSpeed = THREE.MathUtils.clamp(0.55 + logAlt*0.32, 0.65, 2.4);
+  controls.rotateSpeed = THREE.MathUtils.clamp(0.82 + logAlt*0.11, 0.82, 1.55);
+  const targetNear = Math.max(0.001, sceneAlt*0.002 + 0.001); // microorganism close-up — don't clip tiles
+  const targetFar = 2500 + sceneAlt*1.4; // must stay beyond stars 600–1200 in MICRO-VAST
+  if(Math.abs(camera.near - targetNear) > 0.002 || Math.abs(camera.far - targetFar) > 5){
+    camera.near = targetNear;
+    camera.far = targetFar;
+    camera.updateProjectionMatrix();
+  }
+  // keep limits derived — min just above surface, max beyond GEO
+  controls.minDistance = sceneRadius(5);
+  controls.maxDistance = sceneRadius(45000);
   const L=getLayer(alt);
-  altBig.innerHTML=`${alt.toFixed(alt<100?1:0)} <small>KM ALT</small>`; badge.textContent=L.name; badge.className='layer-badge '+L.cls; desc.textContent=L.desc;
-  if(L.id!==lastId){ if(lastId!==null){ enterT.innerHTML=`ENTERING <b>${L.name}</b> — ${alt.toFixed(0)} km`; enterN.classList.add('show'); clearTimeout(nt); nt=setTimeout(()=>enterN.classList.remove('show'),2600); } lastId=L.id; }
+  altBig.innerHTML=`${alt.toFixed(alt<100?1:0)} <small>KM ALT</small>`; badge.textContent=L.name; badge.className='layer-badge '+L.cls; if(desc) desc.textContent=L.desc;
+  if(L.id!==lastId){ if(lastId!==null){ enterT.innerHTML=`ENTERING <b>${L.name}</b> — ${alt.toFixed(0)} km`; enterN.classList.add('show'); clearTimeout(nt); nt=setTimeout(()=>enterN.classList.remove('show'),2000); } lastId=L.id; }
   const n=camera.position.clone().normalize(); const eciX=n.x, eciY=n.z, eciZ=n.y; const lat=Math.asin(eciZ)/RAD, lon=Math.atan2(eciY,eciX)/RAD;
   latStat.textContent=(lat>=0?lat.toFixed(2)+'°N':(-lat).toFixed(2)+'°S'); lonStat.textContent=(lon>=0?lon.toFixed(2)+'°E':(-lon).toFixed(2)+'°W');
-  vStat.textContent=Math.sqrt(MU/(R_EARTH_KM+alt)).toFixed(2); periodStat.textContent=(2*Math.PI*Math.sqrt(Math.pow(R_EARTH_KM+alt,3)/MU)/60).toFixed(1);
-  eciEl.textContent=`${(eciX*R_EARTH_KM).toFixed(0)}, ${(eciY*R_EARTH_KM).toFixed(0)}, ${(eciZ*R_EARTH_KM).toFixed(0)}`; geoEl.textContent=`${Math.abs(lat).toFixed(2)}°${lat>=0?'N':'S'} ${Math.abs(lon).toFixed(2)}°${lon>=0?'E':'W'} · ${alt.toFixed(0)} km`;
+  vStat.textContent=Math.sqrt(MU/(KM_PER_UNIT+alt)).toFixed(2); periodStat.textContent=(2*Math.PI*Math.sqrt(Math.pow(KM_PER_UNIT+alt,3)/MU)/60).toFixed(1);
+  eciEl.textContent=`${(eciX*KM_PER_UNIT).toFixed(0)}, ${(eciY*KM_PER_UNIT).toFixed(0)}, ${(eciZ*KM_PER_UNIT).toFixed(0)}`; geoEl.textContent=`${Math.abs(lat).toFixed(2)}°${lat>=0?'N':'S'} ${Math.abs(lon).toFixed(2)}°${lon>=0?'E':'W'} · ${alt.toFixed(0)} km`;
   if(alt>=160&&alt<2000){ leoEl.textContent=L.name; leoEl.style.color=L.cls==='leo'?'#7dd3fc':L.cls==='vleo'?'#fde68a':'#d8b4fe'; kmEl.textContent=`Inside LEO · ${(2000-alt).toFixed(0)} km to edge`; } else if(alt<160){ leoEl.textContent='BELOW LEO'; kmEl.textContent=`${(160-alt).toFixed(0)} km to VLEO`; } else { leoEl.textContent='ABOVE LEO'; kmEl.textContent=`${(alt-2000).toFixed(0)} km above`; }
-  const bds=[100,160,450,800,2000,35786]; let nxt=null; for(const b of bds) if(alt<b){ nxt=b; break; } nextEl.textContent=nxt?`${nxt} km · ${Math.abs(nxt-alt).toFixed(0)} km ${alt<nxt?'ahead':'behind'}`:'—';
-  // --- RESPONSIVE LOD: environment adjusts with zoom — all shells a little blur ---
+  const bds=LEO_BOUNDARIES; let nxt=null; for(const b of bds) if(alt<b){ nxt=b; break; } nextEl.textContent=nxt?`${nxt} km · ${Math.abs(nxt-alt).toFixed(0)} km ${alt<nxt?'ahead':'behind'}`:'—';
   shellMeshes.forEach(m=>{
     const d=Math.abs(m.userData.km - alt);
     const base=m.userData.op;
     const isUpper=m.userData.isUpper;
     let op=base + Math.max(0,1 - d/220)*(isUpper?0.13:0.18);
-    // you are deep inside an outer shell → fade it so it doesn't wall you in
     if(m.userData.km > alt + 500) op *= isUpper?0.30:0.34;
     else if(m.userData.km > alt + 250) op *= isUpper?0.50:0.58;
-    // you are far above an inner shell → make it subtle
     if(m.userData.km < alt - 600) op *= 0.46;
-    // when diving low (VLEO <300km), fade huge outer shells to keep Earth readable
     if(alt < 320) op *= Math.max(0.12, alt/320);
-    // all a little blur — soften even when focused
     op *= isUpper ? 0.70 : 0.82;
     if(L.id==='outer' && m.userData.km===2000) op = Math.min(isUpper?0.11:0.14, op+ (isUpper?0.03:0.04));
     if(L.id==='leo' && m.userData.km===800) op = Math.min(isUpper?0.10:0.13, op+ (isUpper?0.025:0.035));
     if(L.id==='vleo' && m.userData.km===450) op = Math.min(0.12, op+0.03);
     if(L.id==='vleo' && m.userData.km===160) op = Math.min(0.13, op+0.03);
     m.material.opacity=THREE.MathUtils.clamp(op, isUpper?0.007:0.012, isUpper?0.13:0.16);
-    // sync blur halos & rings — every shell now has halo
     if(m.userData.halos){
       m.userData.halos.forEach(h=>{
         h.material.opacity=THREE.MathUtils.clamp(op*0.45, 0.004, isUpper?0.048:0.032);
@@ -616,22 +1130,26 @@ function updTel(){
       m.userData.ring.visible = m.material.opacity > 0.016;
     }
   });
-  // Earth detail LOD — closer = sharper topography, more bump, brighter
   if(earthMesh && earthMesh.material && earthMesh.material.uniforms){
-    // keep textures sharp when zoomed in
-    const targetAniso = alt < 900 ? 16 : alt < 2000 ? 12 : 8;
+    const targetAniso = 8;
     [earthMesh.material.uniforms.dayTexture.value, earthMesh.material.uniforms.nightTexture.value, earthMesh.material.uniforms.bumpTexture.value].forEach(t=>{
       if(t && t.anisotropy!==undefined && t.anisotropy!==targetAniso){ t.anisotropy=targetAniso; t.needsUpdate=true; }
     });
+    // update sun direction in shader
+    earthMesh.material.uniforms.sunDirection.value.copy(sunLight.position).normalize();
+    earthMesh.material.uniforms.cameraPos.value.copy(camera.position);
+    if(window._atmoOuter) window._atmoOuter.material.uniforms.sunDirection.value.copy(sunLight.position).normalize();
+    if(window._atmoOuter) window._atmoOuter.material.uniforms.cameraPos.value.copy(camera.position);
+    if(window._atmoInner) window._atmoInner.material.uniforms.sunDirection.value.copy(sunLight.position).normalize();
+    if(window._atmoInner) window._atmoInner.material.uniforms.cameraPos.value.copy(camera.position);
   }
-  if(cloudsMesh){
-    // clouds more opaque when you are near them, fade when far in upper LEO
+  // Clouds disabled — skip opacity/scale animation (invisible, saves GPU/CPU)
+  if(cloudsMesh && cloudsMesh.visible){
     let cOp = 0.34;
-    if(alt < 300) cOp = 0.42;
-    else if(alt < 600) cOp = 0.38;
-    else if(alt > 1500) cOp = 0.22;
+    if(alt < 300) cOp = 0.38;
+    else if(alt < 600) cOp = 0.36;
+    else if(alt > 1500) cOp = 0.28;
     cloudsMesh.material.opacity = THREE.MathUtils.lerp(cloudsMesh.material.opacity, cOp, 0.08);
-    // clouds scale slightly with altitude for parallax
     const s = alt < 400 ? 1.003 : alt < 1000 ? 1.0035 : 1.004;
     cloudsMesh.scale.setScalar(s);
   }
@@ -643,128 +1161,102 @@ function updTel(){
     else if(alt > 3000) aOp = Math.max(0.25, 1 - (alt-3000)/8000);
     atmoOut.visible = aOp > 0.05;
     atmoIn.visible = alt < 2500 && alt > 40;
-    if(atmoIn.visible) atmoIn.material.opacity = THREE.MathUtils.clamp(aOp*0.6, 0, 0.6);
   }
-  // responsive placards — shrink when you enter their shell, next one stays small
   shellLabels.forEach(spr=>{
     const km=spr.userData.km, base=spr.userData.baseScale||0.5;
     const d=Math.abs(km - alt);
-    // proximity 0-1 (1 = you are at this shell)
     const prox=THREE.MathUtils.clamp(1 - d/650, 0, 1);
-    // when you cross into Upper LEO, the 2000km next placard should be small
     const isNext = km > alt && km - alt < 900;
     const nextFactor = isNext ? 0.78 : 1.0;
     const targetScale = base * (1 - prox*0.52) * nextFactor;
-    // smooth lerp current scale
     const cur=spr.scale.x;
     const nxt=THREE.MathUtils.lerp(cur, targetScale, 0.12);
     spr.scale.set(nxt, nxt*0.19, 1);
-    // also fade label when very close (inside shell) to avoid covering view
     const targetOp = prox > 0.75 ? 0.42 : prox > 0.45 ? 0.68 : 0.92;
     if(spr.material) spr.material.opacity = THREE.MathUtils.lerp(spr.material.opacity||1, targetOp, 0.10);
-    // hide Kármán/VLEO labels when deep in Upper LEO to declutter
-    spr.visible = !(alt > 900 && km < 450 && d > 700);
+    // Avoid z-fighting / odd placement: hide when shell label is on far side of Earth vs camera, and keep near equator plane
+    const camDir = camera.position.clone().normalize();
+    const labelDir = spr.position.clone().normalize();
+    const facing = labelDir.dot(camDir);
+    const behind = facing < -0.22; // far side
+    spr.visible = !(alt > 900 && km < 450 && d > 700) && !behind && prox < 0.92; // hide giant card when you're right on the shell
   });
-  // Earth itself scales slightly when you enter Upper LEO — feels like you zoomed into the layer, Earth recedes
   if(earthMesh){
+    // CHECKPOINT small Earth — recede slightly in UPPER LEO so shells feel vast (0.92/0.88 of R=1 = tiny shift, not spiky)
     const wantScale = (alt >= 800 && alt < 2000) ? 0.92 : alt >= 2000 ? 0.88 : 1.0;
     const curS=earthMesh.scale.x;
     const ns=THREE.MathUtils.lerp(curS, wantScale, 0.06);
     earthMesh.scale.setScalar(ns);
-    if(cloudsMesh) cloudsMesh.scale.setScalar(ns * (alt<400?1.003:1.0035));
+    if(cloudsMesh) cloudsMesh.scale.setScalar(ns * (alt<400?1.0045:1.005));
     if(window._atmoOuter) window._atmoOuter.scale.setScalar(ns);
     if(window._atmoInner) window._atmoInner.scale.setScalar(ns);
   }
-  // satellite LOD — when zoomed far, hide tiny trails, when close, enlarge and show detail
   const camDist = camera.position.length();
   sats.forEach(s=>{
-    const distToCam = s.group.position.distanceTo(camera.position);
-    // scale satellite slightly with viewing distance so they stay visible when far
-    const scale = THREE.MathUtils.clamp(0.9 + camDist*0.18, 0.9, 2.2);
+    const scale = THREE.MathUtils.clamp(1.2 + camDist*0.35, 1.2, 12.0); // CHECKPOINT small Earth — sats visible at dist 27
     s.mesh.scale.setScalar(scale);
-    // fade orbit lines when very close to Earth (they clutter), keep when far
+    const isSel = (typeof selected!=='undefined' && s===selected);
+    const anySel = (typeof selected!=='undefined' && !!selected);
     if(s.orbit){
-      let oOp = 0.28;
-      if(alt < 350) oOp = 0.14;
-      else if(alt < 700) oOp = 0.20;
-      else if(alt > 2500) oOp = 0.18;
-      s.orbit.material.opacity = THREE.MathUtils.lerp(s.orbit.material.opacity, oOp, 0.07);
-      s.orbit.visible = alt < 4000;
+      if(isSel){ s.orbit.material.opacity=0.9; s.orbit.visible = window._orbitsVisible!==false; }
+      else{
+        let oOp = 0.28;
+        if(alt < 350) oOp = 0.14;
+        else if(alt < 700) oOp = 0.20;
+        else if(alt > 2500) oOp = 0.18;
+        if(anySel) oOp*=0.3; // spotlight: dim others so neon tail pops
+        s.orbit.material.opacity = THREE.MathUtils.lerp(s.orbit.material.opacity, oOp, 0.07);
+        s.orbit.visible = window._orbitsVisible!==false && alt < 4000; // respect ORBITS toggle
+      }
     }
-    if(s.trailLine) s.trailLine.material.opacity = distToCam < 0.5 ? 0.92 : distToCam < 1.5 ? 0.7 : 0.45;
-    // highlight Upper LEO residents when inside dimension
-    const isUpperSat = s.a >= R_EARTH_KM+780 && s.a <= R_EARTH_KM+2050;
-    if(isUpperSat){
-      const want = (L.id==='outer') ? 1.18 : 1.0;
-      s.mesh.scale.lerp(new THREE.Vector3(want,want,want), 0.06);
-      if(s.orbit) s.orbit.material.color.setHex(L.id==='outer'?0xc4b5fd:0x7dd3fc);
+    if(s.trailLine && !isSel){
+      if(anySel) s.trailLine.material.opacity=0.25;
+      else s.trailLine.material.opacity = s.group.position.distanceTo(camera.position) < 0.5*ALT_EXAG ? 0.92 : 0.7;
     }
   });
-  // --- PER-LAYER DIMENSIONS — each slice is huge first-person world ---
-  const dimEl=document.getElementById('dimensionOverlay');
-  const layers=[
-    {id:'karman', name:'KÁRMÁN — 100-160 KM', grp:typeof karmanGroup!=='undefined'?karmanGroup:null, min:100, max:160, color:'#93c5fd', desc:'Edge of space · 900 particles'},
-    {id:'vleo', name:'VLEO — 160-450 KM', grp:typeof vleoGroup!=='undefined'?vleoGroup:null, min:160, max:450, color:'#facc15', desc:'ISS 408 km · 1800 particles · high drag'},
-    {id:'leo', name:'LEO CORE — 450-800 KM', grp:typeof leoCoreGroup!=='undefined'?leoCoreGroup:null, min:450, max:800, color:'#38bdf8', desc:'Starlink · Hubble · 2200 particles'},
-    {id:'outer', name:'UPPER LEO — 800-2000 KM', grp:typeof upperLeoGroup!=='undefined'?upperLeoGroup:null, min:800, max:2000, color:'#a78bfa', desc:'OneWeb 1200 km · 3200 particles · huge volume'}
-  ];
+  // --- PER-LAYER DIMENSIONS --- derived from LEO_LAYER_BANDS_BASE (single source)
+  const _grpMap={karman: typeof karmanGroup!=='undefined'?karmanGroup:null, vleo: typeof vleoGroup!=='undefined'?vleoGroup:null, leo: typeof leoCoreGroup!=='undefined'?leoCoreGroup:null, outer: typeof upperLeoGroup!=='undefined'?upperLeoGroup:null};
+  const layers=LEO_LAYER_BANDS_BASE.map(b=>({id:b.id, name:b.label, grp:_grpMap[b.id], min:b.min, max:b.max, color:b.color, desc:b.desc}));
   let activeLayer=null;
   if(window._forcedZone){
-    const map={karman:'karman', vleo:'vleo', leo:'leo', outer:'outer'};
+    const map={karman:'karman', vleo:'vleo', leo:'leo', outer:'outer', meo:'meo', geo:'geo'};
     const want=map[window._forcedZone];
     if(want) activeLayer=layers.find(l=>l.id===want)||null;
-    if(window._forcedZone==='atmo' || window._forcedZone==='outer-space') activeLayer=null;
+    // meo/geo and legacy atmo/outer-space have no fog volume
+    if(window._forcedZone==='meo' || window._forcedZone==='geo' || window._forcedZone==='atmo' || window._forcedZone==='outer-space') activeLayer=null;
   } else {
     for(const ly of layers) if(alt>=ly.min && alt<ly.max) activeLayer=ly;
   }
-  // keep zone bar in sync — highlight current world
   const zbAll=document.querySelectorAll('.zone-btn');
-  const curZoneId = window._forcedZone || (activeLayer?activeLayer.id : (alt<100?'atmo': alt>=2000?'outer-space':null));
-  zbAll.forEach(b=>{
-    const isCur = b.dataset.zone===curZoneId;
-    b.classList.toggle('active', isCur);
-  });
-  // smooth per-layer alphas
+  // cur zone for button highlight — maps real altitude to button id (atmo/outer-space kept as legacy)
+  let autoZone=null;
+  if(activeLayer) autoZone=activeLayer.id;
+  else if(alt<100) autoZone='atmo';
+  else if(alt>=35786) autoZone='geo';
+  else if(alt>=2000) autoZone='meo';
+  else autoZone=null;
+  const curZoneId = window._forcedZone || autoZone;
+  zbAll.forEach(b=>{ b.classList.toggle('active', b.dataset.zone===curZoneId); });
   window._dimAlphas=window._dimAlphas||{};
   layers.forEach(ly=>{
+    if(window._noCrystals){ if(ly.grp) ly.grp.visible=false; window._dimAlphas[ly.id]=0; return; } // only sats + orbits in orbit
     const target = activeLayer && activeLayer.id===ly.id ? 1 : 0;
     const cur=window._dimAlphas[ly.id]||0;
     window._dimAlphas[ly.id]=THREE.MathUtils.lerp(cur, target, 0.09);
     const a=window._dimAlphas[ly.id];
     if(ly.grp){
       ly.grp.visible = a > 0.015;
-      // huge feel — slowly rotate volume + make it feel alive
-      if(ly.grp.visible){
-        ly.grp.rotation.y += 0.00012 + (ly.id==='outer'?0.00006:0);
-        // first-person: satellites in this layer appear to fly toward you — scale with proximity already handled above, but boost trail
-      }
-      // fade fog via material opacity (shader alpha already)
+      if(ly.grp.visible){ ly.grp.rotation.y += 0.00012 + (ly.id==='outer'?0.00006:0); }
       const fog=ly.grp.userData.fog;
       if(fog) fog.material.opacity = a*0.92;
     }
   });
-  // overlay shows active layer
-  if(dimEl){
-    if(activeLayer){
-      const a=window._dimAlphas[activeLayer.id];
-      dimEl.style.opacity=String(THREE.MathUtils.clamp(a*1.05,0,1));
-      dimEl.style.transform=`translate(-50%,-50%) scale(${0.96 + a*0.04})`;
-      dimEl.style.pointerEvents= a>0.45 ? 'auto':'none';
-      dimEl.querySelector('div:nth-child(2)').textContent=activeLayer.name;
-      dimEl.querySelector('div:nth-child(3)').innerHTML=`You are inside this shell — huge volume.<br>${activeLayer.desc}<br><span style="color:#7dd3fc">First-person: satellites on trajectory fly toward you · Drag to look · Scroll to dive</span>`;
-      dimEl.querySelector('div:nth-child(3)').style.color='';
-      dimEl.style.borderColor= activeLayer.color+'55';
-      // hide outer wireframe when inside any dimension to open view
-      const wire = activeLayer.id==='outer'?2000: activeLayer.id==='leo'?800: activeLayer.id==='vleo'?450:160;
-      const shell=shellMeshes.find(m=>m.userData.km===wire);
-      if(shell) shell.material.wireframe = (window._dimAlphas[activeLayer.id] < 0.5);
-    } else {
-      const anyA=Math.max(...Object.values(window._dimAlphas));
-      dimEl.style.opacity=String(anyA*0.45);
-      if(anyA<0.08){ dimEl.style.opacity='0'; dimEl.style.transform='translate(-50%,-50%) scale(0.96)'; dimEl.style.pointerEvents='none'; }
-    }
+  // wireframe toggle when inside layer — keep view open (was inside dimEl block, now always)
+  if(activeLayer){
+    const wire = activeLayer.id==='outer'?2000: activeLayer.id==='leo'?800: activeLayer.id==='vleo'?450:160;
+    const shell=shellMeshes.find(m=>m.userData.km===wire);
+    if(shell) shell.material.wireframe = (window._dimAlphas[activeLayer.id] < 0.5);
   }
-  // when inside any LEO layer, dim shells below you so the world above feels different from below
   if(activeLayer){
     shellsGroup.children.forEach(ch=>{
       if(ch.userData && ch.userData.km!==undefined && ch.userData.km < activeLayer.min){
@@ -776,100 +1268,180 @@ function updTel(){
     });
   }
 }
-controls.addEventListener('change', updTel); updTel();
+// updTel runs every animation frame already — no need for OrbitControls 'change' listener (was running twice per frame during drag)
+updTel();
 
 // animate
 let t=0, timeScale=1; const clock=new THREE.Clock();
-function animate(){ requestAnimationFrame(animate); const dt=Math.min(0.05, clock.getDelta()); t+=dt*timeScale*18; sats.forEach(s=>s.upd(t, dt*timeScale)); if(cloudsMesh) cloudsMesh.rotation.y+=dt*0.006*timeScale; if(earthMesh) earthMesh.rotation.y+=dt*0.008*timeScale; controls.update(); updTel(); renderer.render(scene,camera); }
+function animate(){ 
+  requestAnimationFrame(animate); 
+  const dt=Math.min(0.05, clock.getDelta()); 
+  t+=dt*timeScale*18; 
+  sats.forEach(s=>s.upd(t, dt*timeScale)); 
+  if(cloudsMesh) cloudsMesh.rotation.y+=dt*0.006*timeScale; 
+  if(earthMesh){ 
+    earthMesh.rotation.y+=dt*0.008*timeScale; 
+    if(earthMesh.material.uniforms) earthMesh.material.uniforms.time.value=t;
+  }
+  // update sun flare orientation to always face camera
+  if(sunFlare) sunFlare.lookAt(camera.position);
+  updateFPS(dt);
+  updateArrowKeys(dt);
+  controls.update(); 
+  updTel(); 
+  if(composer){
+    composer.render();
+  } else {
+    renderer.render(scene,camera);
+  }
+}
 animate();
 
 // resize
-function onResize(){ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); }
+function onResize(){ 
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); 
+  renderer.setSize(innerWidth,innerHeight); 
+  if(composer) composer.setSize(innerWidth, innerHeight);
+}
 addEventListener('resize', onResize); addEventListener('orientationchange', ()=>setTimeout(onResize,200)); onResize();
 if(window.visualViewport) visualViewport.addEventListener('resize', onResize);
 
-// hints
-const hint=document.getElementById('dragHint'); let ht=setTimeout(()=>hint?.classList.add('hide'),5200); ['pointerdown','wheel','touchstart'].forEach(ev=>renderer.domElement.addEventListener(ev, ()=>{ hint?.classList.add('hide'); clearTimeout(ht); },{passive:true}));
+// hints — one control scheme, documented once, then never again (persist via localStorage per spec)
+const hint=document.getElementById('dragHint');
+const hintDismissed = localStorage.getItem('iris_hintDismissed') === '1';
+if(hintDismissed) hint?.classList.add('hide');
+else {
+  let ht=setTimeout(()=>{ hint?.classList.add('hide'); localStorage.setItem('iris_hintDismissed','1'); },5200);
+  ['pointerdown','wheel','touchstart'].forEach(ev=>renderer.domElement.addEventListener(ev, ()=>{
+    if(!hint?.classList.contains('hide')){ hint?.classList.add('hide'); localStorage.setItem('iris_hintDismissed','1'); }
+    clearTimeout(ht);
+  },{once:true, passive:true}));
+}
 renderer.domElement.addEventListener('pointerdown', ()=>renderer.domElement.focus());
 
-// panels
-const pL=document.getElementById('panelLeft'), pB=document.querySelector('.panel-bottom'), bTP=document.getElementById('btnTogglePanels'); let pv=true; function updLbl(){ if(innerWidth<=860) bTP.textContent=pv?'✕ HIDE PANELS':'◧ SHOW PANELS'; else bTP.textContent='◧ PANELS'; } bTP?.addEventListener('click', ()=>{ pv=!pv; const d=pv?'':'none'; if(pL) pL.style.display=d; if(pB) pB.style.display=d; updLbl(); }); addEventListener('resize', updLbl); updLbl();
+// panels — 4-region rule: top bar always, left telemetry, right navigation (zone-bar), bottom controls
+// Mobile <860px: only top bar + toggle visible by default; toggle shows left+bottom stacked and right as horizontal strip (via body.panels-open)
+const pL=document.getElementById('panelLeft'), pB=document.querySelector('.panel-bottom'), zBar=document.getElementById('zoneBar'), bTP=document.getElementById('btnTogglePanels');
+let pv = innerWidth > 860; // desktop visible, mobile hidden
+function syncPanels(){
+  const isMobile = innerWidth <= 860;
+  if(isMobile){
+    document.body.classList.toggle('panels-open', pv);
+    // inline display fallback for desktop toggle via style, mobile uses class
+    if(pL) pL.style.display = pv ? 'block' : '';
+    if(pB) pB.style.display = pv ? 'flex' : '';
+    if(zBar) zBar.style.display = pv ? 'flex' : '';
+    if(bTP) bTP.textContent = pv ? '✕ HIDE' : '☰ PANELS';
+  } else {
+    document.body.classList.remove('panels-open');
+    if(pL) pL.style.display='';
+    if(pB) pB.style.display='';
+    if(zBar) zBar.style.display='';
+    if(bTP) bTP.textContent='◧ PANELS';
+  }
+}
+bTP?.addEventListener('click', ()=>{ pv=!pv; syncPanels(); });
+addEventListener('resize', syncPanels); syncPanels();
+// Details toggle inside left telemetry (expands lat/lon/ECI inline, per spec)
+const btnDetails=document.getElementById('btnDetails'), detailsEl=document.getElementById('detailsCoords');
+let detailsOpen=false;
+btnDetails?.addEventListener('click', ()=>{
+  detailsOpen=!detailsOpen;
+  if(detailsEl) detailsEl.style.display = detailsOpen ? 'block' : 'none';
+  btnDetails.textContent = detailsOpen ? 'Details ▴' : 'Details ▾';
+});
 
 // sliders
 document.getElementById('timeSlider').addEventListener('input', e=>{ const v=parseInt(e.target.value); timeScale=v===0?0:Math.pow(v/18,2); document.getElementById('timeLabel').textContent=timeScale===0?'PAUSED':timeScale.toFixed(1)+'×'; });
 document.getElementById('fovSlider').addEventListener('input', e=>{ camera.fov=parseInt(e.target.value); camera.updateProjectionMatrix(); document.getElementById('fovLabel').textContent=camera.fov+'°'; });
+document.getElementById('bloomSlider').addEventListener('input', e=>{
+  const v=parseInt(e.target.value)/100;
+  document.getElementById('bloomLabel').textContent=v.toFixed(2);
+  if(bloomPass) bloomPass.strength=v*0.9;
+  else renderer.toneMappingExposure = 0.95 + v*0.4;
+});
+document.getElementById('fpsSpeedSlider').addEventListener('input', e=>{
+  const v=parseInt(e.target.value);
+  fpsSpeed=v/30;
+  document.getElementById('fpsSpeedLabel').textContent=fpsSpeed.toFixed(1)+'×';
+});
+document.getElementById('btnFPS')?.addEventListener('click', e=>{
+  fpsMode=!fpsMode;
+  e.currentTarget.textContent=fpsMode?'■ EXIT FPS':'▶ FPS MODE';
+  renderer.domElement.focus();
+});
 
-// buttons
-document.getElementById('btnReset').addEventListener('click', ()=>{ window._forcedZone=null; document.querySelectorAll('.zone-btn').forEach(b=>b.classList.remove('active')); const s0=camera.position.clone(), st0=controls.target.clone(), e0=new THREE.Vector3(0,1.9,3.2), et0=new THREE.Vector3(0,0,0), t0=performance.now(); (function a(now){ const p=Math.min(1,(now-t0)/900), e=1-Math.pow(1-p,3); camera.position.lerpVectors(s0,e0,e); controls.target.lerpVectors(st0,et0,e); controls.update(); if(p<1) requestAnimationFrame(a); })(performance.now()); });
-document.getElementById('btnFocusRandom').addEventListener('click', ()=>{ const p=sats[Math.floor(Math.random()*sats.length)]; focusSat(p); });
-document.getElementById('btnToggleShells').addEventListener('click', e=>{ shellsGroup.visible=!shellsGroup.visible; e.currentTarget.textContent=shellsGroup.visible?'TOGGLE SHELLS':'SHELLS HIDDEN'; });
-document.getElementById('btnToggleOrbits').addEventListener('click', e=>{ const v=!sats[0].orbit.visible; sats.forEach(s=>s.orbit.visible=v); e.currentTarget.textContent=v?'ORBIT LINES':'ORBITS HIDDEN'; });
-// --- ZONE TELEPORT — game-like separate worlds ---
-const zoneAlt={ 'karman':130, 'vleo':300, 'leo':625, 'outer':1400, 'atmo':45, 'outer-space':3400 };
+// buttons — derived from KM_PER_UNIT — single reset action (button + Esc)
+function doReset(){
+  try{ deselectSat(true); }catch(_){}
+  window._forcedZone=null; document.querySelectorAll('.zone-btn').forEach(b=>b.classList.remove('active'));
+  const s0=camera.position.clone(), st0=controls.target.clone(), e0=new THREE.Vector3(0, sceneRadius(5500)*0.62, sceneRadius(5500)*0.82), et0=new THREE.Vector3(0,0,0), t0=performance.now();
+  (function a(now){ const p=Math.min(1,(now-t0)/900), e=1-Math.pow(1-p,3); camera.position.lerpVectors(s0,e0,e); controls.target.lerpVectors(st0,et0,e); controls.update(); if(p<1) requestAnimationFrame(a); })(performance.now());
+}
+document.getElementById('btnReset').addEventListener('click', doReset);
+document.getElementById('btnToggleShells').addEventListener('click', e=>{ shellsGroup.visible=!shellsGroup.visible; e.currentTarget.textContent=shellsGroup.visible?'SHELLS ON':'SHELLS OFF'; });
+// Orbits show/hide — single source of truth, top bar + Details button stay in sync, O key works too. Hides orbit ellipses + trails.
+function setOrbitsVisible(v){
+  sats.forEach(s=>{ if(s.orbit) s.orbit.visible=v; if(s.trailLine) s.trailLine.visible=v; if(s.userData && s.userData._tube) s.userData._tube.visible=v; });
+  const t1=document.getElementById('btnToggleOrbits'); if(t1) t1.textContent=v?'ORBITS ON':'ORBITS OFF';
+  const t2=document.getElementById('btnOrbitsTop'); if(t2) t2.textContent=v?'◉ ORBITS ON':'○ ORBITS OFF';
+  window._orbitsVisible=v;
+}
+window._orbitsVisible=true;
+document.getElementById('btnToggleOrbits').addEventListener('click', ()=> setOrbitsVisible(!window._orbitsVisible));
+document.getElementById('btnOrbitsTop')?.addEventListener('click', ()=> setOrbitsVisible(!window._orbitsVisible));
+// Zone altitudes KM — physically accurate: scene radius = 1 + km/KM_PER_UNIT per spec table
+const zoneAlt={
+  'karman':100, 'vleo':300, 'leo':550, 'outer':1200, // LEO bands: VLEO ~300 (ISS 408), LEO core 550 (Starlink), Upper LEO 1200 (OneWeb)
+  'meo':20200, 'geo':35786,
+  'atmo':20200, 'outer-space':35786 // legacy aliases
+};
 const zoneBtns=document.querySelectorAll('.zone-btn');
 function enterZone(id){
   const alt=zoneAlt[id];
   if(alt===undefined) return;
-  // set forced zone for isolated world feel
-  window._forcedZone = id==='outer-space' ? null : id;
+  const isOverview = (id==='geo' || id==='meo' || id==='outer-space' || id==='atmo');
+  window._forcedZone = isOverview ? null : id;
   zoneBtns.forEach(b=>b.classList.toggle('active', b.dataset.zone===id));
-  // keep current lat/lon, just change radius
   const dir=camera.position.clone().normalize();
   if(dir.lengthSq()<0.01) dir.set(0,0.3,1).normalize();
-  const targetR=R_EARTH+toScene(alt);
+  const targetR=sceneRadius(alt);
   const targetPos=dir.clone().multiplyScalar(targetR);
-  // add slight random offset for huge feel
   targetPos.x += (Math.random()-0.5)*0.04;
   targetPos.z += (Math.random()-0.5)*0.04;
   const s0=camera.position.clone(), st0=controls.target.clone();
   const t0=performance.now(), dur=1400;
-  // flash overlay
-  const dimEl=document.getElementById('dimensionOverlay');
-  if(dimEl){ dimEl.style.transition='0.2s'; dimEl.style.opacity='0'; }
   (function anim(now){
     const p=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-p,3);
     camera.position.lerpVectors(s0, targetPos, e);
-    // when entering a zone, pull target slightly toward camera for first-person inside
-    const wantTarget = (id==='outer-space') ? new THREE.Vector3(0,0,0) : targetPos.clone().normalize().multiplyScalar(0.15);
+    const wantTarget = isOverview ? new THREE.Vector3(0,0,0) : targetPos.clone().normalize().multiplyScalar(0.15);
     controls.target.lerpVectors(st0, wantTarget, e*0.6);
     controls.update();
     if(p<1) requestAnimationFrame(anim);
     else {
-      // after arrival, re-enable overlay with new zone name
-      if(dimEl){ dimEl.style.transition='0.55s'; }
-      // for isolated world, hide Earth/other shells if not outer-space
-      if(id!=='outer-space' && id!=='atmo'){
-        // keep Earth but make it small/distant for that zone's custom world feel
-        // the per-layer dimension already handles volumetric fog, we just ensure it stays
+      if(!isOverview){
         window._dimAlphas = window._dimAlphas||{};
-        // force that layer's alpha to 1 quickly
         window._dimAlphas[id]=1;
       }
-      if(id==='outer-space'){
+      if(isOverview){
         window._forcedZone=null;
-        // reset Earth scale
         if(earthMesh) earthMesh.scale.setScalar(1);
       }
     }
   })(performance.now());
-  // haptic-like flash
+  // brief flash for zone jump — single transient overlay per spec (not large modal)
   document.body.style.transition='background 0.2s';
   document.body.style.background='#0a1020';
   setTimeout(()=>document.body.style.background='#000', 220);
 }
 zoneBtns.forEach(b=> b.addEventListener('click', ()=> enterZone(b.dataset.zone)));
-// also allow Esc to exit zone back to outer view
-addEventListener('keydown', e=>{ if(e.key==='Escape') enterZone('outer-space'); });
-// override activeLayer when forced zone set — patch updTel to respect it
-const _origUpdTel=updTel;
+addEventListener('keydown', e=>{ if(e.key==='Escape') doReset(); });
 window._forcedZone=null;
-
-// dblclick shell
 const sRay=new THREE.Raycaster();
 renderer.domElement.addEventListener('dblclick', e=>{
   const mx=(e.clientX/innerWidth)*2-1, my=-(e.clientY/innerHeight)*2+1; sRay.setFromCamera({x:mx,y:my}, camera);
   const its=sRay.intersectObjects(shellMeshes);
-  if(its.length){ const r=its[0].object.geometry.parameters.radius; const alt=(r-1)*R_EARTH_KM; const nd=R_EARTH+toScene(alt)+0.18; const dir=camera.position.clone().normalize(); const np=dir.multiplyScalar(nd); const s0=camera.position.clone(), t0=performance.now(); (function a(now){ const p=Math.min(1,(now-t0)/900), e=1-Math.pow(1-p,3); camera.position.lerpVectors(s0,np,e); controls.update(); if(p<1) requestAnimationFrame(a); })(performance.now()); }
+  if(its.length){ const r=its[0].object.geometry.parameters.radius; const alt=altFromRadius(r); const nd=sceneRadius(alt+180); const dir=camera.position.clone().normalize(); const np=dir.multiplyScalar(nd); const s0=camera.position.clone(), t0=performance.now(); (function a(now){ const p=Math.min(1,(now-t0)/900), e=1-Math.pow(1-p,3); camera.position.lerpVectors(s0,np,e); controls.update(); if(p<1) requestAnimationFrame(a); })(performance.now()); }
 });
 setTimeout(()=>updTel(),200);
 </script>
