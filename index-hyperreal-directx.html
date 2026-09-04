@@ -155,6 +155,34 @@ window.addEventListener('DOMContentLoaded', ()=>{
     .zone-btn{padding:7px 8px}
     .panel-bottom{padding:8px 10px;gap:8px}
   }
+  /* === DEPLOY MODAL — satellite configurator === */
+  #deployOverlay{position:fixed;inset:0;background:rgba(2,6,23,0.72);backdrop-filter:blur(8px);z-index:30;display:none;align-items:center;justify-content:center;padding:16px}
+  #deployOverlay.show{display:flex}
+  #deployModal{width:560px;max-width:96vw;max-height:92vh;overflow-y:auto;background:rgba(10,18,36,0.96);border:1px solid rgba(96,165,250,0.3);border-radius:18px;padding:18px;box-shadow:0 24px 80px rgba(0,0,0,0.6),0 0 30px rgba(56,189,248,0.15);font-family:'Space Grotesk',system-ui,sans-serif}
+  #deployModal h2{font-size:15px;letter-spacing:0.12em;font-weight:700}
+  #deployModal h2 span{font-weight:300;opacity:0.7}
+  #deployModal .sub{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;opacity:0.6;margin:4px 0 12px}
+  .dep-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .dep-field{background:rgba(15,23,42,0.9);border:1px solid rgba(96,165,250,0.14);border-radius:12px;padding:10px}
+  .dep-field.full{grid-column:1/-1}
+  .dep-field label{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.14em;opacity:0.6;display:block;margin-bottom:6px}
+  .dep-field input[type=number],.dep-field input[type=text],.dep-field select{width:100%;background:rgba(2,6,23,0.9);border:1px solid rgba(96,165,250,0.2);border-radius:8px;color:#e6eef8;padding:7px 9px;font-family:'JetBrains Mono',monospace;font-size:12px;outline:none}
+  .dep-field input[type=range]{width:100%;accent-color:#38bdf8}
+  .dep-val{font-family:'JetBrains Mono',monospace;font-size:12px;color:#7dd3fc}
+  .region-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .region-btn{cursor:pointer;border-radius:12px;padding:10px 8px;border:1px solid rgba(255,255,255,0.1);background:rgba(15,23,42,0.7);color:#e6eef8;text-align:center;transition:0.15s}
+  .region-btn b{font-size:11px;display:block;letter-spacing:0.06em}
+  .region-btn small{font-family:'JetBrains Mono',monospace;font-size:9px;opacity:0.65}
+  .region-btn.active{border-color:var(--c);background:var(--c);color:#020617;box-shadow:0 0 16px var(--c)}
+  .region-btn.active small{color:rgba(2,6,23,0.7)}
+  #depEnv{background:rgba(2,6,23,0.85);border:1px solid rgba(56,189,248,0.2);border-radius:12px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.65;margin-top:10px}
+  #depEnv b{color:#7dd3fc}
+  #depEnv .warn{color:#fbbf24}
+  #depEnv .bad{color:#f87171}
+  #depEnv .good{color:#4ade80}
+  .dep-actions{display:flex;gap:10px;margin-top:14px}
+  .dep-actions .btn{flex:1;text-align:center;padding:11px}
+  @media(max-width:640px){.dep-grid{grid-template-columns:1fr}.region-row{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -247,6 +275,107 @@ window.addEventListener('DOMContentLoaded', ()=>{
       <div class="stat"><label>ACTIVE</label><b id="activeCount">—</b></div>
       <div class="stat"><label>SWARM</label><b id="swarmCount">—</b></div>
     </div>
+  </div>
+</div>
+
+<!-- DEPLOY CONFIGURATOR — real LEO parameters (NRLMSISE-00 / vis-viva) -->
+<div id="deployOverlay">
+  <div id="deployModal">
+    <h2 id="depTitle">DEPLOY <span>/ ACTIVE SAT</span></h2>
+    <div class="sub">REAL LEO MODEL · NRLMSISE-00 DENSITY · VIS-VIVA VELOCITY · DRAG = ½ρv²CdA/m</div>
+    <div class="dep-field full" style="margin-bottom:10px">
+      <label>ORBITAL REGION — WHERE IN LEO</label>
+      <div class="region-row">
+        <button class="region-btn" data-region="vleo" style="--c:#facc15"><b>VLEO</b><small>160–450 km · ISS 408 · high drag</small></button>
+        <button class="region-btn" data-region="leo" style="--c:#38bdf8"><b>LEO CORE ★</b><small>450–800 km · Starlink 550</small></button>
+        <button class="region-btn" data-region="outer" style="--c:#a78bfa"><b>UPPER LEO</b><small>800–2000 km · OneWeb 1200</small></button>
+      </div>
+      <div id="depRegionDesc" style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:0.7;margin-top:8px;line-height:1.5"></div>
+    </div>
+    <div class="dep-grid">
+      <div class="dep-field full">
+        <label>ALTITUDE ABOVE SEA LEVEL — <span class="dep-val" id="depAltVal">550 km</span></label>
+        <input id="depAlt" type="range" min="160" max="2000" step="1" value="550">
+        <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+          <input id="depAltNum" type="number" min="160" max="2000" step="1" value="550" style="flex:1">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:0.6">km</span>
+          <select id="depPreset" style="flex:1.4">
+            <option value="">— real missions —</option>
+            <option value="408">ISS · 408 km (VLEO)</option>
+            <option value="540">Hubble · 540 km (CORE)</option>
+            <option value="550">Starlink · 550 km (CORE)</option>
+            <option value="780">Iridium · 780 km (CORE)</option>
+            <option value="1200">OneWeb · 1200 km (UPPER)</option>
+            <option value="200">Decay demo · 200 km</option>
+          </select>
+        </div>
+      </div>
+      <div class="dep-field">
+        <label>SPEED MODE</label>
+        <select id="depSpeedMode">
+          <option value="auto">AUTO · circular v=√(μ/r)</option>
+          <option value="custom">CUSTOM · injection Δv</option>
+        </select>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:0.65;margin-top:6px">Required circular: <span class="dep-val" id="depVCirc">7.59 km/s</span></div>
+      </div>
+      <div class="dep-field">
+        <label>INJECTION SPEED (km/s)</label>
+        <input id="depSpeed" type="number" step="0.01" value="7.59">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:0.65;margin-top:6px" id="depSpeedHint">auto-locked</div>
+      </div>
+      <div class="dep-field">
+        <label>INCLINATION — <span class="dep-val" id="depIncVal">53.0°</span></label>
+        <input id="depInc" type="range" min="0" max="98" step="0.1" value="53">
+        <select id="depIncPreset" style="margin-top:8px">
+          <option value="">— presets —</option>
+          <option value="0">Equatorial · 0°</option>
+          <option value="51.6">ISS · 51.6°</option>
+          <option value="53">Starlink · 53°</option>
+          <option value="87.9">Iridium · 86.4°</option>
+          <option value="90">Polar · 90°</option>
+          <option value="97.4">SSO · 97.4°</option>
+        </select>
+      </div>
+      <div class="dep-field">
+        <label>SHAPE — e / RAAN / ArgP / M0</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <input id="depEcc" type="number" min="0" max="0.05" step="0.0005" value="0.001" title="eccentricity">
+          <input id="depRaan" type="number" min="0" max="360" step="1" value="10" title="RAAN deg">
+          <input id="depArgP" type="number" min="0" max="360" step="1" value="0" title="arg perigee deg">
+          <input id="depM0" type="number" min="0" max="360" step="1" value="0" title="mean anomaly deg">
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;opacity:0.55;margin-top:5px">e · RAAN · argP · M0 (deg)</div>
+      </div>
+      <div class="dep-field">
+        <label>SPACECRAFT — MASS (kg)</label>
+        <input id="depMass" type="number" min="1" max="20000" step="1" value="260">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;opacity:0.55;margin-top:5px">Starlink ~260 · ISS 420000 · CubeSat 4</div>
+      </div>
+      <div class="dep-field">
+        <label>DRAG AREA Cd·A (m²) — Cd=2.2</label>
+        <input id="depArea" type="number" min="0.01" max="2000" step="0.1" value="10">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;opacity:0.55;margin-top:5px">Starlink ~10 · ISS ~1500 · 3U CubeSat ~0.03</div>
+      </div>
+      <div class="dep-field full">
+        <label>SPACE WEATHER — SOLAR ACTIVITY (swells thermosphere ×3–8)</label>
+        <select id="depSolar">
+          <option value="min">Solar MIN · F10.7 70 · thermosphere cool/contracted</option>
+          <option value="mod" selected>Solar MODERATE · F10.7 150 · nominal NRLMSISE-00</option>
+          <option value="max">Solar MAX / STORM · F10.7 220+ · expanded, ISS reboost ×6</option>
+        </select>
+      </div>
+      <div class="dep-field full">
+        <label>SATELLITE NAME (optional)</label>
+        <input id="depName" type="text" placeholder="e.g. ACTIVE-ALPHA" maxlength="24">
+      </div>
+    </div>
+    <div id="depEnv">computing…</div>
+    <div class="dep-actions">
+      <button class="btn ghost" id="depCancel">CANCEL</button>
+      <button class="btn ghost" id="depFix" title="Auto-shift M0 to nearest ≥6km slot">⇄ FIX</button>
+      <button class="btn" id="depGo">● DEPLOY → LEO</button>
+    </div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:9px;opacity:0.5;margin-top:8px;line-height:1.5">Density: NRLMSISE-00 moderate fit (400 km ≈ 2.7e-12 kg/m³ · 943 K). v=√(μ/r), T=2π√(r³/μ), μ=398600 km³/s². Drag accel = ½ρv²/(B), B=m/(CdA). Lifetime guide: 200 km days · 300 km weeks–months · 400 km 1–2 y · 600 km ~25 y · 800 km 100+y.</div>
   </div>
 </div>
 
@@ -533,6 +662,21 @@ const sunFlare = new THREE.Sprite(sunFlareMat);
 sunFlare.position.copy(sunMesh.position);
 sunFlare.scale.set(60,60,1);
 scene.add(sunFlare);
+// === SPACE HDRI — tiny procedural env scene (sun streak + blue earthshine + cool fill) so metals/glass/solar have true PBR reflections ===
+try{
+  const envScene=new THREE.Scene();
+  const quad=(w,h,c,x,y,z)=>{
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));
+    m.material.color.setRGB(c[0],c[1],c[2]); m.position.set(x,y,z); m.lookAt(0,0,0); envScene.add(m);
+  };
+  quad(14,14,[7.0,6.2,5.0], 9,5,7);      // sun card — hot glint on metals
+  quad(20,10,[0.22,0.42,1.05], 0,-11,2); // earthshine — blue bounce from below
+  quad(16,8,[0.16,0.22,0.34], -9,3,-4);  // cool space fill
+  quad(8,8,[0.9,0.95,1.1], -4,7,9);      // faint rim kicker
+  const pm=new THREE.PMREMGenerator(renderer);
+  scene.environment=pm.fromScene(envScene,0.05).texture;
+  pm.dispose();
+}catch(e){ console.warn('env fail',e); }
 
 // stars — pushed out for MICRO-VAST scale (must stay beyond GEO 169.5 + maxDist 212.9)
 (function(){
@@ -884,6 +1028,383 @@ const fogMesh=null;
 
 // satellites — Kepler + DirectX PBR materials — EXACT PROPORTION (Earth R=30, 1km=0.004708u)
 // Real sats 10m = 0.01km → 0.000047u sub-pixel, so meshes exaggerated to stay visible vs Earth 30; tooltip shows REAL m/km.
+// === INSANE DETAIL — procedural PBR textures (shared, generated once) + realistic spacecraft builders ===
+const _texCache={};
+function _canvasTex(w,h,draw,srgb=true){
+  const c=document.createElement('canvas'); c.width=w; c.height=h;
+  draw(c.getContext('2d'),w,h);
+  const t=new THREE.CanvasTexture(c);
+  if(srgb) t.colorSpace=THREE.SRGBColorSpace;
+  t.anisotropy=8; t.wrapS=t.wrapT=THREE.RepeatWrapping;
+  return t;
+}
+function solarTexture(){
+  if(_texCache.solar) return _texCache.solar;
+  _texCache.solar=_canvasTex(512,256,(x,w,h)=>{
+    x.fillStyle='#0a1e4a'; x.fillRect(0,0,w,h);
+    const cw=w/12, ch=h/6;
+    for(let i=0;i<12;i++) for(let j=0;j<6;j++){
+      const g=x.createLinearGradient(i*cw,j*ch,i*cw+cw,j*ch+ch);
+      g.addColorStop(0,'#14306e'); g.addColorStop(0.5,'#1e4a9e'); g.addColorStop(1,'#0d2456');
+      x.fillStyle=g; x.fillRect(i*cw+1.5,j*ch+1.5,cw-3,ch-3);
+      x.fillStyle='rgba(120,180,255,0.25)'; x.fillRect(i*cw+1.5,j*ch+1.5,cw-3,3);
+      x.strokeStyle='rgba(180,210,255,0.5)'; x.lineWidth=0.8;
+      for(let k=1;k<4;k++){ x.beginPath(); x.moveTo(i*cw+1.5,j*ch+k*ch/4); x.lineTo(i*cw+cw-1.5,j*ch+k*ch/4); x.stroke(); }
+    }
+    x.strokeStyle='#8a94a8'; x.lineWidth=2;
+    for(let i=0;i<=12;i++){ x.beginPath(); x.moveTo(i*cw,0); x.lineTo(i*cw,h); x.stroke(); }
+    for(let j=0;j<=6;j++){ x.beginPath(); x.moveTo(0,j*ch); x.lineTo(w,j*ch); x.stroke(); }
+  });
+  return _texCache.solar;
+}
+function foilTexture(){
+  if(_texCache.foil) return _texCache.foil;
+  _texCache.foil=_canvasTex(256,256,(x,w,h)=>{
+    x.fillStyle='#8a6a1f'; x.fillRect(0,0,w,h);
+    for(let i=0;i<2600;i++){
+      const px=Math.random()*w, py=Math.random()*h, s=1+Math.random()*3;
+      const v=Math.random();
+      x.fillStyle=v<0.4?'rgba(255,220,120,0.5)':v<0.7?'rgba(160,110,30,0.55)':'rgba(60,40,8,0.5)';
+      x.save(); x.translate(px,py); x.rotate(Math.random()*Math.PI); x.fillRect(-s,-s*0.4,s*2,s*0.8); x.restore();
+    }
+    x.strokeStyle='rgba(40,26,6,0.6)'; x.lineWidth=1;
+    for(let i=0;i<8;i++){ x.beginPath(); x.moveTo(0,i*h/8+Math.random()*4); x.lineTo(w,i*h/8+Math.random()*4); x.stroke(); }
+  });
+  return _texCache.foil;
+}
+function busTexture(){
+  if(_texCache.bus) return _texCache.bus;
+  _texCache.bus=_canvasTex(512,256,(x,w,h)=>{
+    x.fillStyle='#b9bec7'; x.fillRect(0,0,w,h);
+    x.strokeStyle='rgba(40,46,58,0.85)'; x.lineWidth=2;
+    for(let i=0;i<=4;i++){ x.beginPath(); x.moveTo(i*w/4,0); x.lineTo(i*w/4,h); x.stroke(); }
+    x.beginPath(); x.moveTo(0,h/2); x.lineTo(w,h/2); x.stroke();
+    x.fillStyle='rgba(40,46,58,0.9)';
+    for(let i=0;i<40;i++){ const px=(i%10)*w/10+w/20, py=Math.floor(i/10)%2?h*0.25:h*0.75; x.beginPath(); x.arc(px,py,2.2,0,7); x.fill(); }
+    x.fillStyle='rgba(20,60,40,0.9)'; x.font='bold 20px monospace'; x.fillText('IRIS · ACTIVE',18,30);
+    x.fillStyle='rgba(120,0,0,0.85)'; x.fillRect(w-70,14,52,22);
+    x.fillStyle='#fff'; x.font='bold 11px monospace'; x.fillText('NO STEP',w-66,29);
+    x.fillStyle='rgba(30,40,60,0.25)';
+    for(let i=0;i<30;i++) x.fillRect(Math.random()*w,Math.random()*h,8+Math.random()*20,1.5);
+  });
+  return _texCache.bus;
+}
+function radiatorTexture(){
+  if(_texCache.rad) return _texCache.rad;
+  _texCache.rad=_canvasTex(256,256,(x,w,h)=>{
+    x.fillStyle='#e8ecf1'; x.fillRect(0,0,w,h);
+    x.strokeStyle='rgba(120,135,155,0.7)'; x.lineWidth=1;
+    for(let i=0;i<=16;i++){ x.beginPath(); x.moveTo(i*w/16,0); x.lineTo(i*w/16,h); x.stroke(); x.beginPath(); x.moveTo(0,i*h/16); x.lineTo(w,i*h/16); x.stroke(); }
+    x.fillStyle='rgba(180,40,40,0.8)'; x.font='bold 14px monospace'; x.fillText('RADIATOR',12,22);
+  });
+  return _texCache.rad;
+}
+function arrayTexture(){
+  if(_texCache.arr) return _texCache.arr;
+  _texCache.arr=_canvasTex(256,160,(x,w,h)=>{
+    x.fillStyle='#10151d'; x.fillRect(0,0,w,h);
+    x.fillStyle='#2b3a55';
+    for(let i=0;i<16;i++) for(let j=0;j<10;j++){
+      x.beginPath(); x.arc(8+i*16,8+j*16,4.4,0,7); x.fill();
+      x.fillStyle='rgba(140,190,255,0.55)'; x.beginPath(); x.arc(8+i*16-1,8+j*16-1,1.6,0,7); x.fill();
+      x.fillStyle='#2b3a55';
+    }
+    x.strokeStyle='rgba(90,110,140,0.8)'; x.lineWidth=2; x.strokeRect(1,1,w-2,h-2);
+  });
+  return _texCache.arr;
+}
+function glowTexture(){
+  if(_texCache.glow) return _texCache.glow;
+  const c=document.createElement('canvas'); c.width=c.height=128;
+  const x=c.getContext('2d');
+  const g=x.createRadialGradient(64,64,0,64,64,64);
+  g.addColorStop(0,'rgba(255,255,255,1)'); g.addColorStop(0.25,'rgba(255,255,255,0.55)');
+  g.addColorStop(0.55,'rgba(255,255,255,0.12)'); g.addColorStop(1,'rgba(255,255,255,0)');
+  x.fillStyle=g; x.fillRect(0,0,128,128);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; _texCache.glow=t;
+  return t;
+}
+function makeNameplate(text,accent){
+  const c=document.createElement('canvas'); c.width=256; c.height=64;
+  const x=c.getContext('2d');
+  x.fillStyle='#0b0e13'; x.fillRect(0,0,256,64);
+  x.strokeStyle=accent||'#39ff14'; x.lineWidth=3; x.strokeRect(2,2,252,60);
+  x.fillStyle='#f2f5f8'; x.font='bold 26px monospace'; x.textAlign='center';
+  x.fillText(text.slice(0,12),128,40);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8;
+  return t;
+}
+function _box(parent,w,h,d,px,py,pz,mat){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
+  m.position.set(px,py,pz); parent.add(m); return m;
+}
+function _cyl(parent,rt,rb,hh,seg,px,py,pz,mat,rx=0,rz=0){
+  const m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,hh,seg),mat);
+  m.position.set(px,py,pz); m.rotation.x=rx; m.rotation.z=rz; parent.add(m); return m;
+}
+// shared micro-materials (cheap, reused across fleet)
+const _M={
+  dark:null, alu:null, copper:null, white:null, black:null, lensC:null, lensR:null,
+  init(SZ){
+    if(this.dark) return this;
+    const E=(m,v)=>{ m.envMapIntensity=v; return m; };
+    this.dark=E(new THREE.MeshStandardMaterial({color:0x1a2029,roughness:0.5,metalness:0.75}),0.7);
+    this.alu=E(new THREE.MeshStandardMaterial({color:0xd6dbe2,roughness:0.28,metalness:0.95}),1.0);
+    this.titanium=E(new THREE.MeshStandardMaterial({color:0x8f96a3,roughness:0.32,metalness:1.0}),1.1);
+    this.copper=E(new THREE.MeshStandardMaterial({color:0xb46a28,roughness:0.35,metalness:0.9,map:foilTexture()}),0.9);
+    this.goldFoil=E(new THREE.MeshStandardMaterial({color:0xd8a93c,roughness:0.42,metalness:0.85,map:foilTexture()}),0.9);
+    this.blackMLI=E(new THREE.MeshStandardMaterial({color:0x14161c,roughness:0.6,metalness:0.5}),0.4);
+    this.white=E(new THREE.MeshStandardMaterial({color:0xf2f5f8,roughness:0.45,metalness:0.2}),0.5);
+    this.dishWhite=E(new THREE.MeshStandardMaterial({color:0xf6f8fa,roughness:0.3,metalness:0.35,side:THREE.DoubleSide}),0.8);
+    this.black=E(new THREE.MeshStandardMaterial({color:0x05070b,roughness:0.35,metalness:0.5}),0.6);
+    this.solar=E(new THREE.MeshStandardMaterial({map:solarTexture(),roughness:0.25,metalness:0.8,emissive:0x0a2050,emissiveIntensity:0.3}),0.9);
+    this.solarBack=E(new THREE.MeshStandardMaterial({color:0x3a4350,roughness:0.6,metalness:0.5}),0.4);
+    this.radiator=E(new THREE.MeshStandardMaterial({map:radiatorTexture(),roughness:0.55,metalness:0.2}),0.4);
+    this.array=E(new THREE.MeshStandardMaterial({map:arrayTexture(),roughness:0.4,metalness:0.7,emissive:0x112244,emissiveIntensity:0.35}),0.7);
+    this.strobeR=new THREE.MeshStandardMaterial({color:0xff2222,emissive:0xff2222,emissiveIntensity:3});
+    this.strobeG=new THREE.MeshStandardMaterial({color:0x22ff66,emissive:0x22ff66,emissiveIntensity:3});
+    this.strobeA=new THREE.MeshStandardMaterial({color:0xffaa00,emissive:0xffaa00,emissiveIntensity:3});
+    this.lensC=new THREE.MeshStandardMaterial({color:0x06121f,emissive:0x38e6ff,emissiveIntensity:1.6,roughness:0.15,metalness:0.9});
+    this.lensR=new THREE.MeshStandardMaterial({color:0x1f0606,emissive:0xff3838,emissiveIntensity:1.2,roughness:0.2,metalness:0.8});
+    return this;
+  }
+};
+function _strobe(parent,mat,px,py,pz,r,SZ,phase){
+  const s=new THREE.Mesh(new THREE.SphereGeometry(r*SZ,10,10),mat.clone());
+  s.position.set(px,py,pz); parent.add(s);
+  (parent.userData.blinkers||(parent.userData.blinkers=[])).push({m:s.material,ph:phase||Math.random()*6.28,base:3});
+  return s;
+}
+function _glow(parent,colorHex,px,py,pz,size,SZ,phase){
+  // additive halo sprite that pulses with its strobe — the "beacon flash" you see from far
+  const sm=new THREE.SpriteMaterial({map:glowTexture(),color:colorHex,transparent:true,opacity:0.0,blending:THREE.AdditiveBlending,depthWrite:false});
+  const sp=new THREE.Sprite(sm); sp.position.set(px,py,pz); sp.scale.set(size*SZ,size*SZ,1); parent.add(sp);
+  (parent.userData.blinkers||(parent.userData.blinkers=[])).push({m:sm,ph:phase||Math.random()*6.28,base:0.9,sprite:true});
+  return sp;
+}
+function _plate(parent,text,accent,w,px,py,pz,ry){
+  const t=makeNameplate(text,accent);
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(w,w*0.25),new THREE.MeshStandardMaterial({map:t,roughness:0.5,metalness:0.4,emissive:0xffffff,emissiveMap:t,emissiveIntensity:0.35}));
+  m.material.envMapIntensity=0.4;
+  m.position.set(px,py,pz); if(ry) m.rotation.y=ry; parent.add(m); return m;
+}
+function tagSatMesh(mesh,label,accent,SZ,kind){
+  // per-vehicle nameplate with its real label — readable when you zoom in close
+  try{
+    if(kind==='active') _plate(mesh,label,accent||'#39ff14',0.013*SZ, 0,-0.0095*SZ,0.0074*SZ, 0);
+    else if(kind==='action') _plate(mesh,label,accent||'#fb923c',0.012*SZ, 0,0.011*SZ,0.0096*SZ, 0);
+    else _plate(mesh,label,accent||'#facc15',0.009*SZ, 0,0.002*SZ,0.0108*SZ, 0);
+  }catch(e){ console.warn('plate fail',e); }
+}
+// ACTIVE SAT — Starlink/Hubble-class bus: MLI bus + dual 3-segment solar wings + HGA dish + RCS + radiators + greebles
+function buildActiveDetails(bus,SZ){
+  _M.init(SZ);
+  bus.material.map=busTexture(); bus.material.color.setHex(0xffffff); bus.material.needsUpdate=true;
+  const micro=new THREE.Group(); micro.name='micro'; bus.add(micro);
+  const u=SZ;
+  // gold MLI belly blanket
+  _box(bus,0.020*u,0.003*u,0.014*u, 0,-0.0095*u,0, _M.goldFoil);
+  // solar wings: yoke + 3 segments each side with frames
+  const wingYokeG=new THREE.CylinderGeometry(0.0016*u,0.0016*u,0.012*u,10);
+  const wingMat=_M.solar;
+  [-1,1].forEach(side=>{
+    const yoke=new THREE.Mesh(wingYokeG,_M.alu); yoke.rotation.x=Math.PI/2; yoke.position.set(0,0,side*0.013*u); bus.add(yoke);
+    for(let s=0;s<3;s++){
+      const z=side*(0.024*u+s*0.0175*u);
+      const seg=new THREE.Mesh(new THREE.BoxGeometry(0.030*u,0.0009*u,0.0165*u),wingMat);
+      seg.position.set(0,0,z); bus.add(seg);
+      const fr=new THREE.Mesh(new THREE.BoxGeometry(0.0312*u,0.0005*u,0.0175*u),_M.dark);
+      fr.position.set(0,-0.0006*u,z); bus.add(fr);
+      const hinge=_cyl(bus,0.0012*u,0.0012*u,0.030*u,8, 0,0.0012*u,z-0.0086*u*side,_M.dark,0,Math.PI/2);
+    }
+  });
+  // high-gain dish on +Y: gimbal base + TRUE parabolic lathe reflector + feed tripod + actuator ribs
+  _cyl(bus,0.0032*u,0.0038*u,0.004*u,14, 0.006*u,0.0095*u,0,_M.dark);
+  _cyl(bus,0.0016*u,0.002*u,0.012*u,10, 0.006*u,0.016*u,0,_M.titanium);
+  const _dishPts=[]; { const Rd=0.012*u, f=0.007*u; for(let i=0;i<=14;i++){ const r=i/14*Rd; _dishPts.push(new THREE.Vector2(Math.max(r,0.0004*u),(r*r)/(4*f))); } }
+  const dish=new THREE.Mesh(new THREE.LatheGeometry(_dishPts,30),_M.dishWhite);
+  dish.position.set(0.006*u,0.021*u,-0.002*u); dish.rotation.x=Math.PI*0.62; bus.add(dish);
+  const dishBack=new THREE.Mesh(new THREE.CylinderGeometry(0.0012*u,0.0012*u,0.006*u,8),_M.alu);
+  dishBack.position.set(0.006*u,0.0195*u,-0.0035*u); dishBack.rotation.x=Math.PI*0.62; bus.add(dishBack);
+  for(let i=-1;i<=1;i++){ // quad-leg feed tripod
+    const leg=_cyl(bus,0.00035*u,0.00035*u,0.013*u,6, 0.006*u+i*0.004*u,0.026*u,0.0035*u,_M.alu,0.5,0.12*i);
+    leg.rotation.z=0.12*i;
+  }
+  const feed=new THREE.Mesh(new THREE.SphereGeometry(0.0017*u,12,12),_M.lensC); feed.position.set(0.006*u,0.0275*u,0.0045*u); bus.add(feed);
+  const feedHorn=_cyl(bus,0.0017*u,0.0009*u,0.003*u,10, 0.006*u,0.0255*u,0.0042*u,_M.copper,0.35,0);
+  // omni stubs + GPS patches + sun-slit sensor
+  _cyl(bus,0.0009*u,0.0012*u,0.009*u,8, -0.008*u,0.012*u,0.004*u,_M.copper);
+  _box(bus,0.003*u,0.0006*u,0.003*u, 0.002*u,0.0084*u,0.005*u,_M.array);
+  _box(bus,0.003*u,0.0006*u,0.003*u, -0.003*u,0.0084*u,-0.005*u,_M.array);
+  _box(bus,0.004*u,0.0012*u,0.0008*u, 0.0*u,0.0083*u,0.0*u,_M.black);
+  [-1,1].forEach(s=>{
+    _cyl(bus,0.00035*u,0.00035*u,0.030*u,6, -0.009*u,0.012*u,s*0.006*u,_M.alu, s*0.18,0);
+    const tip=new THREE.Mesh(new THREE.SphereGeometry(0.0009*u,8,8),_M.strobeR); tip.position.set(-0.009*u-s*0.0027*u,0.027*u,s*0.006*u); bus.add(tip);
+  });
+  // star tracker + earth sensor lenses
+  _cyl(bus,0.0022*u,0.0026*u,0.005*u,12, -0.004*u,0.004*u,0.0092*u,_M.black,Math.PI/2,0);
+  const st=new THREE.Mesh(new THREE.CircleGeometry(0.0017*u,16),_M.lensC); st.position.set(-0.004*u,0.004*u,0.0118*u); bus.add(st);
+  const es=new THREE.Mesh(new THREE.CircleGeometry(0.002*u,16),_M.lensR); es.position.set(0,-0.006*u,0.0081*u); es.rotation.x=0; bus.add(es);
+  // radiator panel (-X) + RCS quads (4 corners × nozzle cones)
+  const rad=_box(bus,0.0008*u,0.012*u,0.014*u, -0.0114*u,0,0,_M.radiator);
+  const nozG=new THREE.ConeGeometry(0.0013*u,0.0026*u,10,1,true);
+  const nozM=new THREE.MeshStandardMaterial({color:0x2a2f36,roughness:0.4,metalness:0.9,side:THREE.DoubleSide});
+  [[1,1],[1,-1],[-1,1],[-1,-1]].forEach(([sy,szz])=>{
+    const pod=_box(bus,0.004*u,0.004*u,0.004*u, 0.008*u,sy*0.009*u,szz*0.009*u,_M.dark);
+    const n1=new THREE.Mesh(nozG,nozM); n1.position.set(0.008*u,sy*0.012*u,szz*0.009*u); n1.rotation.x=sy>0?0:Math.PI; bus.add(n1);
+    const n2=new THREE.Mesh(nozG,nozM); n2.position.set(0.008*u,sy*0.009*u,szz*0.012*u); n2.rotation.z=-Math.PI/2; n2.rotation.y=szz>0?0:Math.PI; bus.add(n2);
+  });
+  // greebles: battery box, reaction wheels, harness runs, vents — visible on zoom
+  _box(micro,0.008*u,0.005*u,0.006*u, -0.002*u,0.002*u,-0.004*u,_M.dark);
+  _cyl(micro,0.0022*u,0.0022*u,0.003*u,14, 0.004*u,-0.003*u,0.003*u,_M.alu,0,Math.PI/2);
+  _cyl(micro,0.0022*u,0.0022*u,0.003*u,14, 0.004*u,-0.003*u,-0.002*u,_M.alu,0,Math.PI/2);
+  _box(micro,0.018*u,0.0012*u,0.0012*u, 0,0.0086*u,0,_M.copper);
+  const vent=new THREE.Mesh(new THREE.TorusGeometry(0.0024*u,0.0006*u,8,20),_M.dark);
+  vent.position.set(0.0111*u,0.002*u,-0.003*u); vent.rotation.y=Math.PI/2; micro.add(vent);
+  // bolts around bus rim
+  const boltG=new THREE.CylinderGeometry(0.00045*u,0.00045*u,0.0008*u,6);
+  for(let i=0;i<12;i++){
+    const b=new THREE.Mesh(boltG,_M.alu);
+    b.position.set(-0.008*u+i*0.00145*u,0.0081*u,0.0081*u); micro.add(b);
+  }
+  // nav strobes (blink in upd) + halo glows visible from far
+  _strobe(bus,_M.strobeR,-0.011*u,0.009*u,0.008*u,0.0012,u,0);
+  _strobe(bus,_M.strobeG,0.011*u,0.009*u,-0.008*u,0.0012,u,2.4);
+  _glow(bus,0xff3333,-0.011*u,0.009*u,0.008*u,0.012,u,0);
+  _glow(bus,0x33ff77,0.011*u,0.009*u,-0.008*u,0.012,u,2.4);
+  // twin titanium propellant tanks slung below + struts
+  [-1,1].forEach(s=>{
+    const tank=new THREE.Mesh(new THREE.SphereGeometry(0.0042*u,20,16),_M.titanium);
+    tank.position.set(s*0.006*u,-0.0125*u,0); bus.add(tank);
+    const band=new THREE.Mesh(new THREE.TorusGeometry(0.00425*u,0.0004*u,8,24),_M.dark);
+    band.position.copy(tank.position); band.rotation.x=Math.PI/2; bus.add(band);
+    _box(bus,0.0012*u,0.004*u,0.0012*u, s*0.006*u,-0.0085*u,0,_M.dark);
+  });
+  // separation ring with bolt circle (launch adapter interface)
+  const sep=_cyl(bus,0.006*u,0.0068*u,0.003*u,20, 0,-0.0095*u,0,_M.alu);
+  const sepBoltG=new THREE.CylinderGeometry(0.0004*u,0.0004*u,0.001*u,6);
+  for(let i=0;i<16;i++){
+    const a=i/16*Math.PI*2;
+    const b=new THREE.Mesh(sepBoltG,_M.dark);
+    b.position.set(Math.cos(a)*0.006*u,-0.0112*u,Math.sin(a)*0.006*u); micro.add(b);
+  }
+  // Ka phased-array face (+X) + L-band blades + cable harness runs + connector cubes
+  _box(bus,0.0007*u,0.010*u,0.012*u, 0.0113*u,0.0*u,0.0*u,_M.array);
+  _box(bus,0.006*u,0.0007*u,0.0016*u, 0.004*u,-0.0083*u,0.006*u,_M.white);
+  _box(bus,0.006*u,0.0007*u,0.0016*u, -0.004*u,-0.0083*u,-0.006*u,_M.white);
+  _box(bus,0.020*u,0.001*u,0.001*u, 0,-0.0075*u,0.0075*u,_M.copper);
+  _box(bus,0.001*u,0.014*u,0.001*u, 0.0105*u,0,0.0075*u,_M.copper);
+  _box(micro,0.0025*u,0.0025*u,0.0025*u, 0.009*u,-0.005*u,0.006*u,_M.dark);
+  _box(micro,0.0025*u,0.0025*u,0.0025*u, -0.009*u,-0.005*u,-0.006*u,_M.dark);
+  // black MLI skirt + gold tape stripes
+  _box(bus,0.0225*u,0.002*u,0.0165*u, 0,-0.0068*u,0,_M.blackMLI);
+  _box(bus,0.0226*u,0.0008*u,0.0166*u, 0,0.004*u,0,_M.goldFoil);
+  bus.userData.micro=micro;
+}
+// ACTION BOT — orange interceptor drone: carbon core + 4 ion arms + gimbal cam + mast
+function buildActionDetails(core,SZ){
+  _M.init(SZ);
+  const u=SZ;
+  const micro=new THREE.Group(); micro.name='micro'; core.add(micro);
+  // arms in X config with motor pods + glowing ion rings
+  const armG=new THREE.BoxGeometry(0.030*u,0.0035*u,0.0035*u);
+  const podG=new THREE.CylinderGeometry(0.0032*u,0.0038*u,0.007*u,12);
+  const ringG=new THREE.TorusGeometry(0.0028*u,0.0007*u,8,22);
+  const ringM=new THREE.MeshStandardMaterial({color:0x06283a,emissive:0x22d3ee,emissiveIntensity:2.2});
+  [45,-45].forEach((deg,ai)=>{
+    const arm=new THREE.Mesh(armG,_M.dark); arm.rotation.y=deg*Math.PI/180; core.add(arm);
+    [-1,1].forEach(s=>{
+      const a=deg*Math.PI/180, px=Math.cos(a)*s*0.016*u, pz=-Math.sin(a)*s*0.016*u;
+      const pod=new THREE.Mesh(podG,_M.copper); pod.position.set(px,0.002*u,pz); core.add(pod);
+      (core.userData._pods||(core.userData._pods=[])).push([px,0.002*u,pz]);
+      const ring=new THREE.Mesh(ringG,ringM.clone()); ring.position.set(px,-0.0022*u,pz); ring.rotation.x=Math.PI/2; core.add(ring);
+      (core.userData.rings||(core.userData.rings=[])).push(ring.material);
+      const bell=new THREE.Mesh(new THREE.ConeGeometry(0.0018*u,0.003*u,10,1,true),_M.dark); bell.position.set(px,-0.004*u,pz); bell.rotation.x=Math.PI; core.add(bell);
+    });
+  });
+  // gimbal camera ball + lens
+  const ball=new THREE.Mesh(new THREE.SphereGeometry(0.0045*u,18,14),_M.white); ball.position.set(0,-0.018*u,0); core.add(ball);
+  const lens=new THREE.Mesh(new THREE.CircleGeometry(0.0026*u,20),_M.lensC); lens.position.set(0,-0.018*u,0.0044*u); core.add(lens);
+  const lensRing=new THREE.Mesh(new THREE.TorusGeometry(0.0028*u,0.0005*u,8,24),_M.dark); lensRing.position.set(0,-0.018*u,0.0042*u); core.add(lensRing);
+  // top mast + GPS + patch + whip
+  _cyl(core,0.0012*u,0.0016*u,0.016*u,8, 0,0.022*u,0,_M.alu);
+  _box(core,0.008*u,0.001*u,0.008*u, 0,0.030*u,0,_M.solar);
+  _cyl(core,0.0003*u,0.0003*u,0.018*u,6, 0.004*u,0.024*u,0.004*u,_M.alu,0.2,0);
+  // carbon cooling fins + vents + bolts (micro)
+  for(let i=0;i<4;i++){
+    const f=_box(micro,0.0007*u,0.010*u,0.006*u, Math.cos(i*1.57)*0.009*u,0.004*u,Math.sin(i*1.57)*0.009*u,_M.dark);
+    f.rotation.y=-i*1.57;
+  }
+  _box(micro,0.012*u,0.002*u,0.004*u, 0,0.010*u,0,_M.copper);
+  // stereo navcams (front +Z) + LiDAR dome + spotlight lens
+  [-1,1].forEach(s=>{
+    _cyl(core,0.0016*u,0.0019*u,0.003*u,10, s*0.004*u,0.006*u,0.0102*u,_M.black,Math.PI/2,0);
+    const eye=new THREE.Mesh(new THREE.CircleGeometry(0.0012*u,14),_M.lensC);
+    eye.position.set(s*0.004*u,0.006*u,0.0118*u); core.add(eye);
+  });
+  const lidar=new THREE.Mesh(new THREE.SphereGeometry(0.0028*u,16,12,0,Math.PI*2,0,Math.PI/2),_M.black);
+  lidar.position.set(0,0.012*u,0.004*u); lidar.rotation.x=Math.PI; core.add(lidar);
+  const spot=new THREE.Mesh(new THREE.CircleGeometry(0.002*u,16),_M.white);
+  spot.position.set(0,0.002*u,0.01115*u); core.add(spot);
+  const spotRing=new THREE.Mesh(new THREE.TorusGeometry(0.0022*u,0.0004*u,8,20),_M.dark);
+  spotRing.position.set(0,0.002*u,0.011*u); core.add(spotRing);
+  // motor winding stacks (copper torus ×2 per pod) + UHF blade + grapple pin
+  const windG=new THREE.TorusGeometry(0.0033*u,0.00055*u,8,20);
+  (core.userData._pods||[]).forEach(p=>{
+    [0.0012,-0.0012].forEach(dy=>{
+      const wmesh=new THREE.Mesh(windG,_M.copper); wmesh.position.set(p[0],p[1]+dy,p[2]); wmesh.rotation.x=Math.PI/2; micro.add(wmesh);
+    });
+  });
+  _box(core,0.0008*u,0.008*u,0.003*u, -0.006*u,-0.004*u,-0.008*u,_M.alu);
+  _cyl(core,0.001*u,0.001*u,0.006*u,8, 0,-0.016*u,-0.006*u,_M.titanium,0,0);
+  _strobe(core,_M.strobeA,0,0.031*u,0,0.0014,u,1.1);
+  _strobe(core,_M.strobeA,0,-0.012*u,0.011*u,0.001,u,3.6);
+  _glow(core,0xffb020,0,0.031*u,0,0.012,u,1.1);
+  core.userData.micro=micro;
+}
+// SENSORY — gold sensor head: core + collar panels + lens stack + FOV cone + ribs
+function buildSensoryDetails(head,SZ){
+  _M.init(SZ);
+  const u=SZ;
+  head.material.map=foilTexture(); head.material.color.setHex(0xffffff); head.material.needsUpdate=true;
+  const micro=new THREE.Group(); micro.name='micro'; head.add(micro);
+  // equator collar with 6 mini solar cells
+  const collar=new THREE.Mesh(new THREE.TorusGeometry(0.013*u,0.0022*u,8,24),_M.dark);
+  collar.rotation.x=Math.PI/2; head.add(collar);
+  for(let i=0;i<6;i++){
+    const a=i/6*Math.PI*2;
+    const cell=_box(head,0.005*u,0.0008*u,0.003*u, Math.cos(a)*0.014*u,0,Math.sin(a)*0.014*u,_M.solar);
+    cell.rotation.y=-a;
+  }
+  // lens stack facing down (-Y): barrel + 2 glass elements
+  _cyl(head,0.004*u,0.005*u,0.008*u,14, 0,-0.012*u,0,_M.black);
+  const g1=new THREE.Mesh(new THREE.CircleGeometry(0.0032*u,20),_M.lensC); g1.position.set(0,-0.0162*u,0); g1.rotation.x=Math.PI/2; head.add(g1);
+  const g2ring=new THREE.Mesh(new THREE.TorusGeometry(0.0034*u,0.0005*u,8,24),_M.copper); g2ring.position.set(0,-0.016*u,0); g2ring.rotation.x=Math.PI/2; head.add(g2ring);
+  // top spike antenna + LED + halo
+  _cyl(head,0.0005*u,0.0005*u,0.014*u,6, 0,0.016*u,0,_M.alu);
+  const sPh=Math.random()*6;
+  _strobe(head,_M.strobeA,0,0.024*u,0,0.0011,u,sPh);
+  _glow(head,0xffc040,0,0.024*u,0,0.010,u,sPh);
+  // baffle rings stacked on the lens barrel (stray-light suppression) + sunshade lip
+  [0.0052,0.0056,0.006].forEach((rr,idx)=>{
+    const bf=new THREE.Mesh(new THREE.TorusGeometry(rr*u,0.00045*u,8,26),_M.black);
+    bf.position.set(0,(-0.0135-idx*0.0022)*u,0); bf.rotation.x=Math.PI/2; head.add(bf);
+  });
+  const shade=new THREE.Mesh(new THREE.CylinderGeometry(0.0068*u,0.006*u,0.004*u,18,1,true),_M.blackMLI||_M.black);
+  shade.position.set(0,-0.021*u,0); head.add(shade);
+  // ribs (micro) + facet screws
+  for(let i=0;i<8;i++){
+    const a=i/8*Math.PI*2;
+    _box(micro,0.001*u,0.008*u,0.001*u, Math.cos(a)*0.009*u,0.004*u,Math.sin(a)*0.009*u,_M.copper).rotation.y=-a;
+  }
+  const scrG=new THREE.CylinderGeometry(0.0004*u,0.0004*u,0.0006*u,6);
+  for(let i=0;i<8;i++){
+    const a=(i+0.5)/8*Math.PI*2;
+    const sc=new THREE.Mesh(scrG,_M.alu);
+    sc.position.set(Math.cos(a)*0.0115*u,0.008*u,Math.sin(a)*0.0115*u); micro.add(sc);
+  }
+  head.userData.micro=micro;
+}
 function solveKepler(M,e){ let E=M; for(let i=0;i<6;i++){ let f=E - e*Math.sin(E) - M, fp=1 - e*Math.cos(E); E-=f/fp; } return E; }
 class Sat{
   constructor(o){ this.type=o.type; this.a=o.a; this.e=o.e||0; this.inc=o.inc*RAD; this.raan=o.raan*RAD; this.argP=o.argP*RAD; this.M0=o.M0*RAD; this.mass=o.mass||800; this.spin=o.spin||0;
@@ -905,25 +1426,27 @@ class Sat{
     }
     else if(this.type==='active'){ 
       const g=new THREE.BoxGeometry(0.022*SZ,0.016*SZ,0.016*SZ);
-      const m=new THREE.MeshStandardMaterial({color:0x22c55e, emissive:0x14532d, emissiveIntensity:0.32, roughness:0.42, metalness:0.45}); 
+      const m=new THREE.MeshStandardMaterial({color:0xffffff, map:busTexture(), emissive:0x14532d, emissiveIntensity:0.25, roughness:0.42, metalness:0.55}); 
       mesh=new THREE.Mesh(g,m); 
-      const pg=new THREE.BoxGeometry(0.028*SZ,0.001*SZ,0.016*SZ); 
-      const pm=new THREE.MeshStandardMaterial({color:0x1e3a8a, roughness:0.25, metalness:0.78}); 
-      const p1=new THREE.Mesh(pg,pm); p1.position.set(0,0,0.018*SZ); mesh.add(p1); 
-      const p2=p1.clone(); p2.position.set(0,0,-0.018*SZ); mesh.add(p2); 
+      try{ buildActiveDetails(mesh,SZ); }catch(e){ console.warn('active detail fail',e); }
     }
     else if(this.type==='sensory'){ 
       const g=new THREE.OctahedronGeometry(0.012*SZ,0);
-      const m=new THREE.MeshStandardMaterial({color:0xfacc15, emissive:0xf59e0b, emissiveIntensity:0.62, roughness:0.35, metalness:0.55}); 
+      const m=new THREE.MeshStandardMaterial({color:0xffffff, map:foilTexture(), emissive:0xf59e0b, emissiveIntensity:0.35, roughness:0.38, metalness:0.75}); 
       mesh=new THREE.Mesh(g,m); 
       const cg=new THREE.ConeGeometry(0.018*SZ,0.04*SZ,16,1,true); 
       const cm=new THREE.MeshBasicMaterial({color:0xfacc15, transparent:true, opacity:0.14, side:THREE.DoubleSide}); 
-      const cone=new THREE.Mesh(cg,cm); cone.rotation.x=Math.PI; cone.position.y=-0.03*SZ; mesh.add(cone); 
+      const cone=new THREE.Mesh(cg,cm); cone.rotation.x=Math.PI; cone.position.y=-0.035*SZ; mesh.add(cone); 
+      try{ buildSensoryDetails(mesh,SZ); }catch(e){ console.warn('sensory detail fail',e); }
     }
     else { 
       const g=new THREE.CylinderGeometry(0.008*SZ,0.011*SZ,0.032*SZ,12); 
-      const m=new THREE.MeshStandardMaterial({color:0xfb923c, emissive:0x9a3412, emissiveIntensity:0.52, roughness:0.48, metalness:0.35}); 
+      const m=new THREE.MeshStandardMaterial({color:0xc96a1e, emissive:0x9a3412, emissiveIntensity:0.35, roughness:0.42, metalness:0.6, map:foilTexture()}); 
       mesh=new THREE.Mesh(g,m); mesh.rotation.z=Math.PI/2; 
+      // detail group must counter-rotate so drone stays upright: build in wrapper
+      // build drone parts inside inner group aligned to cylinder axis
+      const inner=new THREE.Group(); mesh.add(inner);
+      try{ buildActionDetails(inner,SZ); mesh.userData.blinkers=inner.userData.blinkers; mesh.userData.rings=inner.userData.rings; mesh.userData.micro=inner.userData.micro; mesh.userData.inner=inner; }catch(e){ console.warn('action detail fail',e); }
     }
     this.mesh=mesh; this.group.add(mesh);
     const col=this.type==='debris'?0xf87171:this.type==='active'?0x22c55e:this.type==='sensory'?0xfacc15:0xfb923c;
@@ -934,6 +1457,13 @@ class Sat{
   }
   at(t){ const n=Math.sqrt(MU/Math.pow(this.a,3)), M=this.M0+n*t; let r,nu; if(this.e<1e-4){ r=this.a; nu=M%(2*Math.PI);} else { const E=solveKepler(((M%(2*Math.PI))+2*Math.PI)%(2*Math.PI), this.e); nu=2*Math.atan2(Math.sqrt(1+this.e)*Math.sin(E/2), Math.sqrt(1-this.e)*Math.cos(E/2)); r=this.a*(1 - this.e*Math.cos(E)); } const p=r*Math.cos(nu), q=r*Math.sin(nu); const co=Math.cos(this.raan), so=Math.sin(this.raan), ci=Math.cos(this.inc), si=Math.sin(this.inc), cw=Math.cos(this.argP), sw=Math.sin(this.argP); const x=(co*cw - so*sw*ci)*p + (-co*sw - so*cw*ci)*q; const y=(so*cw + co*sw*ci)*p + (-so*sw + co*cw*ci)*q; const z=(sw*si)*p + (cw*si)*q; const rk=Math.sqrt(x*x+y*y+z*z); const exR=sceneRadius(rk-KM_PER_UNIT); const s=exR/rk; return new THREE.Vector3(x*s, z*s, y*s); }
   upd(t,dt){ const pos=this.at(t); this.group.position.copy(pos); if(this.type==='debris'){ this.mesh.rotation.x+=this.spin*dt*0.8; this.mesh.rotation.y+=this.spin*dt*0.6; } else if(this.type==='sensory') this.mesh.rotation.y+=dt*0.25; else if(this.type==='active') this.mesh.rotation.y+=dt*0.08;
+    // strobe beacons: sharp double-flash (mesh emissive) + halo sprites (opacity); ion rings: soft breathing glow
+    try{
+      const bl=this.mesh.userData.blinkers;
+      if(bl) for(let k=0;k<bl.length;k++){ const b=bl[k]; const s=Math.pow(0.5+0.5*Math.sin(t*2.6+b.ph),12); if(b.sprite) b.m.opacity=b.base*s; else b.m.emissiveIntensity=0.25+b.base*3*s; }
+      const rg=this.mesh.userData.rings;
+      if(rg) for(let k=0;k<rg.length;k++){ rg[k].emissiveIntensity=1.6+Math.sin(t*3.2+k*1.7)*0.9; }
+    }catch(_){}
     this.trail.push(pos.clone()); if(this.trail.length>this.trailMax) this.trail.shift(); const arr=new Float32Array(this.trail.length*3); for(let i=0;i<this.trail.length;i++){ arr[i*3]=this.trail[i].x; arr[i*3+1]=this.trail[i].y; arr[i*3+2]=this.trail[i].z; } this.trailLine.geometry.setAttribute('position', new THREE.BufferAttribute(arr,3)); this.trailLine.geometry.setDrawRange(0,this.trail.length); this.trailLine.geometry.attributes.position.needsUpdate=true; this.currentAlt=altFromRadius(pos.length()); }
 }
 function rand(a,b){ return a+Math.random()*(b-a); }
@@ -956,44 +1486,136 @@ function fleetNotice(html, ms){
     enterN.classList.add('show'); clearTimeout(nt); nt=setTimeout(()=>enterN.classList.remove('show'), ms||1800);
   }catch(_){}
 }
+// === ORBIT UNIQUENESS — auto-fix, min 5 km between any two independent objects ===
+// Rule (exact, phased — constellations + crossing planes stay legal):
+//   same plane family (dAlt<5km, dInc<1°, dRAAN<2°, de<0.002, dArgP<3°) + phase M0 within 0.045° (~5km) → SAME SPOT → conflict.
+//   else epoch 3D distance <5km → conflict. 5–12km → caution. Everything else → clear.
+// Deploy/spawn AUTO-MOVES the newcomer to a shell 5 km away (then phase-tunes), so it never overlaps.
+const MIN_SEP_KM=5, WARN_SEP_KM=12, SAME_PLANE={dAlt:5,dInc:1.0,dRaan:2.0,dE:0.002,dArgP:3.0,dM0:0.045};
+function _angDiff(a,b){ let d=Math.abs(a-b)%360; return d>180?360-d:d; }
+function _eciReal(a,e,incD,raanD,argPD,MD){
+  const inc=incD*RAD, raan=raanD*RAD, argP=argPD*RAD;
+  let M=MD*RAD, r, nu;
+  if(e<1e-4){ r=a; nu=M; }
+  else{
+    let Mn=((M%(2*Math.PI))+2*Math.PI)%(2*Math.PI);
+    const E=solveKepler(Mn,e);
+    nu=2*Math.atan2(Math.sqrt(1+e)*Math.sin(E/2),Math.sqrt(1-e)*Math.cos(E/2));
+    r=a*(1-e*Math.cos(E));
+  }
+  const p=r*Math.cos(nu), q=r*Math.sin(nu);
+  const co=Math.cos(raan),so=Math.sin(raan),ci=Math.cos(inc),si=Math.sin(inc),cw=Math.cos(argP),sw=Math.sin(argP);
+  return [
+    (co*cw-so*sw*ci)*p+(-co*sw-so*cw*ci)*q,
+    (so*cw+co*sw*ci)*p+(-so*sw+co*cw*ci)*q,
+    (sw*si)*p+(cw*si)*q
+  ];
+}
+function _dist3(u,v){ const dx=u[0]-v[0],dy=u[1]-v[1],dz=u[2]-v[2]; return Math.sqrt(dx*dx+dy*dy+dz*dz); }
+function checkOrbitConflict(el){
+  // el: {a,e,inc,raan,argP,M0} with a in km radius, angles deg. Cheap exact check.
+  // Returns {ok, hard, msg, other, minKm}. minKm = epoch distance to closest object.
+  let closest=null, closestD=1e9;
+  for(const s of sats){
+    const o={a:s.a, e:s.e, inc:s.inc/RAD, raan:s.raan/RAD, argP:s.argP/RAD, M0:s.M0/RAD};
+    const dAlt=Math.abs(el.a-o.a), dInc=_angDiff(el.inc,o.inc), dRaan=_angDiff(el.raan,o.raan), dE=Math.abs(el.e-o.e), dArgP=_angDiff(el.argP,o.argP), dM0=_angDiff(el.M0,o.M0);
+    const samePlane=dAlt<SAME_PLANE.dAlt&&dInc<SAME_PLANE.dInc&&dRaan<SAME_PLANE.dRaan&&dE<SAME_PLANE.dE&&dArgP<SAME_PLANE.dArgP;
+    if(samePlane && dM0<SAME_PLANE.dM0){
+      return {ok:false,hard:true,sameShell:true,other:s,minKm:0,msg:`SAME SPOT as <b>${s.label}</b> — phase Δ${dM0.toFixed(3)}° (~${MIN_SEP_KM} km). Auto-fix moves it 5 km to a free shell.`};
+    }
+    const q0=_eciReal(el.a,el.e,el.inc,el.raan,el.argP,el.M0);
+    const s0=_eciReal(o.a,o.e,o.inc,o.raan,o.argP,o.M0);
+    const d0=_dist3(q0,s0);
+    if(d0<closestD){ closestD=d0; closest=s; }
+    if(d0<MIN_SEP_KM){
+      const sameShell=dAlt<SAME_PLANE.dAlt&&dInc<SAME_PLANE.dInc&&dRaan<SAME_PLANE.dRaan;
+      return {ok:false,hard:true,sameShell,other:s,minKm:d0,msg:`Only <b>${d0.toFixed(1)} km</b> from <b>${s.label}</b> &lt; ${MIN_SEP_KM} km. Auto-fix moves it 5 km away.`};
+    }
+  }
+  if(closest && closestD<WARN_SEP_KM) return {ok:true,hard:false,other:closest,minKm:closestD,warn:`Close to <b>${closest.label}</b> (~${closestD.toFixed(1)} km).`};
+  return {ok:true,hard:false,minKm:closestD,other:closest};
+}
+// auto-fix: if newcomer shares a shell+plane with anyone, hop altitude by 5 km steps
+// (up, else down, staying 160–2000) until its shell is free; then sweep M0 in 0.5°
+// steps (~60 km along-track) until epoch distance ≥ MIN_SEP_KM. Returns applied shifts.
+function autoFixOrbit(el){
+  let altShifts=0, phaseShifts=0;
+  for(let k=0;k<40;k++){
+    const c=checkOrbitConflict(el);
+    if(!c.hard) return {el,c,altShifts,phaseShifts};
+    if(!c.sameShell) break; // different shell already — phase issue only
+    const curAlt=el.a-KM_PER_UNIT;
+    const up=curAlt+5<=2000, dn=curAlt-5>=160;
+    if(!up && !dn) break;
+    el.a=KM_PER_UNIT+(up?curAlt+5:curAlt-5);
+    altShifts++;
+  }
+  for(let k=0;k<720;k++){
+    const c=checkOrbitConflict(el);
+    if(!c.hard) return {el,c,altShifts,phaseShifts};
+    // keep hopping shells while the blocker shares our shell, else tune phase
+    if(c.sameShell && altShifts<40){
+      const curAlt=el.a-KM_PER_UNIT;
+      const up=curAlt+5<=2000, dn=curAlt-5>=160;
+      if(up||dn){ el.a=KM_PER_UNIT+(up?curAlt+5:curAlt-5); altShifts++; continue; }
+    }
+    el.M0=(el.M0+0.5)%360; phaseShifts++;
+  }
+  return {el,c:checkOrbitConflict(el),altShifts,phaseShifts};
+}
 function spawnActiveSat(opts){
   opts=opts||{};
-  const alt=opts.alt ?? (450+Math.random()*350);
-  const sat=new Sat({
-    type:'active',
-    a:KM_PER_UNIT+alt,
-    e:opts.e ?? 0.001,
-    inc:opts.inc ?? rand(42,98),
-    raan:opts.raan ?? rand(0,360),
-    argP:opts.argP ?? rand(0,360),
-    M0:opts.M0 ?? rand(0,360)
-  });
-  sat.label=opts.name || ('ACTIVE-'+(++activeSeq));
-  sat.bots=[];
-  try{ sat.group.position.copy(sat.at(0)); sat.currentAlt=alt; }catch(_){}
-  sats.push(sat);
-  updateFleetCounts();
-  return sat;
+  const explicit=('alt' in opts)||('inc' in opts)||('raan' in opts)||('M0' in opts);
+  // try up to 20 random phases to find a free slot (random spawns); explicit params auto-fix M0 unless force:false
+  for(let attempt=0;attempt<20;attempt++){
+    const alt=opts.alt ?? (450+Math.random()*350);
+    const cand={a:KM_PER_UNIT+alt, e:opts.e ?? 0.001, inc:opts.inc ?? rand(42,98), raan:opts.raan ?? rand(0,360), argP:opts.argP ?? rand(0,360), M0:opts.M0 ?? rand(0,360)};
+    const c=checkOrbitConflict(cand);
+    if(c.hard){
+      if(explicit){
+        if(opts.force){ const f=autoFixOrbit({...cand}); Object.assign(cand,{a:f.el.a,M0:f.el.M0}); }
+        else{ fleetNotice(`⛔ TOO CLOSE — ${c.msg} Pass {force:true} or shift M0.`); return null; }
+      }
+      else continue; // random: re-roll phase
+    }
+    const sat=new Sat({type:'active', ...cand});
+    sat.label=opts.name || ('ACTIVE-'+(++activeSeq));
+    sat.bots=[];
+    try{ tagSatMesh(sat.mesh,sat.label,'#39ff14',R_EARTH,'active'); }catch(_){}
+    try{ sat.group.position.copy(sat.at(0)); sat.currentAlt=cand.a-KM_PER_UNIT; }catch(_){}
+    sats.push(sat);
+    updateFleetCounts();
+    return sat;
+  }
+  fleetNotice('⛔ LEO CROWDED — no free slot found, try another altitude/plane');
+  return null;
 }
 function spawnActionBot(opts){
   // Independent orbiter — own Kepler orbit, NOT attached to any satellite.
   opts=opts||{};
-  const alt=opts.alt ?? (500+Math.random()*140);
-  const sat=new Sat({
-    type:'action',
-    a:KM_PER_UNIT+alt,
-    e:opts.e ?? 0.001,
-    inc:opts.inc ?? rand(52,82),
-    raan:opts.raan ?? rand(0,360),
-    argP:opts.argP ?? rand(0,360),
-    M0:opts.M0 ?? rand(0,360)
-  });
-  sat.label=opts.name || ('ACTION-'+(++actionSeq));
-  sat.bots=[];
-  try{ sat.group.position.copy(sat.at(0)); sat.currentAlt=alt; }catch(_){}
-  sats.push(sat);
-  updateFleetCounts();
-  return sat;
+  const explicit=('alt' in opts)||('inc' in opts)||('raan' in opts)||('M0' in opts);
+  for(let attempt=0;attempt<20;attempt++){
+    const alt=opts.alt ?? (500+Math.random()*140);
+    const cand={a:KM_PER_UNIT+alt, e:opts.e ?? 0.001, inc:opts.inc ?? rand(52,82), raan:opts.raan ?? rand(0,360), argP:opts.argP ?? rand(0,360), M0:opts.M0 ?? rand(0,360)};
+    const c=checkOrbitConflict(cand);
+    if(c.hard){
+      if(explicit){
+        if(opts.force){ const f=autoFixOrbit({...cand}); Object.assign(cand,{a:f.el.a,M0:f.el.M0}); }
+        else{ fleetNotice(`⛔ TOO CLOSE — ${c.msg} Pass {force:true} or shift M0.`); return null; }
+      }
+      else continue;
+    }
+    const sat=new Sat({type:'action', ...cand});
+    sat.label=opts.name || ('ACTION-'+(++actionSeq));
+    sat.bots=[];
+    try{ tagSatMesh(sat.mesh.userData.inner||sat.mesh,sat.label,'#fb923c',R_EARTH,'action'); }catch(_){}
+    try{ sat.group.position.copy(sat.at(0)); sat.currentAlt=cand.a-KM_PER_UNIT; }catch(_){}
+    sats.push(sat);
+    updateFleetCounts();
+    return sat;
+  }
+  fleetNotice('⛔ LEO CROWDED — no free slot found, try another altitude/plane');
+  return null;
 }
 function resolveParentSat(ref){
   if(ref && ref.type==='active' && sats.indexOf(ref)>=0) return ref;
@@ -1018,11 +1640,12 @@ function attachBot(parentRef, kind, opts){
   if(!parent){ fleetNotice('ADD AN <b>ACTIVE SAT</b> FIRST — THEN ATTACH SENSORY BOTS'); return null; }
   const SZ=R_EARTH;
   const g=new THREE.OctahedronGeometry(0.012*SZ,0);
-  const m=new THREE.MeshStandardMaterial({color:0xfacc15, emissive:0xf59e0b, emissiveIntensity:0.62, roughness:0.35, metalness:0.55});
+  const m=new THREE.MeshStandardMaterial({color:0xffffff, map:foilTexture(), emissive:0xf59e0b, emissiveIntensity:0.35, roughness:0.38, metalness:0.75});
   const mesh=new THREE.Mesh(g,m);
   const cg=new THREE.ConeGeometry(0.018*SZ,0.04*SZ,16,1,true);
   const cm=new THREE.MeshBasicMaterial({color:0xfacc15, transparent:true, opacity:0.14, side:THREE.DoubleSide});
-  const cone=new THREE.Mesh(cg,cm); cone.rotation.x=Math.PI; cone.position.y=-0.03*SZ; mesh.add(cone);
+  const cone=new THREE.Mesh(cg,cm); cone.rotation.x=Math.PI; cone.position.y=-0.038*SZ; mesh.add(cone);
+  try{ buildSensoryDetails(mesh,SZ); }catch(e){ console.warn('sensory bot detail fail',e); }
   const siblings=(parent.bots||[]).length;
   mesh.position.copy(opts.offset || defaultBotOffset(kind, siblings));
   parent.group.add(mesh);
@@ -1035,6 +1658,7 @@ function attachBot(parentRef, kind, opts){
     bobAmp:(opts.bobAmp ?? 0.006)*SZ
   };
   mesh.userData.botRef=bot;
+  try{ tagSatMesh(mesh,bot.id,'#facc15',SZ,'sensory'); }catch(_){}
   parent.bots.push(bot);
   bots.push(bot);
   try{ mesh.scale.copy(parent.mesh.scale).multiplyScalar(0.85); }catch(_){}
@@ -1098,7 +1722,8 @@ renderer.domElement.addEventListener('pointermove', e=>{
       tip.style.left=e.clientX+'px'; tip.style.top=e.clientY+'px'; tip.classList.add('show'); document.body.style.cursor='pointer'; return;
     }
     if(hit && !hit.isBot){
-      const sat=hit; hovered=sat; const alt=(sat.currentAlt??(sat.a-KM_PER_UNIT)).toFixed(0); const vel=Math.sqrt(MU/sat.a).toFixed(2); const realM=sat.realSizeM.toFixed(1); const realKm=(sat.realSizeM/1000).toFixed(4); const nb=(sat.bots||[]).length; tip.innerHTML=`<b>${sat.label||sat.type.toUpperCase()}</b><br>Real Alt <b>${alt} km</b> (scene r=${sceneRadius(alt).toFixed(4)} ×${ALT_EXAG})<br>Real size <b>${realM} m</b> (${realKm} km) · mesh ×${sat.exaggeration}<br>Vel <b>${vel} km/s</b>${nb?`<br>Bots <b>${nb}</b> attached`:''}`; tip.style.left=e.clientX+'px'; tip.style.top=e.clientY+'px'; tip.classList.add('show'); document.body.style.cursor='pointer'; return;
+      const sat=hit; hovered=sat; const alt=(sat.currentAlt??(sat.a-KM_PER_UNIT)).toFixed(0); const vel=Math.sqrt(MU/sat.a).toFixed(2); const realM=sat.realSizeM.toFixed(1); const realKm=(sat.realSizeM/1000).toFixed(4); const nb=(sat.bots||[]).length; const ev=sat.env?`<br>ρ <b>${sat.env.rho.toExponential(1)} kg/m³</b> · ${sat.env.temp.toFixed(0)}K · life <b>${sat.env.lifetime}</b>`:'';
+      tip.innerHTML=`<b>${sat.label||sat.type.toUpperCase()}</b><br>Real Alt <b>${alt} km</b> (scene r=${sceneRadius(alt).toFixed(4)} ×${ALT_EXAG})<br>Real size <b>${realM} m</b> (${realKm} km) · mesh ×${sat.exaggeration}<br>Vel <b>${vel} km/s</b>${ev}${nb?`<br>Bots <b>${nb}</b> attached`:''}`; tip.style.left=e.clientX+'px'; tip.style.top=e.clientY+'px'; tip.classList.add('show'); document.body.style.cursor='pointer'; return;
     }
   }
   hovered=null; tip.classList.remove('show'); document.body.style.cursor='default';
@@ -1317,6 +1942,11 @@ function updTel(){
   sats.forEach(s=>{
     const scale = THREE.MathUtils.clamp(1.2 + camDist*0.35, 1.2, 12.0); // CHECKPOINT small Earth — sats visible at dist 27
     s.mesh.scale.setScalar(scale);
+    // micro-LOD: full greebles/bolts only when zoomed close — saves GPU far away
+    try{
+      const dSat=s.group.position.distanceTo(camera.position);
+      if(s.mesh.userData.micro) s.mesh.userData.micro.visible=dSat<12;
+    }catch(_){}
     const isSel = (typeof selected!=='undefined' && s===selected);
     const anySel = (typeof selected!=='undefined' && !!selected);
     if(s.orbit){
@@ -1401,6 +2031,18 @@ function animate(){
   t+=dt*timeScale*18;
   window._simT=t;
   sats.forEach(s=>s.upd(t, dt*timeScale));
+  // live conjunction watch — min 6 km rule: warn if any pair drifts within 6 km (throttled 2s)
+  try{
+    window._conjT=(window._conjT||0)+dt;
+    if(window._conjT>2 && sats.length>1){
+      window._conjT=0;
+      for(let i=0;i<sats.length;i++) for(let j=i+1;j<sats.length;j++){
+        const dScene=sats[i].group.position.distanceTo(sats[j].group.position);
+        const dReal=dScene*KM_PER_UNIT/ALT_EXAG;
+        if(dReal<MIN_SEP_KM){ fleetNotice(`⚠ CONJUNCTION <b>${sats[i].label}</b> ↔ <b>${sats[j].label}</b> — ${dReal.toFixed(1)} km &lt; ${MIN_SEP_KM} km`); i=sats.length; break; }
+      }
+    }
+  }catch(_){}
   // attached bots ride their parent group + gentle hover bob (cheap, runs even when paused except bob freeze)
   try{
     for(const b of bots){
@@ -1412,6 +2054,11 @@ function animate(){
       try{ b.mesh.scale.copy(b.parent.mesh.scale).multiplyScalar(0.85); }catch(_){}
       if(b.kind==='sensory') b.mesh.rotation.y+=(dt*timeScale)*0.6;
       else b.mesh.rotation.x+=(dt*timeScale)*0.4;
+      try{
+        const bl=b.mesh.userData.blinkers;
+        if(bl) for(let k=0;k<bl.length;k++){ const o=bl[k]; const s=Math.pow(0.5+0.5*Math.sin(t*2.6+o.ph),12); if(o.sprite) o.m.opacity=o.base*s; else o.m.emissiveIntensity=0.25+o.base*3*s; }
+        if(b.mesh.userData.micro){ const _d=b.parent.group.position.distanceTo(camera.position); b.mesh.userData.micro.visible=_d<12; }
+      }catch(_){}
     }
   }catch(_){}
   if(cloudsMesh) cloudsMesh.rotation.y+=dt*0.006*timeScale; 
@@ -1515,17 +2162,203 @@ function doReset(){
   (function a(now){ const p=Math.min(1,(now-t0)/900), e=1-Math.pow(1-p,3); camera.position.lerpVectors(s0,e0,e); controls.target.lerpVectors(st0,et0,e); controls.update(); if(p<1) requestAnimationFrame(a); })(performance.now());
 }
 document.getElementById('btnReset').addEventListener('click', doReset);
-// Fleet builder wiring — active sats + bots attached to active sats
-document.getElementById('btnAddActive')?.addEventListener('click', ()=>{
-  const s=spawnActiveSat({});
+// Fleet builder wiring — DEPLOY MODAL with real LEO physics (NRLMSISE-00 fit + vis-viva)
+// --- real environment model (sources: NRLMSISE-00, NOAA SWPC, orbitalradar LEO lifetimes) ---
+const LEO_RHO_TABLE=[ // moderate solar F10.7=150, kg/m^3 — anchors from NRLMSISE-00 (400km 2.65e-12, 700km ~3e-14)
+  [100,5.0e-7],[120,2.2e-8],[150,2.0e-9],[160,1.2e-9],[200,2.5e-10],[250,6.0e-11],[300,1.8e-11],[350,6.0e-12],[400,2.8e-12],[450,1.2e-12],[500,5.5e-13],[550,2.8e-13],[600,1.5e-13],[700,4.0e-14],[800,1.5e-14],[1000,3.0e-15],[1500,5.0e-16],[2000,1.2e-16]
+];
+function rhoModerate(alt){
+  if(alt<=LEO_RHO_TABLE[0][0]) return LEO_RHO_TABLE[0][1];
+  for(let i=1;i<LEO_RHO_TABLE.length;i++){
+    if(alt<=LEO_RHO_TABLE[i][0]){
+      const [a0,r0]=LEO_RHO_TABLE[i-1], [a1,r1]=LEO_RHO_TABLE[i];
+      const f=(alt-a0)/(a1-a0);
+      return Math.exp(Math.log(r0)+(Math.log(r1)-Math.log(r0))*f);
+    }
+  }
+  return LEO_RHO_TABLE[LEO_RHO_TABLE.length-1][1];
+}
+function solarFactor(alt, sol){
+  if(sol==='min') return THREE.MathUtils.lerp(0.55,0.28,THREE.MathUtils.clamp((alt-160)/840,0,1)); // contracted
+  if(sol==='max') return THREE.MathUtils.lerp(2.2,6.5,THREE.MathUtils.clamp((alt-160)/840,0,1)); // expanded — ISS reboost 4x/yr → every 2-3 wks
+  return 1.0;
+}
+function thermoTemp(alt, sol){
+  const base=420+620*(1-Math.exp(-(alt-100)/260)); // ~940K @400km moderate
+  return base+(sol==='min'?-160:sol==='max'?260:0);
+}
+const vCircOf=alt=>Math.sqrt(MU/(KM_PER_UNIT+alt));
+const periodMinOf=alt=>(2*Math.PI*Math.sqrt(Math.pow(KM_PER_UNIT+alt,3)/MU)/60);
+const LIFE_TABLE=[[200,0.01],[300,0.12],[400,1.4],[500,5],[550,10],[600,25],[700,80],[800,200],[1000,800],[1500,5000],[2000,20000]]; // years, Starlink-like B≈12
+function lifetimeYears(alt,B){
+  let base;
+  if(alt<=LIFE_TABLE[0][0]) base=LIFE_TABLE[0][1];
+  else{
+    base=LIFE_TABLE[LIFE_TABLE.length-1][1];
+    for(let i=1;i<LIFE_TABLE.length;i++) if(alt<=LIFE_TABLE[i][0]){
+      const [a0,l0]=LIFE_TABLE[i-1],[a1,l1]=LIFE_TABLE[i], f=(alt-a0)/(a1-a0);
+      base=Math.exp(Math.log(l0)+(Math.log(l1)-Math.log(l0))*f); break;
+    }
+  }
+  return base*(B/12);
+}
+function fmtLife(y){
+  if(y<0.02) return Math.round(y*365)+' days';
+  if(y<0.9) return y<0.08?Math.round(y*365)+' days':(y*12).toFixed(1)+' months';
+  if(y<150) return y.toFixed(y<10?1:0)+' years';
+  return Math.round(y)+' years (centuries)';
+}
+function regionOf(alt){ return alt<450?'vleo':alt<800?'leo':'outer'; }
+const REGION_INFO={
+  vleo:{name:'VLEO · 160–450 km',desc:'ISS 408 km · Tiangong 340–450 · high drag — reboost needed, lifetime weeks–2 y. Aero heat + atomic oxygen matter here.',def:300,inc:51.6},
+  leo:{name:'LEO CORE ★ · 450–800 km',desc:'Starlink 550 · Hubble 540 · Iridium 780 · sweet spot — 7.6–7.4 km/s, lifetime 5–200 y.',def:550,inc:53},
+  outer:{name:'UPPER LEO · 800–2000 km',desc:'OneWeb 1200 · SSO 800 · thin air, centuries lifetime, Van Allen edge + radiation.',def:1200,inc:87.9}
+};
+// --- modal state ---
+let depType='active';
+const depOverlay=document.getElementById('deployOverlay'), depTitle=document.getElementById('depTitle');
+const depAlt=document.getElementById('depAlt'), depAltNum=document.getElementById('depAltNum'), depAltVal=document.getElementById('depAltVal'), depPreset=document.getElementById('depPreset');
+const depSpeedMode=document.getElementById('depSpeedMode'), depSpeed=document.getElementById('depSpeed'), depVCirc=document.getElementById('depVCirc'), depSpeedHint=document.getElementById('depSpeedHint');
+const depInc=document.getElementById('depInc'), depIncVal=document.getElementById('depIncVal'), depIncPreset=document.getElementById('depIncPreset');
+const depEcc=document.getElementById('depEcc'), depRaan=document.getElementById('depRaan'), depArgP=document.getElementById('depArgP'), depM0=document.getElementById('depM0');
+const depMass=document.getElementById('depMass'), depArea=document.getElementById('depArea'), depSolar=document.getElementById('depSolar'), depName=document.getElementById('depName'), depEnv=document.getElementById('depEnv'), depRegionDesc=document.getElementById('depRegionDesc');
+function depSetRegion(r, setAlt=true){
+  document.querySelectorAll('.region-btn').forEach(b=>b.classList.toggle('active', b.dataset.region===r));
+  const info=REGION_INFO[r];
+  if(depRegionDesc) depRegionDesc.textContent=info.name+' — '+info.desc;
+  if(setAlt){ depAlt.value=info.def; depAltNum.value=info.def; }
+  depInc.value=info.inc;
+}
+document.querySelectorAll('.region-btn').forEach(b=>b.addEventListener('click', ()=>{ depSetRegion(b.dataset.region); depCompute(); }));
+function depRead(){
+  const alt=THREE.MathUtils.clamp(parseFloat(depAltNum.value)||550,160,2000);
+  const vCirc=vCircOf(alt), vEsc=Math.sqrt(2)*vCirc;
+  const custom=depSpeedMode.value==='custom';
+  let vUsed=custom?(parseFloat(depSpeed.value)||vCirc):vCirc;
+  vUsed=THREE.MathUtils.clamp(vUsed,3,12);
+  const inc=parseFloat(depInc.value)||53, ecc=Math.min(0.05,Math.max(0,parseFloat(depEcc.value)||0.001));
+  const mass=Math.max(1,parseFloat(depMass.value)||260), area=Math.max(0.01,parseFloat(depArea.value)||10);
+  const sol=depSolar.value, rho=rhoModerate(alt)*solarFactor(alt,sol), temp=thermoTemp(alt,sol);
+  const B=mass/(2.2*area), vms=vUsed*1000;
+  const dragA=0.5*rho*vms*vms/B, dragF=dragA*mass, heat=0.5*rho*vms*vms*vms;
+  const T=periodMinOf(alt);
+  // custom-speed → real ellipse via vis-viva (tangential injection at r)
+  let eEff=ecc, perigee=alt, warn='', bad='';
+  if(custom){
+    const r=KM_PER_UNIT+alt, eps=vUsed*vUsed/2-MU/r;
+    if(eps>=0){ bad=`ESCAPE — ${vUsed.toFixed(2)} ≥ escape ${vEsc.toFixed(2)} km/s. Lower speed.`; }
+    else{
+      const a=-MU/(2*eps);
+      eEff=Math.abs(1-r/a);
+      perigee=a*(1-eEff)-KM_PER_UNIT;
+      const apo=a*(1+eEff)-KM_PER_UNIT;
+      if(perigee<100) bad=`REENTRY — perigee ${perigee.toFixed(0)} km < 100 km Kármán. Add +${(vCirc-vUsed).toFixed(2)} km/s.`;
+      else if(perigee<160) warn=`Low perigee ${perigee.toFixed(0)} km — decays in days.`;
+      else if(eEff>0.05) warn=`Elliptical e=${eEff.toFixed(3)} (apogee ${apo.toFixed(0)} km).`;
+    }
+  } else if(alt<250) warn='VLEO low — extreme drag, lifetime days–weeks. Needs propulsion (cf. SLATS/Tsubame 167 km).';
+  else if(alt<350) warn='High drag zone — ISS-class reboost every weeks–months at solar max.';
+  return {alt,vCirc,vEsc,vUsed,custom,inc,ecc,eEff,perigee,mass,area,sol,rho,temp,B,dragA,dragF,heat,T,warn,bad};
+}
+function depCompute(){
+  const d=depRead();
+  depAlt.value=d.alt; if(document.activeElement!==depAltNum) depAltNum.value=d.alt;
+  depAltVal.textContent=d.alt+' km';
+  depVCirc.textContent=d.vCirc.toFixed(2)+' km/s';
+  depIncVal.textContent=(+d.inc).toFixed(1)+'°';
+  if(d.custom){ depSpeed.disabled=false; depSpeedHint.innerHTML=`escape ${d.vEsc.toFixed(2)} · Δv ${(d.vUsed-d.vCirc>=0?'+':'')+(d.vUsed-d.vCirc).toFixed(2)} km/s`; }
+  else{ depSpeed.disabled=true; depSpeed.value=d.vCirc.toFixed(2); depSpeedHint.textContent='auto-locked'; }
+  const life=fmtLife(lifetimeYears(d.alt,d.B));
+  const dragStr=d.dragA<1e-6?`${(d.dragA*1e9).toFixed(1)} nm/s²`:`${(d.dragA*1e6).toFixed(2)} µm/s²`;
+  const forceStr=d.dragF<0.001?`${(d.dragF*1e6).toFixed(1)} µN`:`${(d.dragF*1000).toFixed(2)} mN`;
+  depEnv.innerHTML=
+    `REGION <b>${REGION_INFO[regionOf(d.alt)].name}</b> · PERIOD <b>${d.T.toFixed(1)} min</b> · ${(86400/d.T/60).toFixed(1)} orbits/day<br>`+
+    `AIR ρ <b>${d.rho.toExponential(2)} kg/m³</b> (${d.sol==='min'?'solar MIN':d.sol==='max'?'solar MAX ×'+solarFactor(d.alt,d.sol).toFixed(1):'moderate F10.7 150'}) · TEMP <b>${d.temp.toFixed(0)} K</b><br>`+
+    `DRAG a <b>${dragStr}</b> · F <b>${forceStr}</b> · B=m/CdA <b>${d.B.toFixed(1)} kg/m²</b><br>`+
+    `HEAT flux ½ρv³ <b>${d.heat<1?d.heat.toFixed(2):d.heat.toFixed(0)} W/m²</b> ${d.heat>50?'<span class="bad">· hot VLEO</span>':d.heat>1?'<span class="warn">· mild</span>':'<span class="good">· negligible (vacuum)</span>'} · LIFETIME <b>${life}</b>`+
+    (d.custom?`<br>INJECTED e <b>${d.eEff.toFixed(4)}</b> · perigee <b>${d.perigee.toFixed(0)} km</b>`:`<br>ORBIT e <b>${d.ecc.toFixed(4)}</b> · circular ${(d.vCirc).toFixed(2)} km/s`)+
+    (d.warn?`<br><span class="warn">⚠ ${d.warn}</span>`:'')+(d.bad?`<br><span class="bad">⛔ ${d.bad}</span>`:'');
+  // orbit-uniqueness check — 6 km rule, AUTO-FIXED on deploy (never blocks, just informs)
+  let orbHtml='';
+  try{
+    const raanV=parseFloat(depRaan.value)||0, argPV=parseFloat(depArgP.value)||0, m0V=parseFloat(depM0.value)||0;
+    const aKm=KM_PER_UNIT+d.alt;
+    let eUse=d.custom?Math.min(0.05,d.eEff):d.ecc, aUse=aKm;
+    if(d.custom && !d.bad){
+      const r=KM_PER_UNIT+d.alt, eps=d.vUsed*d.vUsed/2-MU/r;
+      if(eps<0) aUse=-MU/(2*eps);
+    }
+    const oc=checkOrbitConflict({a:aUse,e:eUse,inc:d.inc,raan:raanV,argP:argPV,M0:m0V});
+    if(oc.hard){ orbHtml=`<br><span class="warn">⚠ ${oc.msg} <b>Auto-fix on DEPLOY → ≥${MIN_SEP_KM} km.</b></span>`; }
+    else if(oc.warn){ orbHtml=`<br><span class="warn">⚠ ${oc.warn} — min ${oc.minKm.toFixed(1)} km</span>`; }
+    else if(sats.length){ orbHtml=`<br><span class="good">✓ SEPARATION OK — ≥${MIN_SEP_KM} km from ${sats.length} object(s) (nearest ${oc.minKm>90000?'—':oc.minKm.toFixed(1)+' km'})</span>`; }
+    else orbHtml=`<br><span class="good">✓ FIRST OBJECT — any orbit free</span>`;
+  }catch(_){}
+  depEnv.innerHTML+=orbHtml;
+  depEnv.dataset.bad=d.bad?'1':'';
+  delete depEnv.dataset.orb;
+  return d;
+}
+[depAlt,depAltNum,depSpeedMode,depSpeed,depInc,depIncPreset,depEcc,depRaan,depArgP,depM0,depMass,depArea,depSolar].forEach(el=>el?.addEventListener('input', depCompute));
+depAlt?.addEventListener('input', ()=>{ depAltNum.value=depAlt.value; const r=regionOf(+depAlt.value); document.querySelectorAll('.region-btn').forEach(b=>b.classList.toggle('active',b.dataset.region===r)); if(depRegionDesc)depRegionDesc.textContent=REGION_INFO[r].name+' — '+REGION_INFO[r].desc; depCompute(); });
+depAltNum?.addEventListener('input', ()=>{ const r=regionOf(THREE.MathUtils.clamp(+depAltNum.value||550,160,2000)); document.querySelectorAll('.region-btn').forEach(b=>b.classList.toggle('active',b.dataset.region===r)); depCompute(); });
+depPreset?.addEventListener('change', ()=>{ if(depPreset.value){ depAltNum.value=depPreset.value; depSetRegion(regionOf(+depPreset.value),false); depAlt.value=depPreset.value; depCompute(); depPreset.value=''; } });
+depInc?.addEventListener('input', depCompute);
+depIncPreset?.addEventListener('change', ()=>{ if(depIncPreset.value!==''){ depInc.value=depIncPreset.value; depCompute(); depIncPreset.value=''; } });
+function openDeploy(type){
+  depType=type;
+  depTitle.innerHTML=(type==='active'?'DEPLOY <span>/ ACTIVE SAT</span>':'DEPLOY <span>/ ACTION BOT (independent)</span>');
+  depName.placeholder=type==='active'?'e.g. ACTIVE-ALPHA':'e.g. ACTION-ALPHA';
+  depName.value='';
+  depSetRegion(regionOf(parseFloat(depAltNum.value)||550),false);
+  depSpeedMode.value='auto';
+  depCompute();
+  depOverlay.classList.add('show');
+}
+function closeDeploy(){ depOverlay.classList.remove('show'); }
+document.getElementById('depCancel')?.addEventListener('click', closeDeploy);
+depOverlay?.addEventListener('click', e=>{ if(e.target===depOverlay) closeDeploy(); });
+addEventListener('keydown', e=>{ if(e.key==='Escape'&&depOverlay.classList.contains('show')) closeDeploy(); });
+document.getElementById('depGo')?.addEventListener('click', ()=>{
+  const d=depCompute();
+  if(depEnv.dataset.bad){ fleetNotice('⛔ BAD INJECTION — fix speed first'); return; }
+  let m0V=parseFloat(depM0.value)||0;
+  const raanV=parseFloat(depRaan.value)||0, argPV=parseFloat(depArgP.value)||0;
+  let eUse=d.custom?Math.min(0.05,d.eEff):d.ecc, aUse=KM_PER_UNIT+d.alt;
+  if(d.custom){
+    const r=KM_PER_UNIT+d.alt, eps=d.vUsed*d.vUsed/2-MU/r;
+    if(eps<0) aUse=-MU/(2*eps);
+  }
+  // AUTO-FIX: same orbit → hop to a shell 5 km away (+phase tune) so nothing overlaps
+  const fixed=autoFixOrbit({a:aUse,e:eUse,inc:d.inc,raan:raanV,argP:argPV,M0:m0V});
+  const finalAlt=Math.round((fixed.el.a-KM_PER_UNIT)*10)/10;
+  if(fixed.altShifts>0 || fixed.phaseShifts>0){
+    depM0.value=fixed.el.M0.toFixed(2);
+    depAltNum.value=finalAlt; depAlt.value=Math.min(2000,Math.max(160,Math.round(finalAlt)));
+    depSetRegion(regionOf(finalAlt),false);
+  }
+  const opts={alt:finalAlt, e:eUse, inc:d.inc, raan:raanV, argP:argPV, M0:fixed.el.M0, name:depName.value.trim()||undefined, force:true};
+  const s=depType==='active'?spawnActiveSat(opts):spawnActionBot(opts);
+  if(!s) return; // spawn blocked (orbit taken) — notice already shown
+  s.env={...d, alt:finalAlt, lifetime:fmtLife(lifetimeYears(finalAlt,d.B))};
   try{ selectSat(s); focusSat(s); }catch(_){}
-  fleetNotice(`ADDED <b>${s.label}</b> — ${(s.currentAlt||0).toFixed(0)}km · now attach bots`);
+  fleetNotice(`${d.custom?'INJECTED':'DEPLOYED'} <b>${s.label}</b> — ${finalAlt.toFixed(0)}km · ${d.vUsed.toFixed(2)}km/s · ≥${MIN_SEP_KM}km clear${fixed.altShifts?` · new shell ${fixed.altShifts*5>0?'+':''}${(fixed.altShifts*5).toFixed(0)}km`:''}${fixed.phaseShifts?` · phase +${(fixed.phaseShifts*0.5).toFixed(1)}°`:''}`);
+  closeDeploy();
 });
-document.getElementById('btnAddAction')?.addEventListener('click', ()=>{
-  const s=spawnActionBot({});
-  try{ selectSat(s); focusSat(s); }catch(_){}
-  fleetNotice(`ADDED INDEPENDENT <b>${s.label}</b> — ${(s.currentAlt||0).toFixed(0)}km`);
+document.getElementById('depFix')?.addEventListener('click', ()=>{
+  // manual preview: run the same auto-fix and write it back to the form
+  const d=depRead();
+  const raanV=parseFloat(depRaan.value)||0, argPV=parseFloat(depArgP.value)||0, m0V=parseFloat(depM0.value)||0;
+  const fixed=autoFixOrbit({a:KM_PER_UNIT+d.alt,e:d.ecc,inc:d.inc,raan:raanV,argP:argPV,M0:m0V});
+  const finalAlt=Math.round((fixed.el.a-KM_PER_UNIT)*10)/10;
+  depM0.value=fixed.el.M0.toFixed(2);
+  depAltNum.value=finalAlt; depAlt.value=Math.min(2000,Math.max(160,Math.round(finalAlt)));
+  depSetRegion(regionOf(finalAlt),false);
+  depCompute();
+  fleetNotice((fixed.altShifts||fixed.phaseShifts)?`AUTO-FIXED — shell ${finalAlt.toFixed(0)} km${fixed.phaseShifts?` · M0 +${(fixed.phaseShifts*0.5).toFixed(1)}°`:''} → ≥${MIN_SEP_KM} km clear`:`Already ≥${MIN_SEP_KM} km clear ✓`);
 });
+document.getElementById('btnAddActive')?.addEventListener('click', ()=>openDeploy('active'));
+document.getElementById('btnAddAction')?.addEventListener('click', ()=>openDeploy('action'));
 document.getElementById('btnAddSensory')?.addEventListener('click', ()=>{
   const b=attachBot(null,'sensory',{});
   if(b) fleetNotice(`ATTACHED <b>${b.id}</b> → <b>${b.parent.label||'ACTIVE'}</b>`);
