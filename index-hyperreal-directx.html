@@ -222,6 +222,20 @@ window.addEventListener('DOMContentLoaded', ()=>{
       </div>
       <div style="margin-top:8px;padding:6px 8px;background:rgba(15,23,42,0.6);border-radius:8px;font-size:10px;opacity:0.7"><span id="dxInfo">WebGL2 only — raw GLSL</span></div>
     </div>
+    <div style="margin-top:10px;padding:10px;border:1px solid rgba(96,165,250,0.18);border-radius:12px;background:rgba(2,6,23,0.6)">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;opacity:0.65;margin-bottom:8px">FLEET BUILDER — ADD + ATTACH</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" style="flex:1" id="btnAddActive">+ ACTIVE SAT</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn ghost" style="flex:1" id="btnAddAction">+ ACTION BOT</button>
+        <button class="btn ghost" style="flex:1" id="btnAddSensory">+ SENSORY BOT</button>
+      </div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:0.6;margin-top:8px;line-height:1.5">ACTION = independent orbiter · SENSORY attaches to selected ACTIVE (else newest).<br>Click a sat to select it · Del removes hovered object.</div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn ghost" style="flex:1;font-size:10px" id="btnClearFleet">CLEAR FLEET</button>
+      </div>
+    </div>
   </div>
   <div class="panel panel-bottom">
     <div class="slider-row"><label>⏱ TIME</label><input id="timeSlider" type="range" min="0" max="100" value="18"><span id="timeLabel" style="font-family:'JetBrains Mono',monospace;font-size:11px;min-width:54px">1.0×</span></div>
@@ -398,23 +412,28 @@ function setRoamMode(on){
   addEventListener('pointercancel', ()=>{ dragging=false; });
 })();
 function interceptSat(s){
-  // fly to satellite — first-person intercept + neon-green selection
+  // fly to satellite — first-person intercept + neon-green selection (bots resolve to parent)
+  if(s && s.isBot && s.parent) s=s.parent;
+  if(!s || !s.group) return;
   try{ selectSat(s); }catch(_){}
   focusSat(s);
   try{
-    enterT.innerHTML=`INTERCEPT <b style="color:#39ff14">${s.type.toUpperCase()}</b> — ${(s.currentAlt||0).toFixed(0)}km`;
+    enterT.innerHTML=`INTERCEPT <b style="color:#39ff14">${(s.label||s.type).toUpperCase()}</b> — ${(s.currentAlt||0).toFixed(0)}km`;
     enterN.classList.add('show'); clearTimeout(nt); nt=setTimeout(()=>enterN.classList.remove('show'),1800);
   }catch(_){}
 }
 function disposeSat(s){
+  if(s && s.isBot){ try{ disposeBot(s); }catch(_){} return; }
   try{ if(typeof selected!=='undefined' && selected===s){ try{ if(s.userData && s.userData._tube){ scene.remove(s.userData._tube); s.userData._tube.geometry.dispose(); s.userData._tube.material.dispose(); } }catch(_){} selected=null; } }catch(_){}
   const idx=sats.indexOf(s);
   if(idx>=0){
+    // remove bots attached to this sat first
+    try{ (s.bots||[]).slice().forEach(b=>{ try{ disposeBot(b); }catch(_){} }); }catch(_){}
     // explosion effect
     s.mesh.visible=false; s.orbit.visible=false; s.trailLine.visible=false;
     scene.remove(s.group);
     sats.splice(idx,1);
-    document.getElementById('pillCount').textContent=sats.length+' OBJECTS';
+    try{ updateFleetCounts(); }catch(_){ document.getElementById('pillCount').textContent=sats.length+' OBJECTS'; }
     enterT.innerHTML=`DISPOSED <b>${s.type.toUpperCase()}</b>`;
     enterN.classList.add('show'); clearTimeout(nt); nt=setTimeout(()=>enterN.classList.remove('show'),1800);
     hovered=null; tip.classList.remove('show');
@@ -920,22 +939,176 @@ class Sat{
 function rand(a,b){ return a+Math.random()*(b-a); }
 // No hardcoded satellites / debris / swarm agents — live data only. Sat class kept for future use.
 const sats=[];
-document.getElementById('pillCount').textContent='0 OBJECTS';
-document.getElementById('debrisCount').textContent='0';
-document.getElementById('activeCount').textContent='0';
-document.getElementById('swarmCount').textContent='0';
+const bots=[]; // attached action/sensory bots — children of active sats, not independent orbiters
+let activeSeq=0, actionSeq=0, sensorySeq=0;
+function updateFleetCounts(){
+  const nActive=sats.filter(s=>s.type==='active').length;
+  const nAction=sats.filter(s=>s.type==='action').length;
+  const nSensory=bots.length;
+  document.getElementById('pillCount').textContent=(sats.length+bots.length)+' OBJECTS';
+  document.getElementById('debrisCount').textContent='0';
+  document.getElementById('activeCount').textContent=String(nActive);
+  document.getElementById('swarmCount').textContent=String(nAction+nSensory);
+}
+function fleetNotice(html, ms){
+  try{
+    enterT.innerHTML=html;
+    enterN.classList.add('show'); clearTimeout(nt); nt=setTimeout(()=>enterN.classList.remove('show'), ms||1800);
+  }catch(_){}
+}
+function spawnActiveSat(opts){
+  opts=opts||{};
+  const alt=opts.alt ?? (450+Math.random()*350);
+  const sat=new Sat({
+    type:'active',
+    a:KM_PER_UNIT+alt,
+    e:opts.e ?? 0.001,
+    inc:opts.inc ?? rand(42,98),
+    raan:opts.raan ?? rand(0,360),
+    argP:opts.argP ?? rand(0,360),
+    M0:opts.M0 ?? rand(0,360)
+  });
+  sat.label=opts.name || ('ACTIVE-'+(++activeSeq));
+  sat.bots=[];
+  try{ sat.group.position.copy(sat.at(0)); sat.currentAlt=alt; }catch(_){}
+  sats.push(sat);
+  updateFleetCounts();
+  return sat;
+}
+function spawnActionBot(opts){
+  // Independent orbiter — own Kepler orbit, NOT attached to any satellite.
+  opts=opts||{};
+  const alt=opts.alt ?? (500+Math.random()*140);
+  const sat=new Sat({
+    type:'action',
+    a:KM_PER_UNIT+alt,
+    e:opts.e ?? 0.001,
+    inc:opts.inc ?? rand(52,82),
+    raan:opts.raan ?? rand(0,360),
+    argP:opts.argP ?? rand(0,360),
+    M0:opts.M0 ?? rand(0,360)
+  });
+  sat.label=opts.name || ('ACTION-'+(++actionSeq));
+  sat.bots=[];
+  try{ sat.group.position.copy(sat.at(0)); sat.currentAlt=alt; }catch(_){}
+  sats.push(sat);
+  updateFleetCounts();
+  return sat;
+}
+function resolveParentSat(ref){
+  if(ref && ref.type==='active' && sats.indexOf(ref)>=0) return ref;
+  try{ if(typeof selected!=='undefined' && selected && selected.type==='active' && sats.indexOf(selected)>=0) return selected; }catch(_){}
+  try{ if(ref && ref.isBot && ref.parent && sats.indexOf(ref.parent)>=0) return ref.parent; }catch(_){}
+  const actives=sats.filter(s=>s.type==='active');
+  return actives.length?actives[actives.length-1]:null;
+}
+function defaultBotOffset(kind, i){
+  const SZ=R_EARTH;
+  const ring=0.055*SZ, y=0.045*SZ;
+  const a=(i||0)*2.39996; // golden angle — spreads multiple bots around parent
+  if(kind==='sensory') return new THREE.Vector3(Math.cos(a)*ring, y, Math.sin(a)*ring);
+  return new THREE.Vector3(Math.cos(a+Math.PI)*ring, -y, Math.sin(a+Math.PI)*ring);
+}
+function attachBot(parentRef, kind, opts){
+  // Only SENSORY bots attach. Action bots are independent — route them to their own orbit.
+  if(kind==='action') return spawnActionBot(opts||{});
+  kind='sensory';
+  opts=opts||{};
+  const parent=resolveParentSat(parentRef);
+  if(!parent){ fleetNotice('ADD AN <b>ACTIVE SAT</b> FIRST — THEN ATTACH SENSORY BOTS'); return null; }
+  const SZ=R_EARTH;
+  const g=new THREE.OctahedronGeometry(0.012*SZ,0);
+  const m=new THREE.MeshStandardMaterial({color:0xfacc15, emissive:0xf59e0b, emissiveIntensity:0.62, roughness:0.35, metalness:0.55});
+  const mesh=new THREE.Mesh(g,m);
+  const cg=new THREE.ConeGeometry(0.018*SZ,0.04*SZ,16,1,true);
+  const cm=new THREE.MeshBasicMaterial({color:0xfacc15, transparent:true, opacity:0.14, side:THREE.DoubleSide});
+  const cone=new THREE.Mesh(cg,cm); cone.rotation.x=Math.PI; cone.position.y=-0.03*SZ; mesh.add(cone);
+  const siblings=(parent.bots||[]).length;
+  mesh.position.copy(opts.offset || defaultBotOffset(kind, siblings));
+  parent.group.add(mesh);
+  const bot={
+    isBot:true, kind,
+    id:opts.name || ('SENSORY-'+(++sensorySeq)),
+    parent, mesh,
+    baseOffset:mesh.position.clone(),
+    bobPhase:Math.random()*Math.PI*2,
+    bobAmp:(opts.bobAmp ?? 0.006)*SZ
+  };
+  mesh.userData.botRef=bot;
+  parent.bots.push(bot);
+  bots.push(bot);
+  try{ mesh.scale.copy(parent.mesh.scale).multiplyScalar(0.85); }catch(_){}
+  updateFleetCounts();
+  return bot;
+}
+function disposeBot(bot){
+  if(!bot || !bot.isBot) return false;
+  const bi=bots.indexOf(bot);
+  if(bi>=0) bots.splice(bi,1);
+  try{
+    const pi=(bot.parent && bot.parent.bots) ? bot.parent.bots.indexOf(bot) : -1;
+    if(pi>=0) bot.parent.bots.splice(pi,1);
+  }catch(_){}
+  try{ if(bot.parent) bot.parent.group.remove(bot.mesh); }catch(_){}
+  try{ bot.mesh.geometry.dispose(); if(bot.mesh.material) bot.mesh.material.dispose(); }catch(_){}
+  try{ if(typeof hovered!=='undefined' && hovered===bot){ hovered=null; tip.classList.remove('show'); } }catch(_){}
+  updateFleetCounts();
+  return true;
+}
+function clearFleet(){
+  while(bots.length) disposeBot(bots[0]);
+  const copy=sats.slice();
+  copy.forEach(s=>{ try{ disposeSat(s); }catch(_){} });
+  sats.length=0;
+  try{ selected=null; }catch(_){}
+  updateFleetCounts();
+}
+// Public console API: IRIS.addActive({alt,...}) independent, IRIS.addAction({alt,...}) independent, IRIS.addSensory(parent?) attached
+window.IRIS=window.IRIS||{};
+window.IRIS.addActive=spawnActiveSat;
+window.IRIS.addAction=function(a,b){ const o=(b&&typeof b==='object')?b:((a&&typeof a==='object'&&!a.group&&!a.type)?a:{}); return spawnActionBot(o); };
+window.IRIS.addSensory=function(p,o){ return attachBot(p,'sensory',o); };
+window.IRIS.remove=function(o){ if(o && o.isBot) return disposeBot(o); return disposeSat(o); };
+window.IRIS.clear=clearFleet;
+window.IRIS.sats=sats;
+window.IRIS.bots=bots;
+updateFleetCounts();
 
-// tooltip
+// tooltip — sats + attached bots are hoverable
 const ray=new THREE.Raycaster(), mouse=new THREE.Vector2(); let hovered=null; const tip=document.getElementById('tooltip');
+function resolveHover(meshObj){
+  let cur=meshObj;
+  while(cur){
+    try{ if(cur.userData && cur.userData.botRef && bots.indexOf(cur.userData.botRef)>=0) return cur.userData.botRef; }catch(_){}
+    for(const b of bots){ if(b.mesh===cur) return b; }
+    for(const s of sats){ if(s.mesh===cur) return s; }
+    cur=cur.parent;
+  }
+  return null;
+}
 renderer.domElement.addEventListener('pointermove', e=>{
   mouse.x=(e.clientX/innerWidth)*2-1; mouse.y=-(e.clientY/innerHeight)*2+1; ray.setFromCamera(mouse,camera);
-  const meshes=sats.map(s=>s.mesh); const its=ray.intersectObjects(meshes,true);
-  if(its.length){ let m=its[0].object, sat=null; for(const s of sats){ if(m===s.mesh || s.mesh.children.includes(m)) sat=s; } if(!sat){ let cur=m; while(cur){ for(const s of sats) if(s.mesh===cur) sat=s; cur=cur?.parent; if(sat) break; } }
-    if(sat){ hovered=sat; const alt=(sat.currentAlt??(sat.a-KM_PER_UNIT)).toFixed(0); const vel=Math.sqrt(MU/sat.a).toFixed(2); const realM=sat.realSizeM.toFixed(1); const realKm=(sat.realSizeM/1000).toFixed(4); tip.innerHTML=`<b>${sat.type.toUpperCase()}</b><br>Real Alt <b>${alt} km</b> (scene r=${sceneRadius(alt).toFixed(4)} ×${ALT_EXAG})<br>Real size <b>${realM} m</b> (${realKm} km) · mesh ×${sat.exaggeration}<br>Vel <b>${vel} km/s</b>`; tip.style.left=e.clientX+'px'; tip.style.top=e.clientY+'px'; tip.classList.add('show'); document.body.style.cursor='pointer'; return; }
+  const meshes=sats.map(s=>s.mesh).concat(bots.map(b=>b.mesh)); const its=ray.intersectObjects(meshes,true);
+  if(its.length){
+    const hit=resolveHover(its[0].object);
+    if(hit && hit.isBot){
+      hovered=hit;
+      const alt=(hit.parent.currentAlt??(hit.parent.a-KM_PER_UNIT)).toFixed(0);
+      tip.innerHTML=`<b>${hit.id}</b> · ${hit.kind.toUpperCase()} BOT<br>attached to <b>${hit.parent.label||hit.parent.type.toUpperCase()}</b> · Alt <b>${alt} km</b>`;
+      tip.style.left=e.clientX+'px'; tip.style.top=e.clientY+'px'; tip.classList.add('show'); document.body.style.cursor='pointer'; return;
+    }
+    if(hit && !hit.isBot){
+      const sat=hit; hovered=sat; const alt=(sat.currentAlt??(sat.a-KM_PER_UNIT)).toFixed(0); const vel=Math.sqrt(MU/sat.a).toFixed(2); const realM=sat.realSizeM.toFixed(1); const realKm=(sat.realSizeM/1000).toFixed(4); const nb=(sat.bots||[]).length; tip.innerHTML=`<b>${sat.label||sat.type.toUpperCase()}</b><br>Real Alt <b>${alt} km</b> (scene r=${sceneRadius(alt).toFixed(4)} ×${ALT_EXAG})<br>Real size <b>${realM} m</b> (${realKm} km) · mesh ×${sat.exaggeration}<br>Vel <b>${vel} km/s</b>${nb?`<br>Bots <b>${nb}</b> attached`:''}`; tip.style.left=e.clientX+'px'; tip.style.top=e.clientY+'px'; tip.classList.add('show'); document.body.style.cursor='pointer'; return;
+    }
   }
   hovered=null; tip.classList.remove('show'); document.body.style.cursor='default';
 });
-renderer.domElement.addEventListener('click', ()=>{ if(hovered){ selectSat(hovered); focusSat(hovered); } else deselectSat(); });
+renderer.domElement.addEventListener('click', ()=>{
+  if(hovered){
+    if(hovered.isBot){ try{ selectSat(hovered.parent); }catch(_){} focusSat(hovered.parent); }
+    else { selectSat(hovered); focusSat(hovered); }
+  } else deselectSat();
+});
 // Neon-green selection — clicked debris/sat orbit turns neon green, restores on re-select/empty-click
 const NEON_GREEN=0x39ff14;
 let selected=null;
@@ -959,7 +1132,7 @@ function selectSat(s){
   s.trailLine.material.opacity=1.0;
   s.trailLine.material.blending=THREE.AdditiveBlending;
   s.trailLine.material.needsUpdate=true;
-  // THICK NEON ORBIT — fat tube around the thin ellipse (WebGL lines are stuck at 1px, tube gives real thickness)
+  // THIN NEON ORBIT — slim tube around the thin ellipse (WebGL lines are stuck at 1px, tube gives real thickness)
   try{
     const pos=s.orbit.geometry.getAttribute('position');
     const pts=[];
@@ -967,7 +1140,7 @@ function selectSat(s){
     if(pts.length>2){
       pts.push(pts[0].clone());
       const curve=new THREE.CatmullRomCurve3(pts,true);
-      const tGeo=new THREE.TubeGeometry(curve,360,0.025,8,true);
+      const tGeo=new THREE.TubeGeometry(curve,360,0.008,8,true);
       const tMat=new THREE.MeshBasicMaterial({color:NEON_GREEN,transparent:true,opacity:0.85,blending:THREE.AdditiveBlending,depthWrite:false});
       const tube=new THREE.Mesh(tGeo,tMat);
       tube.renderOrder=6;
@@ -1000,6 +1173,8 @@ function deselectSat(silent){
   if(!silent){ try{ tip.classList.remove('show'); }catch(_){} }
 }
 function focusSat(s){
+  if(s && s.isBot && s.parent) s=s.parent;
+  if(!s || !s.group) return;
   const tgt=s.group.position.clone();
   const dir=tgt.clone().normalize();
   const dist=tgt.length()+ 400/KM_PER_UNIT*ALT_EXAG; // CHECKPOINT 400km offset = 1.88u with small Earth
@@ -1223,8 +1398,22 @@ let t=0, timeScale=1; const clock=new THREE.Clock();
 function animate(){ 
   requestAnimationFrame(animate); 
   const dt=Math.min(0.05, clock.getDelta()); 
-  t+=dt*timeScale*18; 
-  sats.forEach(s=>s.upd(t, dt*timeScale)); 
+  t+=dt*timeScale*18;
+  window._simT=t;
+  sats.forEach(s=>s.upd(t, dt*timeScale));
+  // attached bots ride their parent group + gentle hover bob (cheap, runs even when paused except bob freeze)
+  try{
+    for(const b of bots){
+      if(!b.parent || sats.indexOf(b.parent)<0) continue;
+      const ph=b.bobPhase + t*0.9;
+      b.mesh.position.copy(b.baseOffset);
+      b.mesh.position.y+=Math.sin(ph)*b.bobAmp;
+      b.mesh.position.x+=Math.cos(ph*0.7)*b.bobAmp*0.6;
+      try{ b.mesh.scale.copy(b.parent.mesh.scale).multiplyScalar(0.85); }catch(_){}
+      if(b.kind==='sensory') b.mesh.rotation.y+=(dt*timeScale)*0.6;
+      else b.mesh.rotation.x+=(dt*timeScale)*0.4;
+    }
+  }catch(_){}
   if(cloudsMesh) cloudsMesh.rotation.y+=dt*0.006*timeScale; 
   if(earthMesh){ 
     earthMesh.rotation.y+=dt*0.008*timeScale; 
@@ -1326,6 +1515,22 @@ function doReset(){
   (function a(now){ const p=Math.min(1,(now-t0)/900), e=1-Math.pow(1-p,3); camera.position.lerpVectors(s0,e0,e); controls.target.lerpVectors(st0,et0,e); controls.update(); if(p<1) requestAnimationFrame(a); })(performance.now());
 }
 document.getElementById('btnReset').addEventListener('click', doReset);
+// Fleet builder wiring — active sats + bots attached to active sats
+document.getElementById('btnAddActive')?.addEventListener('click', ()=>{
+  const s=spawnActiveSat({});
+  try{ selectSat(s); focusSat(s); }catch(_){}
+  fleetNotice(`ADDED <b>${s.label}</b> — ${(s.currentAlt||0).toFixed(0)}km · now attach bots`);
+});
+document.getElementById('btnAddAction')?.addEventListener('click', ()=>{
+  const s=spawnActionBot({});
+  try{ selectSat(s); focusSat(s); }catch(_){}
+  fleetNotice(`ADDED INDEPENDENT <b>${s.label}</b> — ${(s.currentAlt||0).toFixed(0)}km`);
+});
+document.getElementById('btnAddSensory')?.addEventListener('click', ()=>{
+  const b=attachBot(null,'sensory',{});
+  if(b) fleetNotice(`ATTACHED <b>${b.id}</b> → <b>${b.parent.label||'ACTIVE'}</b>`);
+});
+document.getElementById('btnClearFleet')?.addEventListener('click', ()=>{ clearFleet(); fleetNotice('FLEET CLEARED — <b>0 OBJECTS</b>'); });
 document.getElementById('btnToggleShells').addEventListener('click', e=>{ shellsGroup.visible=!shellsGroup.visible; e.currentTarget.textContent=shellsGroup.visible?'SHELLS ON':'SHELLS OFF'; });
 // Orbits show/hide — single source of truth, top bar + Details button stay in sync, O key works too. Hides orbit ellipses + trails.
 function setOrbitsVisible(v){
