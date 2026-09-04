@@ -12,9 +12,7 @@ either with the on-screen Fleet Builder or from the console.
 
 | File | What it is |
 |---|---|
-| `index.html` | Main landing build (hyperreal, WebGL2). Earth `R=1.25`. |
 | `index-hyperreal-directx.html` | DirectX-path build. Same code, bigger Earth `R=1.5` (50% bigger than 1.0). |
-| `index-classic.html` | Baseline build, near true scale. Earth `R=1.25`. |
 | `DirectX-IRIS/` | Native DirectX 12 scaffold (`IRIS_DirectX12.cpp`, `shaders.hlsl`, CMake). Optional desktop path. |
 | `libs/` | Local textures (`earth-day.jpg`, `earth-night.jpg`, `earth-topology.png`, `earth_clouds_1024.png`) + vendored three.js. |
 
