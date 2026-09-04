@@ -245,12 +245,12 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 const KM_PER_UNIT = 6371; // real Earth radius = 6371km
-const ALT_EXAG = 30.0; // VAST SHELLS + BIGGER EARTH — zones stretched 30×, Earth R=1.25, shells pushed out +0.25 (no overlap)
+const ALT_EXAG = 30.0; // VAST SHELLS + BIGGER EARTH — zones stretched 30×, Earth R=1.5 (50% bigger), shells pushed out +0.5 (no overlap)
 const R_EARTH_KM = KM_PER_UNIT; // legacy alias, keep for readability
-const R_EARTH = 1.25; // BIGGER EARTH — visual radius 1.25 units, pushed against Kármán. No overlap: all shells shift +0.25 via sceneRadius.
+const R_EARTH = 1.5; // 50% BIGGER EARTH — visual radius 1.5 units, pushed against Kármán. No overlap: all shells shift +0.5 via sceneRadius.
 const MU = 398600.4418;
 const toScene = km => km / KM_PER_UNIT * ALT_EXAG; // 1km = 30/6371 = 0.004708u
-const sceneRadius = altKm => R_EARTH + altKm / KM_PER_UNIT * ALT_EXAG; // 0km=1.25, 100km=1.72, 160km=2.00, 450km=3.37, 800km=5.02, 2000km=10.67, MEO=96.4, GEO=169.8
+const sceneRadius = altKm => R_EARTH + altKm / KM_PER_UNIT * ALT_EXAG; // 0km=1.5, 100km=1.97, 160km=2.25, 450km=3.62, 800km=5.27, 2000km=10.92, MEO=96.6, GEO=170.0
 const altFromRadius = r => (r - R_EARTH) * KM_PER_UNIT / ALT_EXAG; // inverse — real km from scene radius
 const RAD = Math.PI/180;
 
@@ -303,7 +303,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x020510);
 
 const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.001, 3000);
-// bigger-earth vast-shells: start at 5500km → sceneRadius = 1.25+5500/6371×30 = 27.1 (Earth R=1.25, shells pushed out, no overlap)
+// bigger-earth vast-shells: start at 5500km → sceneRadius = 1.5+5500/6371×30 = 27.4 (Earth R=1.5 = 50% bigger, shells pushed out, no overlap)
 camera.position.set(0, sceneRadius(5500)*0.62, sceneRadius(5500)*0.82);
 
 // Postprocessing setup — WebGLRenderer only (WebGPU removed per physically accurate scale spec)
