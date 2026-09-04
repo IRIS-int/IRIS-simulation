@@ -245,12 +245,12 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 const KM_PER_UNIT = 6371; // real Earth radius = 6371km
-const ALT_EXAG = 30.0; // VAST SHELLS + SMALL EARTH (checkpoint you wanted) — zones stretched 30×, Earth small R=1, you roam vast tiles
+const ALT_EXAG = 30.0; // VAST SHELLS + BIGGER EARTH — zones stretched 30×, Earth R=1.25, shells pushed out +0.25 (no overlap)
 const R_EARTH_KM = KM_PER_UNIT; // legacy alias, keep for readability
-const R_EARTH = 1.0; // SMALL EARTH — visual radius 1 unit. Kármán 100km = 0.157u, VLEO huge, UPPER 1200km = 5.65u thick
+const R_EARTH = 1.25; // BIGGER EARTH — visual radius 1.25 units, pushed against Kármán. No overlap: all shells shift +0.25 via sceneRadius.
 const MU = 398600.4418;
 const toScene = km => km / KM_PER_UNIT * ALT_EXAG; // 1km = 30/6371 = 0.004708u
-const sceneRadius = altKm => R_EARTH + altKm / KM_PER_UNIT * ALT_EXAG; // CHECKPOINT: 0km=1.0, 100km=1.47, 160km=1.75, 450km=3.12, 800km=4.77, 2000km=10.42, MEO=96.1, GEO=169.5
+const sceneRadius = altKm => R_EARTH + altKm / KM_PER_UNIT * ALT_EXAG; // 0km=1.25, 100km=1.72, 160km=2.00, 450km=3.37, 800km=5.02, 2000km=10.67, MEO=96.4, GEO=169.8
 const altFromRadius = r => (r - R_EARTH) * KM_PER_UNIT / ALT_EXAG; // inverse — real km from scene radius
 const RAD = Math.PI/180;
 
@@ -303,7 +303,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x020510);
 
 const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.001, 3000);
-// CHECKPOINT small-earth vast-shells: start at 5500km → sceneRadius = 1+5500/6371×30 = 26.9 (Earth R=1 small, shells vast, you roam)
+// bigger-earth vast-shells: start at 5500km → sceneRadius = 1.25+5500/6371×30 = 27.1 (Earth R=1.25, shells pushed out, no overlap)
 camera.position.set(0, sceneRadius(5500)*0.62, sceneRadius(5500)*0.82);
 
 // Postprocessing setup — WebGLRenderer only (WebGPU removed per physically accurate scale spec)
@@ -658,11 +658,11 @@ function createEarth(){
         void main(){ 
           vUv=uv; 
           float h = texture2D(bumpTexture, uv).r;
-          // CHECKPOINT smooth terrain — 0.018u = 1.8% of small Earth R=1 (0.54u was for big Earth R=30 = 54% = spiky)
-          vec3 displaced = position + normal * (h - 0.5) * ${(0.018*1).toFixed(3)};
+          // smooth terrain — scales with Earth radius so relief stays proportional (was hardcoded ×1)
+          vec3 displaced = position + normal * (h - 0.5) * ${(0.018*R_EARTH).toFixed(3)};
           // micro ridges second octave
           float h2 = texture2D(bumpTexture, uv*2.7).r * 0.22;
-          displaced += normal * h2 * ${(0.007*1).toFixed(3)};
+          displaced += normal * h2 * ${(0.007*R_EARTH).toFixed(3)};
           vPos=(modelMatrix*vec4(displaced,1.0)).xyz; 
           vNormal=normalize(normalMatrix*normal);
           gl_Position=projectionMatrix*modelViewMatrix*vec4(displaced,1.0); 

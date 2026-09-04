@@ -221,7 +221,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const R_EARTH_KM = 6371;
-const R_EARTH = 1;
+const R_EARTH = 1.25; // BIGGER EARTH — pushed against Kármán, shells auto-shift +0.25 via R_EARTH+toScene (no overlap)
 const MU = 398600.4418;
 const toScene = km => km / R_EARTH_KM;
 const RAD = Math.PI/180;
@@ -248,7 +248,7 @@ controls.enablePan = true;
 controls.rotateSpeed = 1.2;
 controls.zoomSpeed = 1.1;
 controls.panSpeed = 1.0;
-controls.minDistance = 1.02;
+controls.minDistance = R_EARTH + 0.03; // stay above bigger Earth surface (was hardcoded 1.02 for R=1)
 controls.maxDistance = 22;
 controls.minPolarAngle = 0;
 controls.maxPolarAngle = Math.PI;
