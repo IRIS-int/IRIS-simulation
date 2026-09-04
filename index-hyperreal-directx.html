@@ -853,66 +853,15 @@ defs.forEach(d=>{
   const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, transparent:true, depthWrite:false, depthTest:false})); const vastBase=0.35+r*0.18; spr.scale.set(vastBase,vastBase*0.19,1); spr.renderOrder=10;
   const ang=(d.km%2===0?18:-28)*RAD; spr.position.set(Math.cos(ang)*r,0,Math.sin(ang)*r); spr.userData={km:d.km, baseScale:vastBase, ang}; shellsGroup.add(spr); shellLabels.push(spr);
 });
-function createLayerDimension(name, innerKm, outerKm, color, count){
-  const g=new THREE.Group(); g.visible=false; g.name=name; scene.add(g);
-  const iR=sceneRadius(innerKm), oR=sceneRadius(outerKm);
-  const fogG=new THREE.SphereGeometry(oR, 56,56);
-  const fogM=new THREE.ShaderMaterial({
-    side:THREE.BackSide, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
-    uniforms:{ innerR:{value:iR}, outerR:{value:oR}, col:{value:new THREE.Color(color)} },
-    vertexShader:`varying vec3 vPos; void main(){ vPos=(modelMatrix*vec4(position,1.0)).xyz; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-    fragmentShader:`varying vec3 vPos; uniform float innerR; uniform float outerR; uniform vec3 col;
-      void main(){
-        float r=length(vPos);
-        // MICRO-VAST thickness: 12km/8km/18km exaggerated ×${ALT_EXAG.toFixed(1)} (was 12.0/6371.0 etc at 1×)
-        float d=smoothstep(innerR-12.0/6371.0*${ALT_EXAG.toFixed(1)}, innerR+8.0/6371.0*${ALT_EXAG.toFixed(1)}, r)*(1.0 - smoothstep(outerR-18.0/6371.0*${ALT_EXAG.toFixed(1)}, outerR+12.0/6371.0*${ALT_EXAG.toFixed(1)}, r));
-        float fres=pow(1.0-abs(dot(normalize(vPos), vec3(0,1,0))),2.0)*0.20;
-        float a=d*(0.09+fres*0.32);
-        vec3 c=mix(col*0.55, col*1.15, smoothstep(innerR, outerR, r));
-        float grid=step(0.987, fract(r*4.0))*0.05;
-        c+=vec3(0.7,0.8,1.0)*grid;
-        gl_FragColor=vec4(c, a);
-      }`
-  });
-  const fog=new THREE.Mesh(fogG,fogM); fog.renderOrder=5; g.add(fog); g.userData.fog=fog;
-  const innerG=new THREE.SphereGeometry(iR, 48,48);
-  const innerM=new THREE.MeshBasicMaterial({color:color, transparent:true, opacity:0.11, wireframe:true, depthWrite:false});
-  g.add(new THREE.Mesh(innerG, innerM));
-  const pGeo=new THREE.BufferGeometry();
-  const pPos=new Float32Array(count*3), pCol=new Float32Array(count*3);
-  for(let i=0;i<count;i++){
-    const rad=iR + Math.random()*(oR-iR);
-    const th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1);
-    pPos[i*3]=rad*Math.sin(ph)*Math.cos(th);
-    pPos[i*3+1]=rad*Math.sin(ph)*Math.sin(th)*0.98;
-    pPos[i*3+2]=rad*Math.cos(ph);
-    const hot=Math.random()<0.15;
-    const base=new THREE.Color(color);
-    pCol[i*3]= hot?0.98:base.r*0.95; pCol[i*3+1]= hot?0.45:base.g*0.95; pCol[i*3+2]= hot?0.45:base.b*0.95;
-  }
-  pGeo.setAttribute('position', new THREE.BufferAttribute(pPos,3));
-  pGeo.setAttribute('color', new THREE.BufferAttribute(pCol,3));
-  const pMat=new THREE.PointsMaterial({size:0.18, vertexColors:true, transparent:true, opacity:0.68, sizeAttenuation:true, blending:THREE.AdditiveBlending, depthWrite:false});
-  g.add(new THREE.Points(pGeo,pMat));
-  for(let i=0;i<5;i++){
-    const rad=iR + (i+0.6)/5*(oR-iR);
-    const ringHalf = 0.001*ALT_EXAG; // VAST ring thickness
-    const rg=new THREE.RingGeometry(rad-ringHalf, rad+ringHalf, 96);
-    rg.rotateX((38+i*13)*RAD); rg.rotateY((i*37)*RAD);
-    const rm=new THREE.MeshBasicMaterial({color:color, transparent:true, opacity:0.10, side:THREE.DoubleSide, depthWrite:false, blending:THREE.AdditiveBlending});
-    g.add(new THREE.Mesh(rg, rm));
-  }
-  return g;
-}
-const upperLeoGroup=createLayerDimension('UPPER', 800, 2000, 0xa78bfa, 3200);
-const leoCoreGroup=createLayerDimension('CORE', 450, 800, 0x38bdf8, 2200);
-const vleoGroup=createLayerDimension('VLEO', 160, 450, 0xfacc15, 1800);
-const karmanGroup=createLayerDimension('KARMAN', 100, 160, 0x93c5fd, 900);
-// Crystal fields OFF per user request — orbit holds only sats + orbit lines. Layer fog/particles/rings/wireframes stay hidden.
+// No hardcoded layer debris / particle fields / swarm volumes — removed per user request.
+// Empty groups kept so later LOD / zone code stays compatible (all hidden, zero particles).
+function createLayerDimension(){ const g=new THREE.Group(); g.visible=false; scene.add(g); return g; }
+const upperLeoGroup=new THREE.Group(); upperLeoGroup.visible=false; upperLeoGroup.name='UPPER'; scene.add(upperLeoGroup);
+const leoCoreGroup=new THREE.Group(); leoCoreGroup.visible=false; leoCoreGroup.name='CORE'; scene.add(leoCoreGroup);
+const vleoGroup=new THREE.Group(); vleoGroup.visible=false; vleoGroup.name='VLEO'; scene.add(vleoGroup);
+const karmanGroup=new THREE.Group(); karmanGroup.visible=false; karmanGroup.name='KARMAN'; scene.add(karmanGroup);
 window._noCrystals=true;
-[upperLeoGroup,leoCoreGroup,vleoGroup,karmanGroup].forEach(g=>{ g.visible=false; });
-const fogMesh=upperLeoGroup.userData.fog;
-// removed dead uniform camAlt — shader never declared/used it
+const fogMesh=null;
 
 // satellites — Kepler + DirectX PBR materials — EXACT PROPORTION (Earth R=30, 1km=0.004708u)
 // Real sats 10m = 0.01km → 0.000047u sub-pixel, so meshes exaggerated to stay visible vs Earth 30; tooltip shows REAL m/km.
@@ -969,13 +918,11 @@ class Sat{
     this.trail.push(pos.clone()); if(this.trail.length>this.trailMax) this.trail.shift(); const arr=new Float32Array(this.trail.length*3); for(let i=0;i<this.trail.length;i++){ arr[i*3]=this.trail[i].x; arr[i*3+1]=this.trail[i].y; arr[i*3+2]=this.trail[i].z; } this.trailLine.geometry.setAttribute('position', new THREE.BufferAttribute(arr,3)); this.trailLine.geometry.setDrawRange(0,this.trail.length); this.trailLine.geometry.attributes.position.needsUpdate=true; this.currentAlt=altFromRadius(pos.length()); }
 }
 function rand(a,b){ return a+Math.random()*(b-a); }
+// No hardcoded satellites / debris / swarm agents — live data only. Sat class kept for future use.
 const sats=[];
-for(let i=0;i<30;i++){ const alt=i<10?rand(190,420):i<20?rand(520,780):rand(820,1500); sats.push(new Sat({type:'debris',a:KM_PER_UNIT+alt,e:Math.random()<0.7?rand(0,0.02):rand(0.03,0.08),inc:rand(28,98),raan:rand(0,360),argP:rand(0,360),M0:rand(0,360),mass:rand(500,1800),spin:rand(0.4,1.6)})); }
-for(let i=0;i<18;i++){ const alt=[550,540,560,1200,740,420][i%6]+rand(-10,10); sats.push(new Sat({type:'active',a:KM_PER_UNIT+alt,e:rand(0,0.008),inc:i<12?rand(42,53):rand(70,98),raan:rand(0,360),argP:rand(0,360),M0:rand(0,360)})); }
-// REMOVED crystal swarm (10 sensory octahedrons + cones, 6 action cylinders) per user request — orbit holds only realistic sats + orbit lines.
-document.getElementById('pillCount').textContent=sats.length+' OBJECTS';
-document.getElementById('debrisCount').textContent='30';
-document.getElementById('activeCount').textContent='18';
+document.getElementById('pillCount').textContent='0 OBJECTS';
+document.getElementById('debrisCount').textContent='0';
+document.getElementById('activeCount').textContent='0';
 document.getElementById('swarmCount').textContent='0';
 
 // tooltip

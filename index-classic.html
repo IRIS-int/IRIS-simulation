@@ -166,11 +166,11 @@ window.addEventListener('DOMContentLoaded', ()=>{
   <div id="dimensionOverlay" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(0.96);background:radial-gradient(520px 320px at 50% 0%, rgba(99,102,241,0.22), rgba(10,18,36,0.86) 62%, rgba(2,6,23,0.94));border:1px solid rgba(167,139,250,0.32);border-radius:22px;padding:18px 20px;width:min(480px, 88vw);text-align:center;opacity:0;pointer-events:none;transition:0.55s;backdrop-filter:blur(16px);box-shadow:0 18px 60px rgba(0,0,0,0.55),0 0 28px rgba(99,102,241,0.28)">
     <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.18em;color:#a78bfa">◆ DIMENSION ENTERED</div>
     <div style="font-size:22px;font-weight:700;letter-spacing:0.04em;margin:6px 0 4px">UPPER LEO — 800–2000 KM</div>
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;opacity:0.78">You are inside the outer LEO volume.<br>OneWeb 1200 km · 3200 micro-debris + 14 tracked objects.<br><span style="color:#7dd3fc">Drag to explore · Scroll to dive · Double-click satellite to inspect</span></div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;opacity:0.78">You are inside the outer LEO volume.<br>800–2000 km · no hardcoded objects.<br><span style="color:#7dd3fc">Drag to explore · Scroll to dive</span></div>
     <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
       <span class="pill" style="border-color:rgba(167,139,250,0.35);color:#d8b4fe">VOLUMETRIC FOG</span>
       <span class="pill" style="border-color:rgba(56,189,248,0.35);color:#7dd3fc">800 km FLOOR</span>
-      <span class="pill" style="border-color:rgba(250,204,21,0.35);color:#fde68a">3200 PARTICLES</span>
+      <span class="pill" style="border-color:rgba(250,204,21,0.35);color:#fde68a">0 OBJECTS</span>
     </div>
   </div>
   <div class="panel panel-left" id="panelLeft">
@@ -452,63 +452,14 @@ defs.forEach(d=>{
   const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, transparent:true, depthWrite:false})); spr.scale.set(0.5,0.095,1);
   const ang=(d.km%2===0?18:-28)*RAD; spr.position.set(Math.cos(ang)*r,0.16,Math.sin(ang)*r); spr.userData={km:d.km, baseScale:0.5}; shellsGroup.add(spr); shellLabels.push(spr);
 });
-// --- PER-LAYER DIMENSIONS — each LEO slice is its own huge world ---
-function createLayerDimension(name, innerKm, outerKm, color, count){
-  const g=new THREE.Group(); g.visible=false; g.name=name; scene.add(g);
-  const iR=R_EARTH+toScene(innerKm), oR=R_EARTH+toScene(outerKm);
-  const fogG=new THREE.SphereGeometry(oR, 56,56);
-  const fogM=new THREE.ShaderMaterial({
-    side:THREE.BackSide, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
-    uniforms:{ innerR:{value:iR}, outerR:{value:oR}, col:{value:new THREE.Color(color)} },
-    vertexShader:`varying vec3 vPos; void main(){ vPos=(modelMatrix*vec4(position,1.0)).xyz; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-    fragmentShader:`varying vec3 vPos; uniform float innerR; uniform float outerR; uniform vec3 col;
-      void main(){
-        float r=length(vPos);
-        float d=smoothstep(innerR-0.035, innerR+0.02, r)*(1.0 - smoothstep(outerR-0.035, outerR+0.02, r));
-        float fres=pow(1.0-abs(dot(normalize(vPos), vec3(0,1,0))),2.0)*0.20;
-        float a=d*(0.09+fres*0.32);
-        vec3 c=mix(col*0.55, col*1.15, smoothstep(innerR, outerR, r));
-        float grid=step(0.987, fract(r*32.0))*0.05;
-        c+=vec3(0.7,0.8,1.0)*grid;
-        gl_FragColor=vec4(c, a);
-      }`
-  });
-  const fog=new THREE.Mesh(fogG,fogM); fog.renderOrder=5; g.add(fog); g.userData.fog=fog;
-  const innerG=new THREE.SphereGeometry(iR, 48,48);
-  const innerM=new THREE.MeshBasicMaterial({color:color, transparent:true, opacity:0.11, wireframe:true, depthWrite:false});
-  g.add(new THREE.Mesh(innerG, innerM));
-  const pGeo=new THREE.BufferGeometry();
-  const pPos=new Float32Array(count*3), pCol=new Float32Array(count*3);
-  for(let i=0;i<count;i++){
-    const rad=iR + Math.random()*(oR-iR);
-    const th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1);
-    pPos[i*3]=rad*Math.sin(ph)*Math.cos(th);
-    pPos[i*3+1]=rad*Math.sin(ph)*Math.sin(th)*0.98;
-    pPos[i*3+2]=rad*Math.cos(ph);
-    const hot=Math.random()<0.15;
-    const base=new THREE.Color(color);
-    pCol[i*3]= hot?0.98:base.r*0.95; pCol[i*3+1]= hot?0.45:base.g*0.95; pCol[i*3+2]= hot?0.45:base.b*0.95;
-  }
-  pGeo.setAttribute('position', new THREE.BufferAttribute(pPos,3));
-  pGeo.setAttribute('color', new THREE.BufferAttribute(pCol,3));
-  const pMat=new THREE.PointsMaterial({size:0.013, vertexColors:true, transparent:true, opacity:0.68, sizeAttenuation:true, blending:THREE.AdditiveBlending, depthWrite:false});
-  g.add(new THREE.Points(pGeo,pMat));
-  for(let i=0;i<5;i++){
-    const rad=iR + (i+0.6)/5*(oR-iR);
-    const rg=new THREE.RingGeometry(rad-0.001, rad+0.001, 96);
-    rg.rotateX((38+i*13)*RAD); rg.rotateY((i*37)*RAD);
-    const rm=new THREE.MeshBasicMaterial({color:color, transparent:true, opacity:0.10, side:THREE.DoubleSide, depthWrite:false, blending:THREE.AdditiveBlending});
-    g.add(new THREE.Mesh(rg, rm));
-  }
-  return g;
-}
-const upperLeoGroup=createLayerDimension('UPPER', 800, 2000, 0xa78bfa, 3200);
-const leoCoreGroup=createLayerDimension('CORE', 450, 800, 0x38bdf8, 2200);
-const vleoGroup=createLayerDimension('VLEO', 160, 450, 0xfacc15, 1800);
-const karmanGroup=createLayerDimension('KARMAN', 100, 160, 0x93c5fd, 900);
-// keep legacy names for existing LOD code
-const fogMesh=upperLeoGroup.userData.fog; // for old uniform camAlt compat
-if(fogMesh) fogMesh.material.uniforms.camAlt={value:1200};
+// No hardcoded layer debris / particle fields / swarm volumes — removed per user request.
+// Empty groups kept so later LOD / zone code stays compatible (all hidden, zero particles).
+function createLayerDimension(){ const g=new THREE.Group(); g.visible=false; scene.add(g); return g; }
+const upperLeoGroup=new THREE.Group(); upperLeoGroup.visible=false; upperLeoGroup.name='UPPER'; scene.add(upperLeoGroup);
+const leoCoreGroup=new THREE.Group(); leoCoreGroup.visible=false; leoCoreGroup.name='CORE'; scene.add(leoCoreGroup);
+const vleoGroup=new THREE.Group(); vleoGroup.visible=false; vleoGroup.name='VLEO'; scene.add(vleoGroup);
+const karmanGroup=new THREE.Group(); karmanGroup.visible=false; karmanGroup.name='KARMAN'; scene.add(karmanGroup);
+const fogMesh=null;
 
 // satellites — simple Kepler
 function solveKepler(M,e){ let E=M; for(let i=0;i<6;i++){ let f=E - e*Math.sin(E) - M, fp=1 - e*Math.cos(E); E-=f/fp; } return E; }
@@ -532,15 +483,12 @@ class Sat{
     this.trail.push(pos.clone()); if(this.trail.length>this.trailMax) this.trail.shift(); const arr=new Float32Array(this.trail.length*3); for(let i=0;i<this.trail.length;i++){ arr[i*3]=this.trail[i].x; arr[i*3+1]=this.trail[i].y; arr[i*3+2]=this.trail[i].z; } this.trailLine.geometry.setAttribute('position', new THREE.BufferAttribute(arr,3)); this.trailLine.geometry.setDrawRange(0,this.trail.length); this.trailLine.geometry.attributes.position.needsUpdate=true; this.currentAlt=pos.length()*R_EARTH_KM - R_EARTH_KM; }
 }
 function rand(a,b){ return a+Math.random()*(b-a); }
+// No hardcoded satellites / debris / swarm agents — live data only. Sat class kept for future use.
 const sats=[];
-for(let i=0;i<30;i++){ const alt=i<10?rand(190,420):i<20?rand(520,780):rand(820,1500); sats.push(new Sat({type:'debris',a:R_EARTH_KM+alt,e:Math.random()<0.7?rand(0,0.02):rand(0.03,0.08),inc:rand(28,98),raan:rand(0,360),argP:rand(0,360),M0:rand(0,360),mass:rand(500,1800),spin:rand(0.4,1.6)})); }
-for(let i=0;i<18;i++){ const alt=[550,540,560,1200,740,420][i%6]+rand(-10,10); sats.push(new Sat({type:'active',a:R_EARTH_KM+alt,e:rand(0,0.008),inc:i<12?rand(42,53):rand(70,98),raan:rand(0,360),argP:rand(0,360),M0:rand(0,360)})); }
-for(let i=0;i<10;i++) sats.push(new Sat({type:'sensory',a:R_EARTH_KM+rand(480,620),e:0,inc:rand(50,86),raan:(i/10)*360+rand(-5,5),argP:0,M0:(i/10)*360}));
-for(let i=0;i<6;i++) sats.push(new Sat({type:'action',a:R_EARTH_KM+rand(500,640),e:0,inc:rand(52,82),raan:rand(0,360),argP:0,M0:rand(0,360)}));
-document.getElementById('pillCount').textContent=sats.length+' OBJECTS';
-document.getElementById('debrisCount').textContent='30';
-document.getElementById('activeCount').textContent='18';
-document.getElementById('swarmCount').textContent='16';
+document.getElementById('pillCount').textContent='0 OBJECTS';
+document.getElementById('debrisCount').textContent='0';
+document.getElementById('activeCount').textContent='0';
+document.getElementById('swarmCount').textContent='0';
 
 // tooltip
 const ray=new THREE.Raycaster(), mouse=new THREE.Vector2(); let hovered=null; const tip=document.getElementById('tooltip');
@@ -703,10 +651,10 @@ function updTel(){
   // --- PER-LAYER DIMENSIONS — each slice is huge first-person world ---
   const dimEl=document.getElementById('dimensionOverlay');
   const layers=[
-    {id:'karman', name:'KÁRMÁN — 100-160 KM', grp:typeof karmanGroup!=='undefined'?karmanGroup:null, min:100, max:160, color:'#93c5fd', desc:'Edge of space · 900 particles'},
-    {id:'vleo', name:'VLEO — 160-450 KM', grp:typeof vleoGroup!=='undefined'?vleoGroup:null, min:160, max:450, color:'#facc15', desc:'ISS 408 km · 1800 particles · high drag'},
-    {id:'leo', name:'LEO CORE — 450-800 KM', grp:typeof leoCoreGroup!=='undefined'?leoCoreGroup:null, min:450, max:800, color:'#38bdf8', desc:'Starlink · Hubble · 2200 particles'},
-    {id:'outer', name:'UPPER LEO — 800-2000 KM', grp:typeof upperLeoGroup!=='undefined'?upperLeoGroup:null, min:800, max:2000, color:'#a78bfa', desc:'OneWeb 1200 km · 3200 particles · huge volume'}
+    {id:'karman', name:'KÁRMÁN — 100-160 KM', grp:typeof karmanGroup!=='undefined'?karmanGroup:null, min:100, max:160, color:'#93c5fd', desc:'Edge of space'},
+    {id:'vleo', name:'VLEO — 160-450 KM', grp:typeof vleoGroup!=='undefined'?vleoGroup:null, min:160, max:450, color:'#facc15', desc:'160–450 km · high drag'},
+    {id:'leo', name:'LEO CORE — 450-800 KM', grp:typeof leoCoreGroup!=='undefined'?leoCoreGroup:null, min:450, max:800, color:'#38bdf8', desc:'450–800 km'},
+    {id:'outer', name:'UPPER LEO — 800-2000 KM', grp:typeof upperLeoGroup!=='undefined'?upperLeoGroup:null, min:800, max:2000, color:'#a78bfa', desc:'800–2000 km · huge volume'}
   ];
   let activeLayer=null;
   if(window._forcedZone){
