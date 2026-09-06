@@ -225,7 +225,8 @@ window.addEventListener('DOMContentLoaded', ()=>{
     <button class="btn ghost" id="btnTargetDebris" style="margin-top:8px;width:100%;">◎ TARGET DEBRIS</button>
   </div>
   <div class="panel" id="ccsPanel" style="position:absolute;left:50%;top:335px;transform:translateX(-50%);padding:12px 14px;z-index:4;display:none;min-width:360px;max-width:94vw;max-height:46vh;overflow-y:auto;">
-    <div class="kicker" style="margin:0 0 6px;justify-content:center;">CCS PANEL · STAGE 1 COLLECT/STORE — <span id="ccsTarget">—</span></div>
+    <div class="kicker" style="margin:0 0 6px;justify-content:center;">CCS PANEL · STAGE 1 COLLECT/STORE — <span id="ccsTarget">—</span><button id="btnCcsMin" title="Minimize panel" style="margin-left:8px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 8px;border-radius:999px;border:1px solid rgba(96,165,250,0.3);background:rgba(15,23,42,0.8);color:#cbd5e1;">–</button></div>
+    <div id="ccsBody">
     <div id="ccsStatus" style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;opacity:0.75;margin-bottom:8px;">waiting for target…</div>
     <div class="grid2">
       <div class="stat"><label>ALT SEA LEVEL</label><b id="ccsAlt">—</b><i>km</i></div>
@@ -244,6 +245,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
       <span>ORIENT:</span> <b id="ccsOrient">—</b><br>
       <span>SWARM NODE:</span> <b id="ccsSwarm">—</b><br>
       <span>STORE:</span> <b id="ccsSensors">—</b>
+    </div>
     </div>
   </div>
   <div class="enter-notify" id="enterNotify"><span>🛰</span> <span id="enterText">ENTERING <b>LEO</b></span></div>
@@ -2608,6 +2610,7 @@ function targetDebrisByLabel(label){
     s.mesh.material.emissive.setHex(0xfacc15); s.mesh.material.emissiveIntensity=1.2;
   }catch(_){}
   try{ document.getElementById('ccsPanel').style.display='block'; }catch(_){}
+  try{ document.getElementById('ccsBody').style.display=''; document.getElementById('btnCcsMin').textContent='–'; }catch(_){}
   try{ focusSat(s); }catch(_){}
   fleetNotice(`TARGET LOCKED — <b>${s.label}</b> · CCS blind · null info until 2 orbits observed`);
   return s;
@@ -2714,6 +2717,14 @@ document.getElementById('btnStartSim')?.addEventListener('click', startSimulatio
 document.getElementById('btnTargetDebris')?.addEventListener('click', ()=>{
   const sel=document.getElementById('debrisTargetSelect');
   targetDebrisByLabel(sel&&sel.value?sel.value:'');
+});
+document.getElementById('btnCcsMin')?.addEventListener('click', (e)=>{
+  e.stopPropagation();
+  const b=document.getElementById('ccsBody'), btn=document.getElementById('btnCcsMin');
+  if(!b||!btn) return;
+  const min=b.style.display==='none';
+  b.style.display=min?'':'none';
+  btn.textContent=min?'–':'+';
 });
 document.getElementById('btnSimCentre')?.addEventListener('click', ()=>{
   const p=document.getElementById('simCentrePanel');
