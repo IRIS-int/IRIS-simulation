@@ -2487,32 +2487,47 @@ document.getElementById('btnAddSensory')?.addEventListener('click', ()=>{
 });
 document.getElementById('btnClearFleet')?.addEventListener('click', ()=>{ try{ restoreCcsMark(); }catch(_){} try{ clearCcsMappedOrbit(); }catch(_){} clearFleet(); window._targetDebris=null; window._ccsStore=[]; window._ccsDots=[]; window._ccsLastSeen={}; window._ccsLastPass=null; window._ccsDone=false; window._ccsPhase='collect'; try{ document.getElementById('debrisTargetSelect').innerHTML='<option value="">— start sim first —</option>'; }catch(_){} fleetNotice('FLEET CLEARED — <b>0 OBJECTS</b>'); });
 // SIMULATION CENTRE — random 100 demo sats + 15 action bots + 10 debris across whole LEO (160–2000km), fully random each run, ≥5km apart
-function startSimulationDemo(){
+async function startSimulationDemo(){
+  if(window._launching) return;
+  window._launching=true;
+  const btn=document.getElementById('btnStartSim');
+  try{ if(btn){ btn.disabled=true; btn.textContent='LAUNCHING… 0/100'; } }catch(_){}
   try{ restoreCcsMark(); }catch(_){}
   try{ clearCcsMappedOrbit(); }catch(_){}
   window._targetDebris=null; window._ccsStore=[]; window._ccsDots=[]; window._ccsLastSeen={}; window._ccsLastPass=null; window._ccsDone=false; window._ccsPhase='collect';
   clearFleet();
+  fleetNotice('LAUNCHING fleet… 0/100');
+  const tick=()=>new Promise(r=>requestAnimationFrame(()=>setTimeout(r,0)));
+  await tick(); // paint immediately so click feels instant
   let spawned=0, attempts=0;
   while(spawned<100 && attempts<8000){
-    attempts++;
-    const cand={ alt:160+Math.random()*1840, e:0.001, inc:Math.random()*98, raan:Math.random()*360, argP:Math.random()*360, M0:Math.random()*360 };
-    const c=checkOrbitConflict({ a:KM_PER_UNIT+cand.alt, e:cand.e, inc:cand.inc, raan:cand.raan, argP:cand.argP, M0:cand.M0 });
-    if(c.hard) continue;
-    const s=spawnActiveSat({ ...cand, force:true });
-    if(s) spawned++;
+    for(let k=0;k<8 && spawned<100 && attempts<8000;k++){
+      attempts++;
+      const cand={ alt:160+Math.random()*1840, e:0.001, inc:Math.random()*98, raan:Math.random()*360, argP:Math.random()*360, M0:Math.random()*360 };
+      const c=checkOrbitConflict({ a:KM_PER_UNIT+cand.alt, e:cand.e, inc:cand.inc, raan:cand.raan, argP:cand.argP, M0:cand.M0 });
+      if(c.hard) continue;
+      const s=spawnActiveSat({ ...cand, force:true });
+      if(s) spawned++;
+    }
+    try{ if(btn) btn.textContent=`LAUNCHING… ${spawned}/100`; }catch(_){}
+    await tick();
   }
   let spawnedA=0, attemptsA=0;
   while(spawnedA<15 && attemptsA<2000){
-    attemptsA++;
-    const cand={ alt:160+Math.random()*1840, e:0.001, inc:Math.random()*98, raan:Math.random()*360, argP:Math.random()*360, M0:Math.random()*360 };
-    const c=checkOrbitConflict({ a:KM_PER_UNIT+cand.alt, e:cand.e, inc:cand.inc, raan:cand.raan, argP:cand.argP, M0:cand.M0 });
-    if(c.hard) continue;
-    const s=spawnActionBot({ ...cand, force:true });
-    if(s) spawnedA++;
+    for(let k=0;k<5 && spawnedA<15 && attemptsA<2000;k++){
+      attemptsA++;
+      const cand={ alt:160+Math.random()*1840, e:0.001, inc:Math.random()*98, raan:Math.random()*360, argP:Math.random()*360, M0:Math.random()*360 };
+      const c=checkOrbitConflict({ a:KM_PER_UNIT+cand.alt, e:cand.e, inc:cand.inc, raan:cand.raan, argP:cand.argP, M0:cand.M0 });
+      if(c.hard) continue;
+      const s=spawnActionBot({ ...cand, force:true });
+      if(s) spawnedA++;
+    }
+    await tick();
   }
-  // every active sat gets 1 attached sensory bot
+  // every active sat gets 1 attached sensory bot (chunked)
   try{
-    sats.filter(s=>s.type==='active').forEach(s=>{ attachBot(s,'sensory',{}); });
+    const actives=sats.filter(s=>s.type==='active');
+    for(let i=0;i<actives.length;i++){ attachBot(actives[i],'sensory',{}); if(i%10===9) await tick(); }
   }catch(_){}
   // 10 sample debris — independent random orbits across whole LEO (auto-fixed ≥5km)
   let spawnedD=0;
@@ -2520,6 +2535,7 @@ function startSimulationDemo(){
     for(let i=0;i<10;i++){
       const frags=spawnDebris({ count:1, alt:160+Math.random()*1840, inc:Math.random()*98, raan:Math.random()*360, argP:Math.random()*360, M0:Math.random()*360, size:0.5+Math.random()*2, spread:3 });
       if(frags&&frags.length) spawnedD+=frags.length;
+      if(i%3===2) await tick();
     }
   }catch(_){}
   try{ deselectSat(true); }catch(_){}
@@ -2532,6 +2548,8 @@ function startSimulationDemo(){
     }
   }catch(_){}
   fleetNotice(`SIMULATION STARTED — <b>${spawned} SATS + ${spawnedA} ACTION + ${spawned} SENSORY + ${spawnedD} DEBRIS</b> · <b>WHICH DEBRIS TO TARGET?</b> pick below ↓`);
+  try{ if(btn){ btn.disabled=false; btn.textContent='▶ START SIMULATION'; } }catch(_){}
+  window._launching=false;
 }
 function restoreCcsMark(){
   const o=window._targetDebris;
