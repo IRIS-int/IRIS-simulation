@@ -1346,6 +1346,7 @@ function buildActiveDetails(bus,SZ){
   bus.userData.micro=micro;
 }
 // ACTION BOT — orange interceptor drone: carbon core + 4 ion arms + gimbal cam + mast
+// + EDDY-CURRENT DAMPER + 2× DETACHABLE PODS — all on the NADIR (Earth-facing) deck
 function buildActionDetails(core,SZ){
   _M.init(SZ);
   const u=SZ;
@@ -1366,10 +1367,10 @@ function buildActionDetails(core,SZ){
       const bell=new THREE.Mesh(new THREE.ConeGeometry(0.0018*u,0.003*u,10,1,true),_M.dark); bell.position.set(px,-0.004*u,pz); bell.rotation.x=Math.PI; core.add(bell);
     });
   });
-  // gimbal camera ball + lens
-  const ball=new THREE.Mesh(new THREE.SphereGeometry(0.0045*u,18,14),_M.white); ball.position.set(0,-0.018*u,0); core.add(ball);
-  const lens=new THREE.Mesh(new THREE.CircleGeometry(0.0026*u,20),_M.lensC); lens.position.set(0,-0.018*u,0.0044*u); core.add(lens);
-  const lensRing=new THREE.Mesh(new THREE.TorusGeometry(0.0028*u,0.0005*u,8,24),_M.dark); lensRing.position.set(0,-0.018*u,0.0042*u); core.add(lensRing);
+  // gimbal camera ball + lens (chin position — pushed forward so the nadir deck fits behind it)
+  const ball=new THREE.Mesh(new THREE.SphereGeometry(0.0045*u,18,14),_M.white); ball.position.set(0,-0.016*u,0.011*u); core.add(ball);
+  const lens=new THREE.Mesh(new THREE.CircleGeometry(0.0026*u,20),_M.lensC); lens.position.set(0,-0.016*u,0.0154*u); core.add(lens);
+  const lensRing=new THREE.Mesh(new THREE.TorusGeometry(0.0028*u,0.0005*u,8,24),_M.dark); lensRing.position.set(0,-0.016*u,0.0152*u); core.add(lensRing);
   // top mast + GPS + patch + whip
   _cyl(core,0.0012*u,0.0016*u,0.016*u,8, 0,0.022*u,0,_M.alu);
   _box(core,0.008*u,0.001*u,0.008*u, 0,0.030*u,0,_M.solar);
@@ -1400,10 +1401,91 @@ function buildActionDetails(core,SZ){
     });
   });
   _box(core,0.0008*u,0.008*u,0.003*u, -0.006*u,-0.004*u,-0.008*u,_M.alu);
-  _cyl(core,0.001*u,0.001*u,0.006*u,8, 0,-0.016*u,-0.006*u,_M.titanium,0,0);
+  _cyl(core,0.001*u,0.001*u,0.006*u,8, 0,-0.004*u,-0.013*u,_M.titanium,0,0); // grapple pin — aft rim (clear of nadir deck)
   _strobe(core,_M.strobeA,0,0.031*u,0,0.0014,u,1.1);
-  _strobe(core,_M.strobeA,0,-0.012*u,0.011*u,0.001,u,3.6);
+  _strobe(core,_M.strobeA,0.013*u,-0.011*u,-0.009*u,0.001,u,3.6); // nadir-deck corner marker
   _glow(core,0xffb020,0,0.031*u,0,0.012,u,1.1);
+  // === NADIR EQUIPMENT DECK (Earth-facing side) — eddy damper + detachable pods, all -Y ===
+  // Shared pallet bolted under the belly. Everything hangs toward Earth: damper plate
+  // faces straight down, pods lie under the pallet with capped bells aft + feet down.
+  _box(core,0.030*u,0.0015*u,0.014*u, 0,-0.0095*u,-0.003*u,_M.dark); // pallet
+  _box(core,0.0305*u,0.0006*u,0.002*u, 0,-0.0095*u,0.0035*u,_M.copper); // pallet front lip
+  // === EDDY-CURRENT DAMPER (non-contact detumble) — nadir port, plate faces EARTH ===
+  // Hold plate near tumbling debris → motion of conductive skin through B-field
+  // induces eddy currents → damping torque. No touch, no grapple.
+  _box(core,0.005*u,0.002*u,0.005*u, -0.008*u,-0.0095*u,-0.0025*u,_M.dark); // hinge base (nadir)
+  _cyl(core,0.0009*u,0.0009*u,0.005*u,8, -0.008*u,-0.0115*u,-0.0025*u,_M.alu); // drop boom (-Y)
+  const eddyPlate=_box(core,0.012*u,0.0012*u,0.012*u, -0.008*u,-0.0145*u,-0.0025*u,_M.alu); // damper face (horizontal, -Y)
+  _box(core,0.0125*u,0.0016*u,0.002*u, -0.008*u,-0.0138*u,-0.0025*u,_M.copper); // spine rib
+  _box(core,0.002*u,0.0016*u,0.0125*u, -0.008*u,-0.0138*u,-0.0025*u,_M.copper); // cross rib
+  // 2×2 driver-coil array on the DOWN face (flat, normals -Y — pulses via rings list)
+  const eddyCoilM=new THREE.MeshStandardMaterial({color:0xb46a28,emissive:0x22d3ee,emissiveIntensity:1.4,roughness:0.35,metalness:0.9});
+  const eddyCoilG=new THREE.TorusGeometry(0.0022*u,0.0005*u,8,20);
+  const eddyCoils=[];
+  [[-0.003,-0.003],[0.003,-0.003],[-0.003,0.003],[0.003,0.003]].forEach(([dx,dz])=>{
+    const c=new THREE.Mesh(eddyCoilG,eddyCoilM.clone());
+    c.position.set((-0.008+dx)*u,-0.0153*u,(-0.0025+dz)*u); c.rotation.x=Math.PI/2; core.add(c); eddyCoils.push(c);
+    (core.userData.rings||(core.userData.rings=[])).push(c.material);
+  });
+  // central Halbach magnet block (bottom) + keeper
+  const eddyMagM=new THREE.MeshStandardMaterial({color:0x111827,emissive:0x38e6ff,emissiveIntensity:0.9,roughness:0.3,metalness:0.8});
+  const eddyMag=_box(core,0.004*u,0.0018*u,0.004*u, -0.008*u,-0.0155*u,-0.0025*u,eddyMagM);
+  _box(micro,0.005*u,0.001*u,0.005*u, -0.008*u,-0.0142*u,-0.0025*u,_M.dark);
+  // faint B-field sheet (horizontal, below plate) + halo so the non-contact effect reads
+  const eddyField=new THREE.Mesh(new THREE.PlaneGeometry(0.016*u,0.016*u),
+    new THREE.MeshBasicMaterial({color:0x22d3ee,transparent:true,opacity:0.08,side:THREE.DoubleSide,depthWrite:false}));
+  eddyField.position.set(-0.008*u,-0.0168*u,-0.0025*u); eddyField.rotation.x=Math.PI/2; core.add(eddyField);
+  _glow(core,0x22d3ee,-0.008*u,-0.0178*u,-0.0025*u,0.018,u,0.6);
+  try{ _plate(core,'EDDY','#22d3ee',0.008*u, -0.008*u,-0.0095*u,0.0046*u,0); }catch(_){}
+  core.userData.eddy={plate:eddyPlate,coils:eddyCoils,magnet:eddyMag,field:eddyField};
+  // === DETACHABLE THRUSTER PODS ×2 (inert cargo — nadir starboard, NOT for flight) ===
+  // Lie side-by-side under the pallet on the Earth side, axes fore-aft (+Z fwd / -Z aft).
+  // Capped bells aft, docking feet down. They just ride there until later logic
+  // detaches one and drives it onto debris.
+  core.userData.sidePods=[];
+  [0.0025,0.010].forEach((px,idx)=>{
+    const s=idx===0?-1:1, tag=idx===0?'POD-1':'POD-2';
+    const pod=new THREE.Group(); pod.name='NADIR-'+tag;
+    pod.position.set(px*u,-0.0135*u,-0.003*u); core.add(pod);
+    // rail saddle (stays with bot after detach)
+    _box(core,0.004*u,0.002*u,0.012*u, px*u,-0.0105*u,-0.003*u,_M.dark);
+    // tank body (axis Z) + clamp bands
+    const tank=new THREE.Mesh(new THREE.CylinderGeometry(0.003*u,0.003*u,0.010*u,14),_M.white);
+    tank.rotation.x=Math.PI/2; pod.add(tank);
+    [-0.003,0.003].forEach(dz=>{
+      const band=new THREE.Mesh(new THREE.TorusGeometry(0.00305*u,0.0004*u,8,20),_M.copper);
+      band.position.set(0,0,dz*u); pod.add(band);
+    });
+    // separation ring at the FORWARD end (detach plane) + 4 shear bolts
+    const sep=new THREE.Mesh(new THREE.CylinderGeometry(0.0032*u,0.0032*u,0.0012*u,14),_M.dark);
+    sep.rotation.x=Math.PI/2; sep.position.set(0,0,0.005*u); pod.add(sep);
+    for(let i=0;i<4;i++){
+      const a=i/4*Math.PI*2+Math.PI/4;
+      const b=new THREE.Mesh(new THREE.CylinderGeometry(0.00035*u,0.00035*u,0.0014*u,6),_M.alu);
+      b.rotation.x=Math.PI/2;
+      b.position.set(Math.cos(a)*0.0028*u,Math.sin(a)*0.0028*u,0.005*u); pod.add(b);
+    }
+    // nozzle bell pointing AFT (-Z) + capped safety disc (inert — capped, no burn)
+    const noz=new THREE.Mesh(new THREE.ConeGeometry(0.0024*u,0.0035*u,12,1,true),_M.dark);
+    noz.position.set(0,0,-0.0065*u); noz.rotation.x=Math.PI/2; pod.add(noz);
+    _cyl(pod,0.0011*u,0.0014*u,0.002*u,10, 0,0,-0.0045*u,_M.copper,Math.PI/2,0); // throat (axis Z)
+    const capM=new THREE.MeshStandardMaterial({color:0x7c2d12,emissive:0xea580c,emissiveIntensity:0.5,roughness:0.5,metalness:0.4});
+    const cap=new THREE.Mesh(new THREE.CircleGeometry(0.0021*u,14),capM);
+    cap.position.set(0,0,-0.0083*u); cap.rotation.y=Math.PI; pod.add(cap);
+    // docking foot facing DOWN (-Y, toward Earth/debris) + feed line up to rail
+    _cyl(pod,0.0008*u,0.0008*u,0.003*u,8, 0,-0.004*u,0,_M.titanium);
+    const foot=new THREE.Mesh(new THREE.CylinderGeometry(0.0016*u,0.0019*u,0.001*u,12),_M.alu);
+    foot.position.set(0,-0.0055*u,0); pod.add(foot);
+    _box(pod,0.0009*u,0.003*u,0.0009*u, 0,0.0035*u,0.002*u,_M.copper);
+    try{ _plate(core,tag,'#fb923c',0.007*u, px*u,-0.0095*u,0.0046*u,0); }catch(_){}
+    // dim amber marker (moved into core blinkers so upd() pulses it)
+    _strobe(pod,_M.strobeA,0,0.0025*u,-0.004*u,0.0009,u,s>0?0.7:3.8);
+    try{
+      (pod.userData.blinkers||[]).forEach(b=>(core.userData.blinkers||(core.userData.blinkers=[])).push(b));
+      pod.userData.blinkers=[];
+    }catch(_){}
+    core.userData.sidePods.push({side:s,tag,group:pod,tank,nozzle:noz,cap,sep,foot,armed:false,inert:true});
+  });
   core.userData.micro=micro;
 }
 // SENSORY — gold sensor head: core + collar panels + lens stack + FOV cone + ribs
@@ -1515,7 +1597,7 @@ class Sat{
       // detail group must counter-rotate so drone stays upright: build in wrapper
       // build drone parts inside inner group aligned to cylinder axis
       const inner=new THREE.Group(); mesh.add(inner);
-      try{ buildActionDetails(inner,SZ); mesh.userData.blinkers=inner.userData.blinkers; mesh.userData.rings=inner.userData.rings; mesh.userData.micro=inner.userData.micro; mesh.userData.inner=inner; }catch(e){ console.warn('action detail fail',e); }
+      try{ buildActionDetails(inner,SZ); mesh.userData.blinkers=inner.userData.blinkers; mesh.userData.rings=inner.userData.rings; mesh.userData.micro=inner.userData.micro; mesh.userData.inner=inner; mesh.userData.eddy=inner.userData.eddy; mesh.userData.sidePods=inner.userData.sidePods; }catch(e){ console.warn('action detail fail',e); }
     }
     this.mesh=mesh; this.group.add(mesh);
     const col=this.type==='debris'?0xf87171:this.type==='active'?0x22c55e:this.type==='sensory'?0xfacc15:0xfb923c;
@@ -1827,7 +1909,8 @@ renderer.domElement.addEventListener('pointermove', e=>{
     }
     if(hit && !hit.isBot){
       const sat=hit; hovered=sat; const alt=(sat.currentAlt??(sat.a-KM_PER_UNIT)).toFixed(0); const vel=Math.sqrt(MU/sat.a).toFixed(2); const realM=sat.realSizeM.toFixed(1); const realKm=(sat.realSizeM/1000).toFixed(4); const nb=(sat.bots||[]).length; const ev=sat.env?`<br>ρ <b>${sat.env.rho.toExponential(1)} kg/m³</b> · ${sat.env.temp.toFixed(0)}K · life <b>${sat.env.lifetime}</b>`:'';
-      tip.innerHTML=`<b>${sat.label||sat.type.toUpperCase()}</b><br>Real Alt <b>${alt} km</b> (scene r=${sceneRadius(alt).toFixed(4)} ×${ALT_EXAG})<br>Real size <b>${realM} m</b> (${realKm} km) · mesh ×${sat.exaggeration}<br>Vel <b>${vel} km/s</b>${ev}${nb?`<br>Bots <b>${nb}</b> attached`:''}`; tip.style.left=e.clientX+'px'; tip.style.top=e.clientY+'px'; tip.classList.add('show'); document.body.style.cursor='pointer'; return;
+      const payload=sat.type==='action'?`<br>EDDY damper + <b>2x POD</b> (nadir, Earth side - inert)`:'';
+      tip.innerHTML=`<b>${sat.label||sat.type.toUpperCase()}</b><br>Real Alt <b>${alt} km</b> (scene r=${sceneRadius(alt).toFixed(4)} ×${ALT_EXAG})<br>Real size <b>${realM} m</b> (${realKm} km) · mesh ×${sat.exaggeration}<br>Vel <b>${vel} km/s</b>${ev}${payload}${nb?`<br>Bots <b>${nb}</b> attached`:''}`; tip.style.left=e.clientX+'px'; tip.style.top=e.clientY+'px'; tip.classList.add('show'); document.body.style.cursor='pointer'; return;
     }
   }
   hovered=null; tip.classList.remove('show'); document.body.style.cursor='default';
