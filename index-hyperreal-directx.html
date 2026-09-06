@@ -209,11 +209,43 @@ window.addEventListener('DOMContentLoaded', ()=>{
       <span class="pill live">● LIVE</span>
       <span class="pill" id="pillCount">— OBJECTS</span>
       <button class="btn" id="btnFPS" title="Toggle FPS game mode (WASD)">▶ FPS MODE</button>
+      <button class="btn" id="btnSimCentre" title="Open Simulation Centre">SIMULATION CENTRE</button>
       <button class="btn ghost" id="btnOrbitsTop" title="Show/hide orbit lines (O)">◉ ORBITS ON</button>
       <button class="btn ghost" id="btnReset" title="Reset camera (Esc)">↺ RESET VIEW</button>
     </div>
   </div>
   <div class="panel-toggle" id="panelToggle"><button id="btnTogglePanels">◧ PANELS</button></div>
+  <div class="panel" id="simCentrePanel" style="position:absolute;left:50%;top:70px;transform:translateX(-50%);padding:10px 16px;text-align:center;z-index:4;display:none;min-width:280px;">
+    <div class="kicker" style="margin:0;justify-content:center;">SIMULATION CENTRE · CCS blind</div>
+    <button class="btn" id="btnStartSim" style="margin-top:8px;width:100%;">▶ START SIMULATION</button>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:0.65;margin:10px 0 6px;letter-spacing:0.08em;">WHICH DEBRIS TO TARGET & DISPOSE?</div>
+    <select id="debrisTargetSelect" style="width:100%;background:rgba(2,6,23,0.9);border:1px solid rgba(96,165,250,0.2);border-radius:8px;color:#e6eef8;padding:7px 9px;font-family:'JetBrains Mono',monospace;font-size:12px;outline:none;">
+      <option value="">— start sim first —</option>
+    </select>
+    <button class="btn ghost" id="btnTargetDebris" style="margin-top:8px;width:100%;">◎ TARGET DEBRIS</button>
+  </div>
+  <div class="panel" id="ccsPanel" style="position:absolute;left:50%;top:335px;transform:translateX(-50%);padding:12px 14px;z-index:4;display:none;min-width:360px;max-width:94vw;max-height:46vh;overflow-y:auto;">
+    <div class="kicker" style="margin:0 0 6px;justify-content:center;">CCS PANEL · STAGE 1 COLLECT/STORE — <span id="ccsTarget">—</span></div>
+    <div id="ccsStatus" style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;opacity:0.75;margin-bottom:8px;">waiting for target…</div>
+    <div class="grid2">
+      <div class="stat"><label>ALT SEA LEVEL</label><b id="ccsAlt">—</b><i>km</i></div>
+      <div class="stat"><label>SPEED raw</label><b id="ccsVel">—</b><i>km/s</i></div>
+      <div class="stat"><label>MASS raw</label><b id="ccsMass">—</b><i>kg</i></div>
+      <div class="stat"><label>SIZE raw</label><b id="ccsSize">—</b><i>m</i></div>
+      <div class="stat"><label>TUMBLE raw</label><b id="ccsTumble">—</b><i>rad/s</i></div>
+      <div class="stat"><label>DECAY tot raw</label><b id="ccsDecay">—</b><i>km/day</i></div>
+      <div class="stat"><label>ANG MOMENTUM</label><b id="ccsAngMom">—</b><i>km²/s</i></div>
+      <div class="stat"><label>PERP DIST</label><b id="ccsPerp">—</b><i>km</i></div>
+    </div>
+    <div class="coords" style="margin-top:8px;">
+      <span>POS / ECI (km):</span> <b id="ccsTraj">—</b><br>
+      <span>TRAJECTORY:</span> <b id="ccsOrbit">—</b><br>
+      <span>AIR / HEAT:</span> <b id="ccsAir">—</b><br>
+      <span>ORIENT:</span> <b id="ccsOrient">—</b><br>
+      <span>SWARM NODE:</span> <b id="ccsSwarm">—</b><br>
+      <span>STORE:</span> <b id="ccsSensors">—</b>
+    </div>
+  </div>
   <div class="enter-notify" id="enterNotify"><span>🛰</span> <span id="enterText">ENTERING <b>LEO</b></span></div>
   <div class="drag-hint" id="dragHint">🖱 DRAG 360° · ←→↑↓ ARROWS rotate · SCROLL zoom · WASD roam · Q/E/C up/down · SHIFT+WASD ⚡INSANE ×25 · F roam · X intercept sat</div>
   <div class="zone-bar" id="zoneBar">
@@ -259,8 +291,9 @@ window.addEventListener('DOMContentLoaded', ()=>{
         <button class="btn ghost" style="flex:1" id="btnAddAction">+ ACTION BOT</button>
         <button class="btn ghost" style="flex:1" id="btnAddSensory">+ SENSORY BOT</button>
       </div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:0.6;margin-top:8px;line-height:1.5">ACTION = independent orbiter · SENSORY attaches to selected ACTIVE (else newest).<br>Click a sat to select it · Del removes hovered object.</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:0.6;margin-top:8px;line-height:1.5">ACTION = independent orbiter · SENSORY attaches to selected ACTIVE (else newest).<br>DEBRIS = breakup cloud (1–25 tracked tumbling frags).<br>Click a sat to select it · Del removes hovered object.</div>
       <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn ghost" style="flex:1" id="btnAddDebris">+ DEBRIS</button>
         <button class="btn ghost" style="flex:1;font-size:10px" id="btnClearFleet">CLEAR FLEET</button>
       </div>
     </div>
@@ -346,12 +379,12 @@ window.addEventListener('DOMContentLoaded', ()=>{
         </div>
         <div style="font-family:'JetBrains Mono',monospace;font-size:9px;opacity:0.55;margin-top:5px">e · RAAN · argP · M0 (deg)</div>
       </div>
-      <div class="dep-field">
+      <div class="dep-field" id="depMassField">
         <label>SPACECRAFT — MASS (kg)</label>
         <input id="depMass" type="number" min="1" max="20000" step="1" value="260">
         <div style="font-family:'JetBrains Mono',monospace;font-size:9px;opacity:0.55;margin-top:5px">Starlink ~260 · ISS 420000 · CubeSat 4</div>
       </div>
-      <div class="dep-field">
+      <div class="dep-field" id="depAreaField">
         <label>DRAG AREA Cd·A (m²) — Cd=2.2</label>
         <input id="depArea" type="number" min="0.01" max="2000" step="0.1" value="10">
         <div style="font-family:'JetBrains Mono',monospace;font-size:9px;opacity:0.55;margin-top:5px">Starlink ~10 · ISS ~1500 · 3U CubeSat ~0.03</div>
@@ -367,6 +400,15 @@ window.addEventListener('DOMContentLoaded', ()=>{
       <div class="dep-field full">
         <label>SATELLITE NAME (optional)</label>
         <input id="depName" type="text" placeholder="e.g. ACTIVE-ALPHA" maxlength="24">
+      </div>
+      <div class="dep-field full" id="depDebrisOnly" style="display:none">
+        <label>BREAKUP CLOUD — FRAGMENTS · SIZE Ø (m) · SPREAD ±M0°</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+          <input id="depCount" type="number" min="1" max="25" step="1" value="8" title="tracked fragments">
+          <input id="depSize" type="number" min="0.05" max="3" step="0.05" value="0.5" title="fragment size m">
+          <input id="depSpread" type="number" min="0.5" max="15" step="0.5" value="3" title="along-track spread deg">
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;opacity:0.55;margin-top:5px">1–25 frags · 5cm–3m shards · dispersed ±M0°, each auto-separated ≥5km</div>
       </div>
     </div>
     <div id="depEnv">computing…</div>
@@ -1415,14 +1457,39 @@ class Sat{
     else this.realSizeM = o.realSizeM || 4.5; // action
     this.realSizeKm = this.realSizeM / 1000;
     // mesh 0.54u = 114.7km real vs 0.002km real → ~57k× (scaled ×30 to match Earth R=30, same screen ratio as before)
-    this.exaggeration = ((0.018*R_EARTH*KM_PER_UNIT/ALT_EXAG)/this.realSizeKm).toFixed(0);
+    this.exaggeration = ((0.0126*R_EARTH*KM_PER_UNIT/ALT_EXAG)/this.realSizeKm).toFixed(0);
     this.group=new THREE.Group(); this.trail=[]; this.trailMax=90;
     let mesh;
-    const SZ=R_EARTH; // scale sat meshes with Earth so they stay visible (Earth 1→30, sats ×30)
+    const SZ=R_EARTH*0.70; // smaller sats (-30%)
     if(this.type==='debris'){ 
-      const g=new THREE.BoxGeometry(0.018*SZ,0.012*SZ,0.022*SZ);
-      const m=new THREE.MeshStandardMaterial({color:0xf87171, emissive:0x7f1d1d, emissiveIntensity:0.42, roughness:0.58, metalness:0.22}); 
-      mesh=new THREE.Mesh(g,m); 
+      // jagged breakup shard — dark fatigued metal, hot reentry-tint emissive, non-uniform axes for variety
+      const g=new THREE.IcosahedronGeometry(0.013*SZ,0);
+      const m=new THREE.MeshStandardMaterial({color:0x3a3f47, emissive:0x7f1d1d, emissiveIntensity:0.5, roughness:0.62, metalness:0.85, flatShading:true});
+      m.envMapIntensity=0.8;
+      mesh=new THREE.Mesh(g,m);
+      this.sizeVec=[0.75+Math.random()*0.6, 0.55+Math.random()*0.5, 0.7+Math.random()*0.6];
+      // snapped appendage stub (broken panel / antenna) — tells the breakup story. Dead: no strobes.
+      if(Math.random()<0.7){
+        const stub=new THREE.Mesh(new THREE.BoxGeometry(0.016*SZ,0.0009*SZ,0.008*SZ), _M.init(SZ).solarBack);
+        stub.position.set(0.008*SZ,0.004*SZ,0); stub.rotation.set(Math.random()*3,Math.random()*3,Math.random()*3);
+        mesh.add(stub);
+      }
+      // debris drift — random speed + variable trajectory + slight orbital decay
+      this.speedFactor=0.96+Math.random()*0.08;
+      this.wobAmp=0.002+Math.random()*0.006;
+      this.wobFreq=0.3+Math.random()*0.9;
+      this.wobPhase=Math.random()*6.28;
+      try{
+        const alt0=Math.max(160,Math.min(2000,this.a-KM_PER_UNIT));
+        const rho=(typeof rhoModerate==='function')?rhoModerate(alt0):1e-12;
+        const v=Math.sqrt(MU/this.a);
+        const area=Math.pow((this.realSizeM||0.5),2);
+        const B=(this.mass||5)/(2.2*Math.max(0.001,area));
+        const dragA=0.5*rho*Math.pow(v*1000,2)/B;
+        const am=this.a*1000;
+        const dadts=-2*am*am*dragA*(v*1000)/3.986004418e14;
+        this.decayKmPerSimSec=Math.min(8e-6,Math.max(2e-7,(-dadts/1000)*(2+Math.random()*4)));
+      }catch(_){ this.decayKmPerSimSec=5e-7+Math.random()*1e-6; }
     }
     else if(this.type==='active'){ 
       const g=new THREE.BoxGeometry(0.022*SZ,0.016*SZ,0.016*SZ);
@@ -1455,8 +1522,8 @@ class Sat{
     this.trailLine=new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({color:col, transparent:true, opacity:0.8, depthWrite:false})); scene.add(this.trailLine);
     scene.add(this.group);
   }
-  at(t){ const n=Math.sqrt(MU/Math.pow(this.a,3)), M=this.M0+n*t; let r,nu; if(this.e<1e-4){ r=this.a; nu=M%(2*Math.PI);} else { const E=solveKepler(((M%(2*Math.PI))+2*Math.PI)%(2*Math.PI), this.e); nu=2*Math.atan2(Math.sqrt(1+this.e)*Math.sin(E/2), Math.sqrt(1-this.e)*Math.cos(E/2)); r=this.a*(1 - this.e*Math.cos(E)); } const p=r*Math.cos(nu), q=r*Math.sin(nu); const co=Math.cos(this.raan), so=Math.sin(this.raan), ci=Math.cos(this.inc), si=Math.sin(this.inc), cw=Math.cos(this.argP), sw=Math.sin(this.argP); const x=(co*cw - so*sw*ci)*p + (-co*sw - so*cw*ci)*q; const y=(so*cw + co*sw*ci)*p + (-so*sw + co*cw*ci)*q; const z=(sw*si)*p + (cw*si)*q; const rk=Math.sqrt(x*x+y*y+z*z); const exR=sceneRadius(rk-KM_PER_UNIT); const s=exR/rk; return new THREE.Vector3(x*s, z*s, y*s); }
-  upd(t,dt){ const pos=this.at(t); this.group.position.copy(pos); if(this.type==='debris'){ this.mesh.rotation.x+=this.spin*dt*0.8; this.mesh.rotation.y+=this.spin*dt*0.6; } else if(this.type==='sensory') this.mesh.rotation.y+=dt*0.25; else if(this.type==='active') this.mesh.rotation.y+=dt*0.08;
+  at(t){ const n=Math.sqrt(MU/Math.pow(this.a,3))*(this.speedFactor||1), M=this.M0+n*t; let r,nu; if(this.e<1e-4){ r=this.a; nu=M%(2*Math.PI);} else { const E=solveKepler(((M%(2*Math.PI))+2*Math.PI)%(2*Math.PI), this.e); nu=2*Math.atan2(Math.sqrt(1+this.e)*Math.sin(E/2), Math.sqrt(1-this.e)*Math.cos(E/2)); r=this.a*(1 - this.e*Math.cos(E)); } const p=r*Math.cos(nu), q=r*Math.sin(nu); const co=Math.cos(this.raan), so=Math.sin(this.raan), ci=Math.cos(this.inc), si=Math.sin(this.inc), cw=Math.cos(this.argP), sw=Math.sin(this.argP); const x=(co*cw - so*sw*ci)*p + (-co*sw - so*cw*ci)*q; const y=(so*cw + co*sw*ci)*p + (-so*sw + co*cw*ci)*q; const z=(sw*si)*p + (cw*si)*q; const rk=Math.sqrt(x*x+y*y+z*z); const exR=sceneRadius(rk-KM_PER_UNIT); const s=exR/rk; return new THREE.Vector3(x*s, z*s, y*s); }
+  upd(t,dt){ if(this.type==='debris'&&this.decayKmPerSimSec){ this.a=Math.max(KM_PER_UNIT+120,this.a-this.decayKmPerSimSec*dt*18); } const pos=this.at(t); if(this.type==='debris'&&this.wobAmp){ pos.x+=Math.sin(t*this.wobFreq+this.wobPhase)*this.wobAmp; pos.y+=Math.cos(t*this.wobFreq*0.8+this.wobPhase)*this.wobAmp*0.6; } this.group.position.copy(pos); if(this.type==='debris'){ this.mesh.rotation.x+=this.spin*dt*0.8; this.mesh.rotation.y+=this.spin*dt*0.6; } else if(this.type==='sensory') this.mesh.rotation.y+=dt*0.25; else if(this.type==='active') this.mesh.rotation.y+=dt*0.08;
     // strobe beacons: sharp double-flash (mesh emissive) + halo sprites (opacity); ion rings: soft breathing glow
     try{
       const bl=this.mesh.userData.blinkers;
@@ -1470,13 +1537,14 @@ function rand(a,b){ return a+Math.random()*(b-a); }
 // No hardcoded satellites / debris / swarm agents — live data only. Sat class kept for future use.
 const sats=[];
 const bots=[]; // attached action/sensory bots — children of active sats, not independent orbiters
-let activeSeq=0, actionSeq=0, sensorySeq=0;
+let activeSeq=0, actionSeq=0, sensorySeq=0, debrisSeq=0;
 function updateFleetCounts(){
   const nActive=sats.filter(s=>s.type==='active').length;
   const nAction=sats.filter(s=>s.type==='action').length;
+  const nDebris=sats.filter(s=>s.type==='debris').length;
   const nSensory=bots.length;
   document.getElementById('pillCount').textContent=(sats.length+bots.length)+' OBJECTS';
-  document.getElementById('debrisCount').textContent='0';
+  document.getElementById('debrisCount').textContent=String(nDebris);
   document.getElementById('activeCount').textContent=String(nActive);
   document.getElementById('swarmCount').textContent=String(nAction+nSensory);
 }
@@ -1617,6 +1685,39 @@ function spawnActionBot(opts){
   fleetNotice('⛔ LEO CROWDED — no free slot found, try another altitude/plane');
   return null;
 }
+function spawnDebris(opts){
+  // breakup event — N tracked fragments around a center orbit, dispersed ±2km alt / ±spread M0,
+  // each auto-fixed to ≥5km from everything. Fragments tumble (Sat spin) and carry no lights.
+  opts=opts||{};
+  const count=Math.min(25,Math.max(1,Math.round(opts.count ?? 8)));
+  const sizeM=Math.min(3,Math.max(0.05,opts.size ?? 0.5));
+  const spread=opts.spread ?? 3;
+  const baseAlt=Math.min(2000,Math.max(160,opts.alt ?? 550));
+  const out=[];
+  for(let k=0;k<count;k++){
+    const alt=Math.min(2000,Math.max(160, baseAlt+(Math.random()*4-2)));
+    const cand={a:KM_PER_UNIT+alt, e:opts.e ?? 0.0008,
+      inc:(opts.inc ?? rand(42,98))+(Math.random()*0.4-0.2),
+      raan:opts.raan ?? rand(0,360), argP:opts.argP ?? rand(0,360),
+      M0:(((opts.M0 ?? rand(0,360))+(Math.random()*2-1)*spread)%360+360)%360};
+    const f=autoFixOrbit(cand);
+    const fragSize=sizeM*(0.7+Math.random()*0.6);
+    const sat=new Sat({type:'debris', a:f.el.a, e:f.el.e, inc:f.el.inc, raan:f.el.raan, argP:f.el.argP, M0:f.el.M0,
+      mass:Math.max(0.05,Math.pow(fragSize,3)*140), spin:0.5+Math.random()*2});
+    sat.realSizeM=fragSize; sat.realSizeKm=fragSize/1000;
+    sat.exaggeration=((0.0126*R_EARTH*KM_PER_UNIT/ALT_EXAG)/sat.realSizeKm).toFixed(0);
+    sat.label=((opts.name||'DEBRIS')+'-'+(++debrisSeq));
+    sat.bots=[];
+    try{ sat.group.position.copy(sat.at(0)); sat.currentAlt=f.el.a-KM_PER_UNIT; }catch(_){}
+    try{
+      const area=Math.pow(sat.realSizeM,2), B=sat.mass/(2.2*Math.max(0.001,area));
+      sat.env={rho:rhoModerate(sat.currentAlt), temp:thermoTemp(sat.currentAlt,'mod'), B, lifetime:fmtLife(lifetimeYears(sat.currentAlt,B))};
+    }catch(_){}
+    sats.push(sat); out.push(sat);
+  }
+  updateFleetCounts();
+  return out;
+}
 function resolveParentSat(ref){
   if(ref && ref.type==='active' && sats.indexOf(ref)>=0) return ref;
   try{ if(typeof selected!=='undefined' && selected && selected.type==='active' && sats.indexOf(selected)>=0) return selected; }catch(_){}
@@ -1625,7 +1726,7 @@ function resolveParentSat(ref){
   return actives.length?actives[actives.length-1]:null;
 }
 function defaultBotOffset(kind, i){
-  const SZ=R_EARTH;
+  const SZ=R_EARTH*0.70;
   const ring=0.055*SZ, y=0.045*SZ;
   const a=(i||0)*2.39996; // golden angle — spreads multiple bots around parent
   if(kind==='sensory') return new THREE.Vector3(Math.cos(a)*ring, y, Math.sin(a)*ring);
@@ -1638,7 +1739,7 @@ function attachBot(parentRef, kind, opts){
   opts=opts||{};
   const parent=resolveParentSat(parentRef);
   if(!parent){ fleetNotice('ADD AN <b>ACTIVE SAT</b> FIRST — THEN ATTACH SENSORY BOTS'); return null; }
-  const SZ=R_EARTH;
+  const SZ=R_EARTH*0.70;
   const g=new THREE.OctahedronGeometry(0.012*SZ,0);
   const m=new THREE.MeshStandardMaterial({color:0xffffff, map:foilTexture(), emissive:0xf59e0b, emissiveIntensity:0.35, roughness:0.38, metalness:0.75});
   const mesh=new THREE.Mesh(g,m);
@@ -1692,6 +1793,7 @@ window.IRIS=window.IRIS||{};
 window.IRIS.addActive=spawnActiveSat;
 window.IRIS.addAction=function(a,b){ const o=(b&&typeof b==='object')?b:((a&&typeof a==='object'&&!a.group&&!a.type)?a:{}); return spawnActionBot(o); };
 window.IRIS.addSensory=function(p,o){ return attachBot(p,'sensory',o); };
+window.IRIS.addDebris=spawnDebris;
 window.IRIS.remove=function(o){ if(o && o.isBot) return disposeBot(o); return disposeSat(o); };
 window.IRIS.clear=clearFleet;
 window.IRIS.sats=sats;
@@ -1940,8 +2042,9 @@ function updTel(){
   }
   const camDist = camera.position.length();
   sats.forEach(s=>{
-    const scale = THREE.MathUtils.clamp(1.2 + camDist*0.35, 1.2, 12.0); // CHECKPOINT small Earth — sats visible at dist 27
-    s.mesh.scale.setScalar(scale);
+    const scale = THREE.MathUtils.clamp(0.84 + camDist*0.25, 0.84, 8.4); // smaller sats (-30%)
+    const sv=s.sizeVec||[1,1,1];
+    s.mesh.scale.set(scale*sv[0],scale*sv[1],scale*sv[2]);
     // micro-LOD: full greebles/bolts only when zoomed close — saves GPU far away
     try{
       const dSat=s.group.position.distanceTo(camera.position);
@@ -2307,9 +2410,13 @@ depInc?.addEventListener('input', depCompute);
 depIncPreset?.addEventListener('change', ()=>{ if(depIncPreset.value!==''){ depInc.value=depIncPreset.value; depCompute(); depIncPreset.value=''; } });
 function openDeploy(type){
   depType=type;
-  depTitle.innerHTML=(type==='active'?'DEPLOY <span>/ ACTIVE SAT</span>':'DEPLOY <span>/ ACTION BOT (independent)</span>');
-  depName.placeholder=type==='active'?'e.g. ACTIVE-ALPHA':'e.g. ACTION-ALPHA';
+  depTitle.innerHTML=(type==='active'?'DEPLOY <span>/ ACTIVE SAT</span>':type==='debris'?'DEPLOY <span>/ DEBRIS CLOUD</span>':'DEPLOY <span>/ ACTION BOT (independent)</span>');
+  depName.placeholder=type==='active'?'e.g. ACTIVE-ALPHA':type==='debris'?'e.g. FRAG (→ FRAG-1…N)':'e.g. ACTION-ALPHA';
   depName.value='';
+  const isDeb=type==='debris';
+  document.getElementById('depDebrisOnly').style.display=isDeb?'block':'none';
+  document.getElementById('depMassField').style.display=isDeb?'none':'block';
+  document.getElementById('depAreaField').style.display=isDeb?'none':'block';
   depSetRegion(regionOf(parseFloat(depAltNum.value)||550),false);
   depSpeedMode.value='auto';
   depCompute();
@@ -2337,6 +2444,20 @@ document.getElementById('depGo')?.addEventListener('click', ()=>{
     depAltNum.value=finalAlt; depAlt.value=Math.min(2000,Math.max(160,Math.round(finalAlt)));
     depSetRegion(regionOf(finalAlt),false);
   }
+  if(depType==='debris'){
+    const count=Math.min(25,Math.max(1,Math.round(parseFloat(document.getElementById('depCount').value)||8)));
+    const size=Math.min(3,Math.max(0.05,parseFloat(document.getElementById('depSize').value)||0.5));
+    const spread=Math.min(15,Math.max(0.5,parseFloat(document.getElementById('depSpread').value)||3));
+    const frags=spawnDebris({alt:finalAlt, e:eUse, inc:d.inc, raan:raanV, argP:argPV, M0:fixed.el.M0,
+      count, size, spread, name:depName.value.trim()||undefined});
+    if(frags.length){
+      const s0=frags[0];
+      try{ selectSat(s0); focusSat(s0); }catch(_){}
+      fleetNotice(`💥 BREAKUP — <b>${frags.length} TRACKED FRAGS</b> @ ${finalAlt.toFixed(0)}km · tumbling · decay ${(s0.env&&s0.env.lifetime)||'—'}`);
+    }
+    closeDeploy();
+    return;
+  }
   const opts={alt:finalAlt, e:eUse, inc:d.inc, raan:raanV, argP:argPV, M0:fixed.el.M0, name:depName.value.trim()||undefined, force:true};
   const s=depType==='active'?spawnActiveSat(opts):spawnActionBot(opts);
   if(!s) return; // spawn blocked (orbit taken) — notice already shown
@@ -2358,12 +2479,229 @@ document.getElementById('depFix')?.addEventListener('click', ()=>{
   fleetNotice((fixed.altShifts||fixed.phaseShifts)?`AUTO-FIXED — shell ${finalAlt.toFixed(0)} km${fixed.phaseShifts?` · M0 +${(fixed.phaseShifts*0.5).toFixed(1)}°`:''} → ≥${MIN_SEP_KM} km clear`:`Already ≥${MIN_SEP_KM} km clear ✓`);
 });
 document.getElementById('btnAddActive')?.addEventListener('click', ()=>openDeploy('active'));
+document.getElementById('btnAddDebris')?.addEventListener('click', ()=>openDeploy('debris'));
 document.getElementById('btnAddAction')?.addEventListener('click', ()=>openDeploy('action'));
 document.getElementById('btnAddSensory')?.addEventListener('click', ()=>{
   const b=attachBot(null,'sensory',{});
   if(b) fleetNotice(`ATTACHED <b>${b.id}</b> → <b>${b.parent.label||'ACTIVE'}</b>`);
 });
-document.getElementById('btnClearFleet')?.addEventListener('click', ()=>{ clearFleet(); fleetNotice('FLEET CLEARED — <b>0 OBJECTS</b>'); });
+document.getElementById('btnClearFleet')?.addEventListener('click', ()=>{ try{ restoreCcsMark(); }catch(_){} try{ clearCcsMappedOrbit(); }catch(_){} clearFleet(); window._targetDebris=null; window._ccsStore=[]; window._ccsDots=[]; window._ccsLastSeen={}; window._ccsLastPass=null; window._ccsDone=false; window._ccsPhase='collect'; try{ document.getElementById('debrisTargetSelect').innerHTML='<option value="">— start sim first —</option>'; }catch(_){} fleetNotice('FLEET CLEARED — <b>0 OBJECTS</b>'); });
+// SIMULATION CENTRE — random 100 demo sats + 15 action bots + 10 debris across whole LEO (160–2000km), fully random each run, ≥5km apart
+function startSimulationDemo(){
+  try{ restoreCcsMark(); }catch(_){}
+  try{ clearCcsMappedOrbit(); }catch(_){}
+  window._targetDebris=null; window._ccsStore=[]; window._ccsDots=[]; window._ccsLastSeen={}; window._ccsLastPass=null; window._ccsDone=false; window._ccsPhase='collect';
+  clearFleet();
+  let spawned=0, attempts=0;
+  while(spawned<100 && attempts<8000){
+    attempts++;
+    const cand={ alt:160+Math.random()*1840, e:0.001, inc:Math.random()*98, raan:Math.random()*360, argP:Math.random()*360, M0:Math.random()*360 };
+    const c=checkOrbitConflict({ a:KM_PER_UNIT+cand.alt, e:cand.e, inc:cand.inc, raan:cand.raan, argP:cand.argP, M0:cand.M0 });
+    if(c.hard) continue;
+    const s=spawnActiveSat({ ...cand, force:true });
+    if(s) spawned++;
+  }
+  let spawnedA=0, attemptsA=0;
+  while(spawnedA<15 && attemptsA<2000){
+    attemptsA++;
+    const cand={ alt:160+Math.random()*1840, e:0.001, inc:Math.random()*98, raan:Math.random()*360, argP:Math.random()*360, M0:Math.random()*360 };
+    const c=checkOrbitConflict({ a:KM_PER_UNIT+cand.alt, e:cand.e, inc:cand.inc, raan:cand.raan, argP:cand.argP, M0:cand.M0 });
+    if(c.hard) continue;
+    const s=spawnActionBot({ ...cand, force:true });
+    if(s) spawnedA++;
+  }
+  // every active sat gets 1 attached sensory bot
+  try{
+    sats.filter(s=>s.type==='active').forEach(s=>{ attachBot(s,'sensory',{}); });
+  }catch(_){}
+  // 10 sample debris — independent random orbits across whole LEO (auto-fixed ≥5km)
+  let spawnedD=0;
+  try{
+    for(let i=0;i<10;i++){
+      const frags=spawnDebris({ count:1, alt:160+Math.random()*1840, inc:Math.random()*98, raan:Math.random()*360, argP:Math.random()*360, M0:Math.random()*360, size:0.5+Math.random()*2, spread:3 });
+      if(frags&&frags.length) spawnedD+=frags.length;
+    }
+  }catch(_){}
+  try{ deselectSat(true); }catch(_){}
+  window._targetDebris=null;
+  try{
+    const sel=document.getElementById('debrisTargetSelect');
+    if(sel){
+      const debris=sats.filter(s=>s.type==='debris');
+      sel.innerHTML=debris.length?debris.map(s=>`<option value="${s.label}">${s.label} · ${(s.currentAlt??(s.a-KM_PER_UNIT)).toFixed(0)}km</option>`).join(''):'<option value="">— no debris —</option>';
+    }
+  }catch(_){}
+  fleetNotice(`SIMULATION STARTED — <b>${spawned} SATS + ${spawnedA} ACTION + ${spawned} SENSORY + ${spawnedD} DEBRIS</b> · <b>WHICH DEBRIS TO TARGET?</b> pick below ↓`);
+}
+function restoreCcsMark(){
+  const o=window._targetDebris;
+  try{
+    if(o&&o.userData&&o.userData._ccsMark){
+      o.mesh.material.emissive.setHex(o.userData._ccsMark.hex);
+      o.mesh.material.emissiveIntensity=o.userData._ccsMark.i;
+      o.userData._ccsMark=null;
+    }
+  }catch(_){}
+}
+function clearCcsMappedOrbit(){
+  try{
+    if(window._ccsMappedOrbit){ scene.remove(window._ccsMappedOrbit); window._ccsMappedOrbit.geometry.dispose(); window._ccsMappedOrbit.material.dispose(); window._ccsMappedOrbit=null; }
+  }catch(_){}
+}
+function buildCcsMappedOrbit(s,fA){
+  try{
+    clearCcsMappedOrbit();
+    const pts=[];
+    const n=Math.sqrt(MU/Math.pow(fA,3));
+    for(let ad=0;ad<=360;ad+=2){
+      const t=(ad/360)*(2*Math.PI/n);
+      const M=s.M0+n*t;
+      let r,nu;
+      if(s.e<1e-4){ r=fA; nu=M%(2*Math.PI); }
+      else{ const E=solveKepler(((M%(2*Math.PI))+2*Math.PI)%(2*Math.PI),s.e); nu=2*Math.atan2(Math.sqrt(1+s.e)*Math.sin(E/2),Math.sqrt(1-s.e)*Math.cos(E/2)); r=fA*(1-s.e*Math.cos(E)); }
+      const p=r*Math.cos(nu), q=r*Math.sin(nu);
+      const co=Math.cos(s.raan),so=Math.sin(s.raan),ci=Math.cos(s.inc),si=Math.sin(s.inc),cw=Math.cos(s.argP),sw=Math.sin(s.argP);
+      const x=(co*cw-so*sw*ci)*p+(-co*sw-so*cw*ci)*q, y=(so*cw+co*sw*ci)*p+(-so*sw+co*cw*ci)*q, z=(sw*si)*p+(cw*si)*q;
+      const rk=Math.sqrt(x*x+y*y+z*z), exR=sceneRadius(rk-KM_PER_UNIT), sc=exR/rk;
+      pts.push(new THREE.Vector3(x*sc,z*sc,y*sc));
+    }
+    const g=new THREE.BufferGeometry().setFromPoints(pts);
+    window._ccsMappedOrbit=new THREE.Line(g,new THREE.LineBasicMaterial({color:0xfacc15,transparent:true,opacity:0.95,depthWrite:false}));
+    window._ccsMappedOrbit.renderOrder=7;
+    scene.add(window._ccsMappedOrbit);
+  }catch(_){}
+}
+function targetDebrisByLabel(label){
+  const s=sats.find(x=>x.type==='debris'&&x.label===label)||sats.find(x=>x.type==='debris');
+  if(!s){ fleetNotice('NO DEBRIS — start simulation first'); return null; }
+  try{ restoreCcsMark(); }catch(_){}
+  try{ clearCcsMappedOrbit(); }catch(_){}
+  try{ deselectSat(true); }catch(_){} // never highlight true orbit — we don't know it yet
+  window._targetDebris=s;
+  window._ccsT0=Date.now(); window._ccsDone=false; window._ccsFinal=null; window._ccsStore=[];
+  window._ccsDots=[]; window._ccsLastSeen={}; window._ccsLastPass=null;
+  window._ccsPhase='collect'; window._ccsProcessT0=0;
+  window._ccsSimT0=(window._simT||0);
+  window._ccsPeriod=(2*Math.PI*Math.sqrt(Math.pow(s.a,3)/MU))/((s.speedFactor)||1);
+  // mesh-only marker (gold pulse), orbit untouched/unknown
+  try{
+    s.userData=s.userData||{};
+    s.userData._ccsMark={hex:s.mesh.material.emissive.getHex(),i:s.mesh.material.emissiveIntensity};
+    s.mesh.material.emissive.setHex(0xfacc15); s.mesh.material.emissiveIntensity=1.2;
+  }catch(_){}
+  try{ document.getElementById('ccsPanel').style.display='block'; }catch(_){}
+  try{ focusSat(s); }catch(_){}
+  fleetNotice(`TARGET LOCKED — <b>${s.label}</b> · CCS blind · null info until 2 orbits observed`);
+  return s;
+}
+// CCS PANEL — STAGE 1: null until 2 real-time orbits observed → PROCESSING → one unified result.
+function _gauss(){ return (Math.random()+Math.random()+Math.random()-1.5)*0.816; }
+window._ccsStore=[];
+function updateCCSPanel(){
+  const p=document.getElementById('ccsPanel');
+  const s=window._targetDebris;
+  if(!s||sats.indexOf(s)<0){ if(p) p.style.display='none'; try{ clearCcsMappedOrbit(); }catch(_){} return; }
+  if(p) p.style.display='block';
+  const set=(id,v)=>{ try{ document.getElementById(id).textContent=v; }catch(_){} };
+  const st=document.getElementById('ccsStatus');
+  const simT=(window._simT||0), t0=(window._ccsSimT0||0), period=(window._ccsPeriod||5400);
+  const orbits=Math.max(0,(simT-t0)/period);
+  set('ccsTarget',s.label);
+  // --- phase 1: COLLECT over 2 orbits — passes only, null info otherwise ---
+  if(orbits<2&&window._ccsPhase!=='processing'&&!window._ccsDone){
+    window._ccsDots=window._ccsDots||[]; window._ccsLastSeen=window._ccsLastSeen||{};
+    const nowR=Date.now(), gp=s.group.position;
+    const truthAlt=(s.currentAlt??(s.a-KM_PER_UNIT));
+    const truthV=Math.sqrt(MU/s.a)*(s.speedFactor||1);
+    const rA=R_EARTH_KM+truthAlt, L=gp.length()||1;
+    const debECI=[gp.x/L*rA,gp.z/L*rA,gp.y/L*rA];
+    let newPass=null;
+    for(let bi=0;bi<bots.length;bi++){
+      const b=bots[bi]; if(!b||!b.parent) continue;
+      let dReal=1e9; try{ dReal=b.parent.group.position.distanceTo(gp)*6371/30; }catch(_){ continue; }
+      if(dReal<900&&(!window._ccsLastSeen[bi]||nowR-window._ccsLastSeen[bi]>15000)){
+        window._ccsLastSeen[bi]=nowR;
+        let swarmECI=debECI;
+        try{
+          const rp=b.parent.group.position, rl=rp.length()||1;
+          swarmECI=[rp.x/rl*rA,rp.z/rl*rA,rp.y/rl*rA];
+        }catch(_){}
+        // exact locations at detection instant: swarm pos + debris pos + speed slice
+        window._ccsStore.push({bot:bi,alt:truthAlt+3*_gauss(),v:truthV+0.03*_gauss(),
+          mass:(s.mass||5)*(1+0.05*_gauss()),size:Math.max(0.05,(s.realSizeM||0.5)+0.15*_gauss()),
+          spin:Math.max(0,(s.spin||1)+0.2*_gauss()),decay:Math.max(0,((s.decayKmPerSimSec||0)*86400)*(1+0.1*_gauss())),
+          debrisECI:debECI.slice(),swarmECI:swarmECI.slice(),dReal:dReal,simT:simT});
+        window._ccsDots.push(debECI.slice());
+        newPass={bot:bi,debrisECI:debECI.slice(),swarmECI:swarmECI.slice(),v:truthV,dReal:dReal,simT:simT};
+        window._ccsLastPass=newPass;
+      }
+    }
+    if(window._ccsStore.length>5000) window._ccsStore.splice(0,window._ccsStore.length-5000);
+    // live coordinate updation: propagate last pass via speed+trajectory (current ECI shown live)
+    let propTxt=`live ECI ${debECI.map(v=>v.toFixed(0)).join(', ')} (propagated via speed ${truthV.toFixed(2)}km/s + trajectory)`;
+    let swarmTxt=window._ccsLastPass?`BOT-${window._ccsLastPass.bot} pass d=${window._ccsLastPass.dReal.toFixed(0)}km · dots ${window._ccsDots.length}`:'waiting for first pass…';
+    ['ccsAlt','ccsVel','ccsMass','ccsSize','ccsTumble','ccsDecay','ccsAngMom','ccsPerp','ccsOrbit','ccsAir','ccsOrient'].forEach(id=>set(id,'NULL'));
+    set('ccsTraj',propTxt); set('ccsSwarm',swarmTxt);
+    set('ccsSensors',`${window._ccsDots.length} passes · ${window._ccsStore.length} packets stored`);
+    if(st) st.innerHTML=`COLLECTING… <b>ORBIT ${orbits.toFixed(2)}/2</b> · null info · ${window._ccsDots.length} passes / ${window._ccsStore.length} stored${newPass?` · <b>PASS bot-${newPass.bot} d=${newPass.dReal.toFixed(0)}km → STORED</b>`:''} · raise TIME ⏱ to fast-forward`;
+    return;
+  }
+  // --- phase 2: PROCESSING (first tick after 2 orbits) ---
+  if(!window._ccsDone&&window._ccsPhase!=='processing'){
+    window._ccsPhase='processing'; window._ccsProcessT0=Date.now();
+    if(st) st.innerHTML=`PROCESSING… fusing ${window._ccsStore.length} packets into one unified result…`;
+    ['ccsAlt','ccsVel','ccsMass','ccsSize','ccsTumble','ccsDecay','ccsAngMom','ccsPerp','ccsTraj','ccsOrbit','ccsAir','ccsOrient','ccsSwarm'].forEach(id=>set(id,'…'));
+    set('ccsSensors',`${window._ccsStore.length} packets · processing…`);
+    return;
+  }
+  if(!window._ccsDone){
+    if(Date.now()-(window._ccsProcessT0||Date.now())<3500){
+      if(st) st.innerHTML=`PROCESSING… fusing ${window._ccsStore.length} packets into one unified result…`;
+      return;
+    }
+    // --- phase 3: one unified result from stored packets ---
+    const N=Math.max(1,window._ccsStore.length);
+    const avg=k=>window._ccsStore.reduce((a,r)=>a+(r[k]||0),0)/N;
+    const fAlt=avg('alt'), fV=avg('v'), fMass=avg('mass'), fSize=avg('size'), fSpin=avg('spin'), fDecay=avg('decay');
+    const fA=R_EARTH_KM+fAlt, fT=(2*Math.PI*Math.sqrt(Math.pow(fA,3)/MU)/60);
+    window._ccsFinal={alt:fAlt,v:fV,mass:fMass,size:fSize,spin:fSpin,decay:fDecay,a:fA,period:fT};
+    window._ccsDone=true;
+    try{ buildCcsMappedOrbit(s,fA); }catch(_){}
+    fleetNotice(`UNIFIED DETAILS — <b>${s.label}</b> · mapped orbit highlighted gold · a ${fA.toFixed(0)}km · decay ${fDecay.toFixed(3)}km/day`);
+  }
+  const F=window._ccsFinal;
+  if(!F) return;
+  try{
+    let nearest=1e9;
+    for(const o of sats){ if(o===s) continue; try{ const dkm=o.group.position.distanceTo(s.group.position)*6371/30; if(dkm<nearest) nearest=dkm; }catch(_){} }
+    window._ccsNearest=nearest;
+  }catch(_){}
+  set('ccsAlt',F.alt.toFixed(1)); set('ccsVel',F.v.toFixed(3));
+  set('ccsMass',F.mass.toFixed(1)); set('ccsSize',F.size.toFixed(2));
+  set('ccsTumble',F.spin.toFixed(2)); set('ccsDecay',F.decay.toFixed(3));
+  set('ccsAngMom',Math.abs(F.a*F.v).toFixed(0)); set('ccsPerp',(window._ccsNearest??0).toFixed(1));
+  try{
+    const gp=s.group.position, L=gp.length()||1;
+    document.getElementById('ccsTraj').textContent=`${(gp.x/L*F.a).toFixed(0)}, ${(gp.z/L*F.a).toFixed(0)}, ${(gp.y/L*F.a).toFixed(0)}`;
+    document.getElementById('ccsOrbit').textContent=`FINAL orbit a ${F.a.toFixed(0)}km · e ${s.e.toFixed(4)} · i ${(s.inc/RAD).toFixed(1)}° · T ${F.period.toFixed(1)}min · ${(window._ccsDots||[]).length} dots connected`;
+    document.getElementById('ccsAir').textContent=`FINAL decay ${F.decay.toFixed(3)}km/day (drag+SRP+tumble fused)`;
+    document.getElementById('ccsOrient').textContent=`${s.mesh.rotation.x.toFixed(2)}/${s.mesh.rotation.y.toFixed(2)}/${s.mesh.rotation.z.toFixed(2)}`;
+    document.getElementById('ccsSwarm').textContent=`${(window._ccsDots||[]).length} passes · 40 bots · ${window._ccsStore.length} packets · 2 orbits`;
+    document.getElementById('ccsSensors').textContent=`UNIFIED from ${window._ccsStore.length} packets · ORBITS 2/2 ✓`;
+  }catch(_){}
+  if(st) st.innerHTML=`UNIFIED DETAILS ✓ — final orbit + final decay from 2 orbits · ${window._ccsStore.length} packets fused`;
+}
+setInterval(updateCCSPanel,500);
+document.getElementById('btnStartSim')?.addEventListener('click', startSimulationDemo);
+document.getElementById('btnTargetDebris')?.addEventListener('click', ()=>{
+  const sel=document.getElementById('debrisTargetSelect');
+  targetDebrisByLabel(sel&&sel.value?sel.value:'');
+});
+document.getElementById('btnSimCentre')?.addEventListener('click', ()=>{
+  const p=document.getElementById('simCentrePanel');
+  if(!p) return;
+  p.style.display=(p.style.display==='none'||!p.style.display)?'block':'none';
+});
 document.getElementById('btnToggleShells').addEventListener('click', e=>{ shellsGroup.visible=!shellsGroup.visible; e.currentTarget.textContent=shellsGroup.visible?'SHELLS ON':'SHELLS OFF'; });
 // Orbits show/hide — single source of truth, top bar + Details button stay in sync, O key works too. Hides orbit ellipses + trails.
 function setOrbitsVisible(v){

@@ -1,0 +1,6 @@
+{
+  "minSepKm": 5,
+  "riskRadiusKm": 12,
+  "deorbitPerigeeKm": 100,
+  "maxAssignKm": 2000
+}
