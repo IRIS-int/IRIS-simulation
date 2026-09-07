@@ -811,14 +811,41 @@ function interceptSat(s){
 }
 function disposeSat(s){
   if(s && s.isBot){ try{ disposeBot(s); }catch(_){} return; }
-  try{ if(typeof selected!=='undefined' && selected===s){ try{ if(s.userData && s.userData._tube){ scene.remove(s.userData._tube); s.userData._tube.geometry.dispose(); s.userData._tube.material.dispose(); } }catch(_){} selected=null; } }catch(_){}
+  try{ if(typeof selected!=='undefined' && selected===s){ try{ if(s.userData && s.userData._tube){ scene.remove(s.userData._tube); s.userData._tube.geometry.dispose(); s.userData._tube.material.dispose(); s.userData._tube=null; } }catch(_){} selected=null; } }catch(_){}
   const idx=sats.indexOf(s);
   if(idx>=0){
     // remove bots attached to this sat first
     try{ (s.bots||[]).slice().forEach(b=>{ try{ disposeBot(b); }catch(_){} }); }catch(_){}
-    // explosion effect
-    s.mesh.visible=false; s.orbit.visible=false; s.trailLine.visible=false;
-    scene.remove(s.group);
+    // full GPU cleanup — old code only removed .group, leaking orbit + trail
+    // lines in the scene (they stayed invisible forever, piling up every run).
+    try{ if(s.userData && s.userData._tube){ scene.remove(s.userData._tube); s.userData._tube.geometry.dispose(); s.userData._tube.material.dispose(); s.userData._tube=null; } }catch(_){}
+    try{ if(s.orbit){ scene.remove(s.orbit); s.orbit.geometry.dispose(); s.orbit.material.dispose(); } }catch(_){}
+    try{ if(s.trailLine){ scene.remove(s.trailLine); s.trailLine.geometry.dispose(); s.trailLine.material.dispose(); } }catch(_){}
+    try{ scene.remove(s.group); }catch(_){}
+    try{
+      s.group.traverse(o=>{
+        if(o.isMesh || o.isSprite){
+          try{ if(o.geometry) o.geometry.dispose(); }catch(_){}
+          try{
+            const m=o.material;
+            const kill=mm=>{
+              try{
+                // free per-sat nameplate textures, keep shared _texCache (solar/foil/bus/…) alive
+                let shared=[];
+                try{ shared=Object.values(_texCache||{}); }catch(_){}
+                ['map','emissiveMap'].forEach(k=>{
+                  try{ const tx=mm[k]; if(tx && shared.indexOf(tx)<0){ try{ tx.dispose(); }catch(_){} } }catch(_){}
+                });
+              }catch(_){}
+              try{ mm.dispose(); }catch(_){}
+            };
+            if(Array.isArray(m)) m.forEach(kill);
+            else if(m) kill(m);
+          }catch(_){}
+        }
+      });
+    }catch(_){}
+    try{ s.trail=null; s._trailBuf=null; }catch(_){}
     sats.splice(idx,1);
     try{ updateFleetCounts(); }catch(_){ document.getElementById('pillCount').textContent=sats.length+' OBJECTS'; }
     enterT.innerHTML=`DISPOSED <b>${s.type.toUpperCase()}</b>`;
@@ -1827,8 +1854,13 @@ class Sat{
     this.mesh=mesh; this.group.add(mesh);
     const col=this.type==='debris'?0xf87171:this.type==='active'?0x22c55e:this.type==='sensory'?0xfacc15:0xfb923c;
     const og=new THREE.BufferGeometry(); const pts=[]; { const t0=(window._simT||0); const nn=Math.sqrt(MU/Math.pow(this.a,3)), TT=2*Math.PI/nn; for(let a=0;a<=360;a+=2){ const p=this.at(t0+(a/360)*TT); pts.push(p.x,p.y,p.z); } this._lastRebuild=t0; } og.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
-    this.orbit=new THREE.Line(og, new THREE.LineBasicMaterial({color:col, transparent:true, opacity:0.28, depthWrite:false})); scene.add(this.orbit);
-    this.trailLine=new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({color:col, transparent:true, opacity:0.8, depthWrite:false})); scene.add(this.trailLine);
+    this.orbit=new THREE.Line(og, new THREE.LineBasicMaterial({color:col, transparent:true, opacity:0.28, depthWrite:false})); this.orbit.frustumCulled=false; scene.add(this.orbit);
+    this.trailLine=new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({color:col, transparent:true, opacity:0.8, depthWrite:false})); this.trailLine.frustumCulled=false; scene.add(this.trailLine);
+    // preallocated trail buffer — reused every frame (old code allocated a new
+    // Float32Array + BufferAttribute per sat per frame → GC churn + lag at 100+ sats)
+    this._trailBuf=new Float32Array(this.trailMax*3);
+    this.trailLine.geometry.setAttribute('position', new THREE.BufferAttribute(this._trailBuf,3));
+    this.trailLine.geometry.setDrawRange(0,0);
     scene.add(this.group);
   }
   refreshJ2(){ const r=j2Rates(this.a,this.e,this.inc); this.n0=r.n; this.raanDot=r.raanDot; this.argPDot=r.argPDot; this.mDot=r.mDot; return r; }
@@ -1869,6 +1901,7 @@ class Sat{
       this.orbit.geometry=og;
       if(this.userData&&this.userData._tube){ try{ scene.remove(this.userData._tube); this.userData._tube.geometry.dispose(); this.userData._tube.material.dispose(); this.userData._tube=null; }catch(_){} }
       this.trail.length=0;
+      try{ this.trailLine.geometry.setDrawRange(0,0); }catch(_){}
       this._lastRebuild=t0;
     }catch(_){}
   }
@@ -2013,7 +2046,31 @@ class Sat{
       const rg=this.mesh.userData.rings;
       if(rg) for(let k=0;k<rg.length;k++){ rg[k].emissiveIntensity=1.6+Math.sin(t*3.2+k*1.7)*0.9; }
     }catch(_){}
-    this.trail.push(pos.clone()); if(this.trail.length>this.trailMax) this.trail.shift(); const arr=new Float32Array(this.trail.length*3); for(let i=0;i<this.trail.length;i++){ arr[i*3]=this.trail[i].x; arr[i*3+1]=this.trail[i].y; arr[i*3+2]=this.trail[i].z; } this.trailLine.geometry.setAttribute('position', new THREE.BufferAttribute(arr,3)); this.trailLine.geometry.setDrawRange(0,this.trail.length); this.trailLine.geometry.attributes.position.needsUpdate=true; this.currentAlt=altFromRadius(pos.length()); }
+    this.trail.push(pos.clone()); if(this.trail.length>this.trailMax) this.trail.shift();
+    try{
+      // grow buffer when selection enlarges trailMax 90 → 420 (never shrinks — reuse)
+      if(!this._trailBuf || this._trailBuf.length<this.trailMax*3){
+        this._trailBuf=new Float32Array(this.trailMax*3);
+        this.trailLine.geometry.setAttribute('position', new THREE.BufferAttribute(this._trailBuf,3));
+      }
+      const attr=this.trailLine.geometry.getAttribute('position');
+      // keep geometry pointed at our reusable buffer
+      if(attr && attr.array!==this._trailBuf){
+        this.trailLine.geometry.setAttribute('position', new THREE.BufferAttribute(this._trailBuf,3));
+      }
+      const a=this._trailBuf;
+      for(let i=0;i<this.trail.length;i++){ a[i*3]=this.trail[i].x; a[i*3+1]=this.trail[i].y; a[i*3+2]=this.trail[i].z; }
+      this.trailLine.geometry.getAttribute('position').needsUpdate=true;
+      this.trailLine.geometry.setDrawRange(0,this.trail.length);
+    }catch(_){
+      try{
+        const arr=new Float32Array(this.trail.length*3);
+        for(let i=0;i<this.trail.length;i++){ arr[i*3]=this.trail[i].x; arr[i*3+1]=this.trail[i].y; arr[i*3+2]=this.trail[i].z; }
+        this.trailLine.geometry.setAttribute('position', new THREE.BufferAttribute(arr,3));
+        this.trailLine.geometry.setDrawRange(0,this.trail.length);
+      }catch(__){}
+    }
+    this.currentAlt=altFromRadius(pos.length()); }
 }
 function rand(a,b){ return a+Math.random()*(b-a); }
 // No hardcoded satellites / debris / swarm agents — live data only. Sat class kept for future use.
@@ -2021,6 +2078,7 @@ const sats=[];
 const bots=[]; // attached action/sensory bots — children of active sats, not independent orbiters
 let activeSeq=0, actionSeq=0, sensorySeq=0, debrisSeq=0;
 function updateFleetCounts(){
+  if(window._bulkLoading) return; // bulk launch — single refresh at the end
   const nActive=sats.filter(s=>s.type==='active').length;
   const nAction=sats.filter(s=>s.type==='action').length;
   const nDebris=sats.filter(s=>s.type==='debris').length;
@@ -2257,7 +2315,28 @@ function disposeBot(bot){
     if(pi>=0) bot.parent.bots.splice(pi,1);
   }catch(_){}
   try{ if(bot.parent) bot.parent.group.remove(bot.mesh); }catch(_){}
-  try{ bot.mesh.geometry.dispose(); if(bot.mesh.material) bot.mesh.material.dispose(); }catch(_){}
+  try{
+    bot.mesh.traverse(o=>{
+      if(o.isMesh || o.isSprite){
+        try{ if(o.geometry) o.geometry.dispose(); }catch(_){}
+        try{
+          const m=o.material;
+          const kill=mm=>{
+            try{
+              let shared=[];
+              try{ shared=Object.values(_texCache||{}); }catch(_){}
+              ['map','emissiveMap'].forEach(k=>{
+                try{ const tx=mm[k]; if(tx && shared.indexOf(tx)<0){ try{ tx.dispose(); }catch(_){} } }catch(_){}
+              });
+            }catch(_){}
+            try{ mm.dispose(); }catch(_){}
+          };
+          if(Array.isArray(m)) m.forEach(kill);
+          else if(m) kill(m);
+        }catch(_){}
+      }
+    });
+  }catch(_){}
   try{ if(typeof hovered!=='undefined' && hovered===bot){ hovered=null; tip.classList.remove('show'); } }catch(_){}
   updateFleetCounts();
   return true;
@@ -3007,58 +3086,67 @@ document.getElementById('btnAddSensory')?.addEventListener('click', ()=>{
   if(b) fleetNotice(`ATTACHED <b>${b.id}</b> → <b>${b.parent.label||'ACTIVE'}</b>`);
 });
 document.getElementById('btnClearFleet')?.addEventListener('click', ()=>{ try{ restoreCcsMark(); }catch(_){} try{ clearCcsMappedOrbit(); }catch(_){} clearFleet(); window._targetDebris=null; window._ccsStore=[]; window._ccsDots=[]; window._ccsInside={}; window._ccsPrevSimT=null; window._ccsLastPass=null; window._ccsDone=false; window._ccsPhase='collect'; try{ document.getElementById('debrisTargetSelect').innerHTML='<option value="">— start sim first —</option>'; }catch(_){} fleetNotice('FLEET CLEARED — <b>0 OBJECTS</b>'); });
-// SIMULATION CENTRE — random 100 demo sats + 15 action bots + 10 debris across whole LEO (160–2000km), fully random each run, ≥5km apart
+// SIMULATION CENTRE — small demo fleet across whole LEO (160–2000km), fully random each run, ≥5km apart.
+// Kept SMALL on purpose: 100+ sats caused O(n²) physics/conjunction overload,
+// per-frame trail realloc + 200+ nameplate textures → lag + overlapping orbits.
+// Tune counts here (total objects = active + action + active(sensory) + debris).
+const SIM_FLEET={active:12, action:4, debris:5};
 async function startSimulationDemo(){
   if(window._launching) return;
   window._launching=true;
+  window._bulkLoading=true; // batch fleet-count DOM updates until the end
   const btn=document.getElementById('btnStartSim');
-  try{ if(btn){ btn.disabled=true; btn.textContent='LAUNCHING… 0/100'; } }catch(_){}
+  const TOTAL=SIM_FLEET.active+SIM_FLEET.action;
+  try{ if(btn){ btn.disabled=true; btn.textContent=`LAUNCHING… 0/${TOTAL}`; } }catch(_){}
   try{ restoreCcsMark(); }catch(_){}
   try{ clearCcsMappedOrbit(); }catch(_){}
   window._targetDebris=null; window._ccsStore=[]; window._ccsDots=[]; window._ccsInside={}; window._ccsPrevSimT=null; window._ccsLastPass=null; window._ccsDone=false; window._ccsPhase='collect';
   clearFleet();
-  fleetNotice('LAUNCHING fleet… 0/100');
+  fleetNotice(`LAUNCHING fleet… 0/${TOTAL}`);
   const tick=()=>new Promise(r=>requestAnimationFrame(()=>setTimeout(r,0)));
   await tick(); // paint immediately so click feels instant
   let spawned=0, attempts=0;
-  while(spawned<100 && attempts<8000){
-    for(let k=0;k<8 && spawned<100 && attempts<8000;k++){
+  const maxAttempts=SIM_FLEET.active*40;
+  while(spawned<SIM_FLEET.active && attempts<maxAttempts){
+    for(let k=0;k<4 && spawned<SIM_FLEET.active && attempts<maxAttempts;k++){
       attempts++;
       const cand={ alt:160+Math.random()*1840, e:0.001, inc:Math.random()*98, raan:Math.random()*360, argP:Math.random()*360, M0:Math.random()*360 };
-      const c=checkOrbitConflict({ a:KM_PER_UNIT+cand.alt, e:cand.e, inc:cand.inc, raan:cand.raan, argP:cand.argP, M0:cand.M0 });
-      if(c.hard) continue;
+      // force:true auto-fixes (shell hop + phase tune) so counts are exact — no pre-check skip
       const s=spawnActiveSat({ ...cand, force:true });
       if(s) spawned++;
     }
-    try{ if(btn) btn.textContent=`LAUNCHING… ${spawned}/100`; }catch(_){}
+    try{ if(btn) btn.textContent=`LAUNCHING… ${spawned}/${TOTAL}`; }catch(_){}
     await tick();
   }
   let spawnedA=0, attemptsA=0;
-  while(spawnedA<15 && attemptsA<2000){
-    for(let k=0;k<5 && spawnedA<15 && attemptsA<2000;k++){
+  const maxAttemptsA=SIM_FLEET.action*40;
+  while(spawnedA<SIM_FLEET.action && attemptsA<maxAttemptsA){
+    for(let k=0;k<4 && spawnedA<SIM_FLEET.action && attemptsA<maxAttemptsA;k++){
       attemptsA++;
       const cand={ alt:160+Math.random()*1840, e:0.001, inc:Math.random()*98, raan:Math.random()*360, argP:Math.random()*360, M0:Math.random()*360 };
-      const c=checkOrbitConflict({ a:KM_PER_UNIT+cand.alt, e:cand.e, inc:cand.inc, raan:cand.raan, argP:cand.argP, M0:cand.M0 });
-      if(c.hard) continue;
       const s=spawnActionBot({ ...cand, force:true });
       if(s) spawnedA++;
     }
+    try{ if(btn) btn.textContent=`LAUNCHING… ${spawned+spawnedA}/${TOTAL}`; }catch(_){}
     await tick();
   }
   // every active sat gets 1 attached sensory bot (chunked)
+  let spawnedS=0;
   try{
     const actives=sats.filter(s=>s.type==='active');
-    for(let i=0;i<actives.length;i++){ attachBot(actives[i],'sensory',{}); if(i%10===9) await tick(); }
+    for(let i=0;i<actives.length;i++){ const b=attachBot(actives[i],'sensory',{}); if(b) spawnedS++; if(i%6===5) await tick(); }
   }catch(_){}
-  // 10 sample debris — independent random orbits across whole LEO (auto-fixed ≥5km)
+  // sample debris — independent random orbits across whole LEO (auto-fixed ≥5km)
   let spawnedD=0;
   try{
-    for(let i=0;i<10;i++){
+    for(let i=0;i<SIM_FLEET.debris;i++){
       const frags=spawnDebris({ count:1, alt:160+Math.random()*1840, inc:Math.random()*98, raan:Math.random()*360, argP:Math.random()*360, M0:Math.random()*360, size:0.5+Math.random()*2, spread:3 });
       if(frags&&frags.length) spawnedD+=frags.length;
       if(i%3===2) await tick();
     }
   }catch(_){}
+  window._bulkLoading=false;
+  try{ updateFleetCounts(); }catch(_){}
   try{ deselectSat(true); }catch(_){}
   window._targetDebris=null;
   try{
@@ -3068,7 +3156,7 @@ async function startSimulationDemo(){
       sel.innerHTML=debris.length?debris.map(s=>`<option value="${s.label}">${s.label} · ${(s.currentAlt??(s.a-KM_PER_UNIT)).toFixed(0)}km</option>`).join(''):'<option value="">— no debris —</option>';
     }
   }catch(_){}
-  fleetNotice(`SIMULATION STARTED — <b>${spawned} SATS + ${spawnedA} ACTION + ${spawned} SENSORY + ${spawnedD} DEBRIS</b> · <b>WHICH DEBRIS TO TARGET?</b> pick below ↓`);
+  fleetNotice(`SIMULATION STARTED — <b>${spawned} SATS + ${spawnedA} ACTION + ${spawnedS} SENSORY + ${spawnedD} DEBRIS</b> · <b>WHICH DEBRIS TO TARGET?</b> pick below ↓`);
   try{ if(btn){ btn.disabled=false; btn.textContent='▶ START SIMULATION'; } }catch(_){}
   window._launching=false;
 }
