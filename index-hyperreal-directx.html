@@ -49,7 +49,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
   .panel button,.panel input,.panel .stat{pointer-events:auto}
   .panel-left{left:14px;top:70px;width:340px;padding:14px;max-height:calc(100vh - 220px);overflow-y:auto;overflow-x:hidden}
   .panel-right{right:14px;top:70px;width:300px;padding:14px}
-  .panel-bottom{left:368px;right:224px;transform:none;bottom:14px;width:auto;max-width:none;padding:10px 14px;display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;z-index:3}
+  .panel-bottom{left:368px;right:224px;transform:none;bottom:14px;width:auto;max-width:none;padding:10px 14px;display:flex;align-items:center;justify-content:center;gap:10px 14px;flex-wrap:wrap;row-gap:10px;z-index:3;max-height:calc(100vh - 200px);overflow-y:auto;overflow-x:hidden}
   .kicker{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.16em;opacity:0.55;margin-bottom:8px;display:flex;align-items:center;gap:8px}
   .kicker::before{content:'';width:6px;height:6px;border-radius:50%;background:#38bdf8;box-shadow:0 0 8px #38bdf8;display:inline-block}
   .alt-big{font-size:42px;font-weight:300;letter-spacing:-0.04em;line-height:1}
@@ -75,11 +75,12 @@ window.addEventListener('DOMContentLoaded', ()=>{
   .legend-item div{line-height:1.2}
   .legend-item strong{font-size:12px;display:block}
   .legend-item small{font-family:'JetBrains Mono',monospace;font-size:10px;opacity:0.6}
-  .slider-row{display:flex;align-items:center;gap:10px;flex:1;min-width:180px}
-  .slider-row label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;opacity:0.7;white-space:nowrap}
-  input[type=range]{flex:1;accent-color:#38bdf8;height:4px}
-  .bottom-stats{display:flex;gap:10px;flex-wrap:wrap}
-  .bottom-stats .stat{padding:7px 10px;min-width:110px}
+  .slider-row{display:flex;align-items:center;gap:10px;flex:1 1 160px;min-width:160px;max-width:100%}
+  .slider-row label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;opacity:0.7;white-space:nowrap;flex:none}
+  .panel-bottom .slider-row span{flex:none;text-align:right;white-space:nowrap}
+  input[type=range]{flex:1 1 auto;min-width:0;width:100%;accent-color:#38bdf8;height:4px}
+  .bottom-stats{display:flex;gap:10px;flex-wrap:wrap;flex:0 1 auto;min-width:0;justify-content:center}
+  .bottom-stats .stat{padding:7px 10px;min-width:84px;flex:1 1 auto;white-space:nowrap;text-align:center}
   .enter-notify{position:absolute;left:50%;top:86px;transform:translateX(-50%) translateY(-12px);background:rgba(10,18,36,0.92);border:1px solid rgba(96,165,250,0.35);padding:10px 16px;border-radius:999px;display:flex;align-items:center;gap:10px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.08em;opacity:0;pointer-events:none;transition:0.4s;box-shadow:0 10px 30px rgba(0,0,0,0.5),0 0 20px rgba(56,189,248,0.25)}
   .enter-notify.show{opacity:1;transform:translateX(-50%) translateY(0)}
   .enter-notify b{color:#7dd3fc}
@@ -128,7 +129,9 @@ window.addEventListener('DOMContentLoaded', ()=>{
     .zone-btn{flex:0 0 auto;min-width:138px;scroll-snap-align:start;padding:7px 8px}
     .zone-btn b{font-size:10px}
     .zone-btn small{font-size:8px}
-    .slider-row{min-width:0}
+    .slider-row{min-width:0;flex-basis:100%}
+    .bottom-stats{flex-basis:100%;justify-content:center}
+    .bottom-stats .stat{flex:1 1 0;min-width:0}
     .alt-big{font-size:34px}
     .enter-notify{top:62px;font-size:10px;padding:8px 12px;max-width:92vw;text-align:center}
     .panel-toggle{display:block}
@@ -141,11 +144,11 @@ window.addEventListener('DOMContentLoaded', ()=>{
   /* Laptop: prevent bottom-bar / side-placard overlap + zone-bar running off-screen */
   @media(min-width:861px) and (max-width:1320px){
     .panel-left{width:300px}
-    .panel-bottom{left:326px;right:196px;gap:10px;padding:8px 10px}
+    .panel-bottom{left:326px;right:196px;gap:8px 10px;padding:8px 10px}
     .zone-bar{width:172px}
-    .slider-row{min-width:140px}
-    .bottom-stats .stat{min-width:88px;padding:6px 8px}
-    .drag-hint{max-width:calc(100vw - 540px);font-size:9px}
+    .slider-row{flex-basis:140px;min-width:140px}
+    .bottom-stats .stat{min-width:80px;padding:6px 8px}
+    .drag-hint{max-width:calc(100vw - 540px);font-size:9px;bottom:132px}
   }
   @media(min-width:861px) and (max-height:760px){
     .panel-left{max-height:calc(100vh - 190px);padding:10px}
@@ -153,7 +156,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
     .grid2{gap:6px;margin-top:8px}
     .coords{font-size:10px;padding:8px}
     .zone-btn{padding:7px 8px}
-    .panel-bottom{padding:8px 10px;gap:8px}
+    .panel-bottom{padding:8px 10px;gap:6px 8px;max-height:calc(100vh - 170px);overflow-y:auto}
   }
   /* === DEPLOY MODAL — satellite configurator === */
   #deployOverlay{position:fixed;inset:0;background:rgba(2,6,23,0.72);backdrop-filter:blur(8px);z-index:30;display:none;align-items:center;justify-content:center;padding:16px}
@@ -440,6 +443,217 @@ const toScene = km => km / KM_PER_UNIT * ALT_EXAG; // 1km = 30/6371 = 0.004708u
 const sceneRadius = altKm => R_EARTH + altKm / KM_PER_UNIT * ALT_EXAG; // 0km=1.5, 100km=1.97, 160km=2.25, 450km=3.62, 800km=5.27, 2000km=10.92, MEO=96.6, GEO=170.0
 const altFromRadius = r => (r - R_EARTH) * KM_PER_UNIT / ALT_EXAG; // inverse — real km from scene radius
 const RAD = Math.PI/180;
+
+// === IRIS REAL-PHYSICS PACK (visual 30x scale kept — physics below always uses real km) ===
+// NOTE: scaling constants above (KM_PER_UNIT / ALT_EXAG / R_EARTH / sceneRadius) are
+// VISUAL ONLY and are never touched by physics. Two-body Kepler stays the propagator.
+// Integrated secular/averaged effects:
+//  [1] J2 nodal+apsidal+mean-motion  [2] drag (instantaneous vis-viva + co-rotating
+//      atmosphere + eccentricity damping, phase-continuous)  [3] SRP cannonball with
+//      cylindrical eclipse shadow + lunisolar tidal energy (both integrated via dE/dt)
+//  [4] sidereal Earth rotation + GMST/ECEF + sim epoch UTC  [5] attitude + impulsive Δv API
+const J2 = 1.08262668e-3;
+const RE_J2 = 6378.137; // equatorial radius for J2 formula (km)
+const WE = 7.2921159e-5; // Earth sidereal rotation rad/s
+const P_SRP = 4.56e-6; // solar radiation pressure at 1AU, N/m^2
+const MU_SUN = 1.32712440018e11, MU_MOON = 4902.800066;
+const CD_DEFAULT = 2.2, CR_DEFAULT = 1.3;
+const SIM_EPOCH_MS = Date.now();
+function _gmst0FromEpoch(ms){
+  const d = (ms / 86400000) - 10957.5; // days since J2000.0 (2000-01-01 12:00 UTC)
+  let g = 280.46061837 + 360.98564736629 * d;
+  g = ((g % 360) + 360) % 360;
+  return g * RAD;
+}
+const GMST0 = _gmst0FromEpoch(SIM_EPOCH_MS);
+const gmstOf = t => GMST0 + WE * t; // rad, t = sim seconds since load
+const earthRotOf = t => WE * t; // rad since load (mesh starts at 0)
+const simUTCOf = t => new Date(SIM_EPOCH_MS + t * 1000);
+window._solar = window._solar || 'mod'; // global space weather: min|mod|max
+function rhoAt(altKm){
+  try{
+    const base = (typeof rhoModerate === 'function') ? rhoModerate(altKm) : 1e-13;
+    const f = (typeof solarFactor === 'function') ? solarFactor(altKm, window._solar) : 1;
+    return base * f;
+  }catch(_){ return 1e-13; }
+}
+function j2Rates(aKm, e, incRad){
+  const n = Math.sqrt(MU / Math.pow(aKm, 3)); // rad/s
+  const p = aKm * (1 - e * e);
+  const f = 1.5 * J2 * Math.pow(RE_J2 / p, 2) * n;
+  const ci = Math.cos(incRad), si = Math.sin(incRad);
+  return {
+    n,
+    raanDot: -f * ci,
+    argPDot: f * (2 - 2.5 * si * si),
+    mDot: f * Math.sqrt(1 - e * e) * (1 - 1.5 * si * si) // mean-motion correction
+  };
+}
+function sunUnitECI(){
+  try{
+    if(typeof sunLight !== 'undefined' && sunLight.position){
+      const p = sunLight.position; // scene coords: at() maps ECI(x,y,z)->scene(x,z,y)
+      const v = [p.x, p.z, p.y];
+      const L = Math.hypot(v[0], v[1], v[2]) || 1;
+      return [v[0]/L, v[1]/L, v[2]/L];
+    }
+  }catch(_){}
+  const v = [5, 2.2, 1.4], L = Math.hypot(v[0], v[1], v[2]);
+  return [v[0]/L, v[1]/L, v[2]/L];
+}
+function moonECI(t){
+  // low-precision circular Moon: R=384400km, T=27.321661d, inc 5.14deg to equator
+  const R = 384400, n = 2*Math.PI / (27.321661*86400), M = n * t;
+  const inc = 5.14 * RAD;
+  return [R*Math.cos(M), R*Math.cos(inc)*Math.sin(M), R*Math.sin(inc)*Math.sin(M)];
+}
+function eclipseCyl(eciKm){
+  // cylindrical shadow, smooth penumbra ~15km. Returns 0=umbra .. 1=sunlit
+  const s = sunUnitECI();
+  const r = Math.hypot(eciKm[0], eciKm[1], eciKm[2]);
+  const along = eciKm[0]*s[0] + eciKm[1]*s[1] + eciKm[2]*s[2];
+  if(along >= 0) return 1;
+  const px = eciKm[0] - along*s[0], py = eciKm[1] - along*s[1], pz = eciKm[2] - along*s[2];
+  const perp = Math.hypot(px, py, pz);
+  const R = KM_PER_UNIT;
+  if(perp < R - 15) return 0;
+  if(perp > R + 15) return 1;
+  return (perp - (R - 15)) / 30;
+}
+function srpAccelMS2(areaM2, massKg, Cr, eclipse){
+  if(!areaM2 || !massKg) return 0;
+  return P_SRP * (Cr || CR_DEFAULT) * (areaM2 / massKg) * (eclipse == null ? 1 : eclipse);
+}
+function thirdBodyMag(eciKm, t){
+  // tidal magnitudes for display + energy integration (m/s^2). Integrated via dE/dt in Sat.upd.
+  try{
+    const r = Math.hypot(eciKm[0], eciKm[1], eciKm[2]);
+    const m = moonECI(t || 0);
+    const Rm = Math.hypot(m[0], m[1], m[2]);
+    const aMoon = 2 * MU_MOON * r * 1e9 / Math.pow(Rm*1000, 3); // m/s^2 approx
+    const Rs = 149597870.7;
+    const aSun = 2 * MU_SUN * r * 1e9 / Math.pow(Rs*1000, 3);
+    return { moon: aMoon, sun: aSun };
+  }catch(_){ return { moon: 0, sun: 0 }; }
+}
+// --- full-physics helpers: real km/s units, no visual scaling involved ---
+const SIM_WARP = 18; // base time warp: 1 real second = 18 sim seconds at 1x (animate loop)
+function visVivaVel(rKm, aKm){ return Math.sqrt(Math.max(1e-9, MU * (2/Math.max(1,rKm) - 1/Math.max(1,aKm)))); }
+function circVel(aKm){ return Math.sqrt(MU / Math.max(1, aKm)); }
+function periodSecOf(aKm){ return 2*Math.PI*Math.sqrt(Math.pow(Math.max(1,aKm),3)/MU); }
+function energyOf(rKm, vKmS){ return vKmS*vKmS/2 - MU/Math.max(1,rKm); }
+function angMomOf(aKm, e){ return Math.sqrt(Math.max(1e-9, MU*Math.max(1,aKm)*(1-Math.min(0.9,e)*Math.min(0.9,e)))); }
+// ECI velocity vector (km/s) for osculating elements at sim time t (matches eciKm position)
+function eciVelKmS(aKm, e, incRad, raanRad, argPRad, M0Rad, t, n0Opt, mDotOpt){
+  try{
+    const n = (n0Opt || Math.sqrt(MU/Math.pow(aKm,3)));
+    const M = M0Rad + (n + (mDotOpt||0)) * t;
+    let nu = M % (2*Math.PI), r = aKm;
+    if(e >= 1e-4){
+      const Mn = ((M%(2*Math.PI))+2*Math.PI)%(2*Math.PI);
+      const E = solveKepler(Mn, e);
+      nu = 2*Math.atan2(Math.sqrt(1+e)*Math.sin(E/2), Math.sqrt(1-e)*Math.cos(E/2));
+      r = aKm*(1-e*Math.cos(E));
+    }
+    const p = aKm*(1-e*e), f = Math.sqrt(Math.max(1,MU)/Math.max(1,p));
+    const vpf = [-f*Math.sin(nu), f*(e+Math.cos(nu)), 0];
+    const co=Math.cos(raanRad),so=Math.sin(raanRad),ci=Math.cos(incRad),si=Math.sin(incRad),cw=Math.cos(argPRad),sw=Math.sin(argPRad);
+    return [
+      (co*cw-so*sw*ci)*vpf[0]+(-co*sw-so*cw*ci)*vpf[1]+(so*si)*0,
+      (so*cw+co*sw*ci)*vpf[0]+(-so*sw+co*cw*ci)*vpf[1]+(-co*si)*0,
+      (sw*si)*vpf[0]+(cw*si)*vpf[1]+(ci)*0
+    ].map((v,i)=> v); // perifocal z maps via third row; radial part folded above
+  }catch(_){ const v=circVel(aKm); return [v,0,0]; }
+}
+// Co-rotating atmosphere velocity (km/s): WE x r, equatorial rotation only
+function atmoVelKmS(eciKm){
+  return [-WE*(eciKm[1]||0), WE*(eciKm[0]||0), 0];
+}
+// Cannonball SRP acceleration vector (km/s^2), anti-sun, eclipse-scaled
+function srpAccelVecKmS2(eciKm, areaM2, massKg, Cr, eclipse){
+  try{
+    if(!areaM2 || !massKg) return [0,0,0];
+    const aMS2 = P_SRP*(Cr||CR_DEFAULT)*(areaM2/massKg)*(eclipse==null?1:eclipse); // m/s^2
+    const s = sunUnitECI();
+    const aKmS2 = aMS2/1000;
+    return [-s[0]*aKmS2, -s[1]*aKmS2, -s[2]*aKmS2]; // pushed away from Sun
+  }catch(_){ return [0,0,0]; }
+}
+// Lunisolar third-body tidal acceleration vector (km/s^2): direct+indirect terms
+function thirdBodyAccelVecKmS2(eciKm, t){
+  try{
+    const rx=eciKm[0], ry=eciKm[1], rz=eciKm[2];
+    let ax=0, ay=0, az=0;
+    const bodies=[[MU_MOON, moonECI(t||0)], [MU_SUN, (function(){ const s=sunUnitECI(); const R=149597870.7; return [s[0]*R,s[1]*R,s[2]*R]; })()]];
+    for(const [muB, Rb] of bodies){
+      const dx=rx-Rb[0], dy=ry-Rb[1], dz=rz-Rb[2];
+      const d3=Math.pow(Math.max(1,Math.hypot(dx,dy,dz)),3);
+      const R3=Math.pow(Math.max(1,Math.hypot(Rb[0],Rb[1],Rb[2])),3);
+      ax += -muB*(dx/d3 + Rb[0]/R3);
+      ay += -muB*(dy/d3 + Rb[1]/R3);
+      az += -muB*(dz/d3 + Rb[2]/R3);
+    }
+    return [ax,ay,az];
+  }catch(_){ return [0,0,0]; }
+}
+// Keep mean anomaly / node / perigee phase continuous when n/raanDot/argPDot change:
+// M(tNow) etc. must not jump when a/e/inc are updated.
+function preservePhase(sat, nOld, raanDotOld, argPDotOld, mDotOld, tNow){
+  try{
+    const nNew=(sat.n0||Math.sqrt(MU/Math.pow(sat.a,3)));
+    const mNew=(sat.mDot||0), rNew=(sat.raanDot||0), aNew=(sat.argPDot||0);
+    sat.M0 += ((nOld+(mDotOld||0)) - (nNew+mNew)) * tNow;
+    sat.raan += ((raanDotOld||0) - rNew) * tNow;
+    sat.argP += ((argPDotOld||0) - aNew) * tNow;
+    const TAU=2*Math.PI;
+    sat.M0=((sat.M0%TAU)+TAU)%TAU; sat.raan=((sat.raan%TAU)+TAU)%TAU; sat.argP=((sat.argP%TAU)+TAU)%TAU;
+  }catch(_){}
+}
+function eciToGeodetic(eciKm, t){
+  const r = Math.hypot(eciKm[0], eciKm[1], eciKm[2]) || 1;
+  const lat = Math.asin(Math.max(-1, Math.min(1, eciKm[2]/r))) / RAD;
+  let lon = Math.atan2(eciKm[1], eciKm[0]) / RAD - earthRotOf(t || 0) / RAD;
+  lon = ((lon + 540) % 360) - 180;
+  return { lat, lon, alt: r - KM_PER_UNIT };
+}
+function rv2coe(rKm, vKmS){
+  // state vector -> classical elements (deg). Assumes Earth-centered inertial.
+  const rx=rKm[0], ry=rKm[1], rz=rKm[2], vx=vKmS[0], vy=vKmS[1], vz=vKmS[2];
+  const r = Math.hypot(rx,ry,rz), v2 = vx*vx+vy*vy+vz*vz;
+  const hx=ry*vz-rz*vy, hy=rz*vx-rx*vz, hz=rx*vy-ry*vx;
+  const h = Math.hypot(hx,hy,hz);
+  const nx=-hy, ny=hx; // node vector (k x h), nz=0
+  const nn = Math.hypot(nx,ny);
+  const evx=(v2-MU/r)*rx - (rx*vx+ry*vy+rz*vz)*vx;
+  const evy=(v2-MU/r)*ry - (rx*vx+ry*vy+rz*vz)*vy;
+  const evz=(v2-MU/r)*rz - (rx*vx+ry*vy+rz*vz)*vz;
+  const e = Math.hypot(evx,evy,evz)/MU;
+  const energy = v2/2 - MU/r;
+  const a = energy < 0 ? -MU/(2*energy) : KM_PER_UNIT+550;
+  const inc = Math.acos(Math.max(-1,Math.min(1,hz/h)))/RAD;
+  let raan = 0, argP = 0, nu = 0;
+  if(nn > 1e-9){ raan = Math.atan2(ny,nx)/RAD; if(raan<0) raan+=360; }
+  if(nn > 1e-9 && e > 1e-8){
+    const c = (nx*evx+ny*evy)/(nn*e*MU);
+    argP = Math.acos(Math.max(-1,Math.min(1,c)))/RAD;
+    if(evz < 0) argP = 360-argP;
+  }
+  if(e > 1e-8){
+    const c = (evx*rx+evy*ry+evz*rz)/(e*MU*r);
+    nu = Math.acos(Math.max(-1,Math.min(1,c)))/RAD;
+    const rv = rx*vx+ry*vy+rz*vz;
+    if(rv < 0) nu = 360-nu;
+  } else if(nn > 1e-9){
+    const c = (nx*rx+ny*ry)/(nn*r);
+    let u = Math.acos(Math.max(-1,Math.min(1,c)))/RAD;
+    if(rz < 0) u = 360-u;
+    argP = 0; nu = u;
+  }
+  const E = 2*Math.atan2(Math.sqrt(1-e)*Math.sin(nu*RAD/2), Math.sqrt(1+e)*Math.cos(nu*RAD/2));
+  let M = E - e*Math.sin(E);
+  M = ((M/RAD)%360+360)%360;
+  return { a, e: Math.min(e, 0.9), inc, raan, argP, M0: M };
+}
 
 // Single source of truth for LEO bands — was duplicated in 3 places (defs, getLayer, layers[])
 const LEO_BOUNDARIES = [100,160,450,800,2000,20200,35786];
@@ -1534,6 +1748,17 @@ function buildSensoryDetails(head,SZ){
 function solveKepler(M,e){ let E=M; for(let i=0;i<6;i++){ let f=E - e*Math.sin(E) - M, fp=1 - e*Math.cos(E); E-=f/fp; } return E; }
 class Sat{
   constructor(o){ this.type=o.type; this.a=o.a; this.e=o.e||0; this.inc=o.inc*RAD; this.raan=o.raan*RAD; this.argP=o.argP*RAD; this.M0=o.M0*RAD; this.mass=o.mass||800; this.spin=o.spin||0;
+    // [2/3] ballistic + optical props (convenient cannonball model)
+    this.Cd=(o.Cd||CD_DEFAULT); this.Cr=(o.Cr==null?CR_DEFAULT:o.Cr);
+    this.area=(o.area!=null?o.area:Math.pow((o.realSizeM||10),2)); // m^2
+    if(this.type==='debris'&&o.area==null) this.area=Math.pow((o.realSizeM||0.5),2);
+    this.B=this.mass/(this.Cd*Math.max(0.001,this.area));
+    // [5] attitude: nadir|prograde|sun|tumble (debris forced tumble)
+    this.attitude=o.attitude||(this.type==='active'?'nadir':this.type==='action'?'prograde':this.type==='debris'?'tumble':'inertial');
+    // [1] J2 secular rates (rad/s), refreshed whenever a/e/inc change
+    this.raanDot=0; this.argPDot=0; this.n0=Math.sqrt(MU/Math.pow(this.a,3)); this.mDot=0;
+    try{ this.refreshJ2(); }catch(_){}
+    this.eclipse=1; this.srpA=0; this.dragA=0; this._envT=-1e9;
     // Real physical size for tooltip (m) — not mesh scale
     if(this.type==='debris') this.realSizeM = o.realSizeM || (0.5 + Math.random()*2.5); // 0.5–3m debris
     else if(this.type==='active') this.realSizeM = o.realSizeM || 10; // Starlink ~10m with panels, OneWeb ~3m
@@ -1558,22 +1783,22 @@ class Sat{
         stub.position.set(0.008*SZ,0.004*SZ,0); stub.rotation.set(Math.random()*3,Math.random()*3,Math.random()*3);
         mesh.add(stub);
       }
-      // debris drift — random speed + variable trajectory + slight orbital decay
-      this.speedFactor=0.96+Math.random()*0.08;
-      this.wobAmp=0.002+Math.random()*0.006;
-      this.wobFreq=0.3+Math.random()*0.9;
-      this.wobPhase=Math.random()*6.28;
+      // debris: same Kepler physics as everything else (Kepler's 3rd law kept).
+      // Tumble is rotation-only; position follows the osculating ellipse + unified drag.
+      // speedFactor kept at 1.0 for backward compat (older saves) but never randomized.
+      this.speedFactor=1.0;
+      this.wobAmp=0; this.wobFreq=0.5; this.wobPhase=Math.random()*6.28;
+      this.area=Math.pow((this.realSizeM||0.5),2);
+      this.B=(this.mass||5)/(this.Cd*Math.max(0.001,this.area));
       try{
         const alt0=Math.max(160,Math.min(2000,this.a-KM_PER_UNIT));
-        const rho=(typeof rhoModerate==='function')?rhoModerate(alt0):1e-12;
-        const v=Math.sqrt(MU/this.a);
-        const area=Math.pow((this.realSizeM||0.5),2);
-        const B=(this.mass||5)/(2.2*Math.max(0.001,area));
-        const dragA=0.5*rho*Math.pow(v*1000,2)/B;
+        const rho=rhoAt(alt0);
+        const v=circVel(this.a);
+        const dragA=0.5*rho*Math.pow(v*1000,2)/this.B;
         const am=this.a*1000;
         const dadts=-2*am*am*dragA*(v*1000)/3.986004418e14;
-        this.decayKmPerSimSec=Math.min(8e-6,Math.max(2e-7,(-dadts/1000)*(2+Math.random()*4)));
-      }catch(_){ this.decayKmPerSimSec=5e-7+Math.random()*1e-6; }
+        this.decayKmPerSimSec=Math.max(0,(-dadts/1000));
+      }catch(_){ this.decayKmPerSimSec=0; }
     }
     else if(this.type==='active'){ 
       const g=new THREE.BoxGeometry(0.022*SZ,0.016*SZ,0.016*SZ);
@@ -1601,13 +1826,186 @@ class Sat{
     }
     this.mesh=mesh; this.group.add(mesh);
     const col=this.type==='debris'?0xf87171:this.type==='active'?0x22c55e:this.type==='sensory'?0xfacc15:0xfb923c;
-    const og=new THREE.BufferGeometry(); const pts=[]; for(let a=0;a<=360;a+=2){ const p=this.at((a/360)*(2*Math.PI/Math.sqrt(MU/Math.pow(this.a,3)))); pts.push(p.x,p.y,p.z); } og.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
+    const og=new THREE.BufferGeometry(); const pts=[]; { const t0=(window._simT||0); const nn=Math.sqrt(MU/Math.pow(this.a,3)), TT=2*Math.PI/nn; for(let a=0;a<=360;a+=2){ const p=this.at(t0+(a/360)*TT); pts.push(p.x,p.y,p.z); } this._lastRebuild=t0; } og.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
     this.orbit=new THREE.Line(og, new THREE.LineBasicMaterial({color:col, transparent:true, opacity:0.28, depthWrite:false})); scene.add(this.orbit);
     this.trailLine=new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({color:col, transparent:true, opacity:0.8, depthWrite:false})); scene.add(this.trailLine);
     scene.add(this.group);
   }
-  at(t){ const n=Math.sqrt(MU/Math.pow(this.a,3))*(this.speedFactor||1), M=this.M0+n*t; let r,nu; if(this.e<1e-4){ r=this.a; nu=M%(2*Math.PI);} else { const E=solveKepler(((M%(2*Math.PI))+2*Math.PI)%(2*Math.PI), this.e); nu=2*Math.atan2(Math.sqrt(1+this.e)*Math.sin(E/2), Math.sqrt(1-this.e)*Math.cos(E/2)); r=this.a*(1 - this.e*Math.cos(E)); } const p=r*Math.cos(nu), q=r*Math.sin(nu); const co=Math.cos(this.raan), so=Math.sin(this.raan), ci=Math.cos(this.inc), si=Math.sin(this.inc), cw=Math.cos(this.argP), sw=Math.sin(this.argP); const x=(co*cw - so*sw*ci)*p + (-co*sw - so*cw*ci)*q; const y=(so*cw + co*sw*ci)*p + (-so*sw + co*cw*ci)*q; const z=(sw*si)*p + (cw*si)*q; const rk=Math.sqrt(x*x+y*y+z*z); const exR=sceneRadius(rk-KM_PER_UNIT); const s=exR/rk; return new THREE.Vector3(x*s, z*s, y*s); }
-  upd(t,dt){ if(this.type==='debris'&&this.decayKmPerSimSec){ this.a=Math.max(KM_PER_UNIT+120,this.a-this.decayKmPerSimSec*dt*18); } const pos=this.at(t); if(this.type==='debris'&&this.wobAmp){ pos.x+=Math.sin(t*this.wobFreq+this.wobPhase)*this.wobAmp; pos.y+=Math.cos(t*this.wobFreq*0.8+this.wobPhase)*this.wobAmp*0.6; } this.group.position.copy(pos); if(this.type==='debris'){ this.mesh.rotation.x+=this.spin*dt*0.8; this.mesh.rotation.y+=this.spin*dt*0.6; } else if(this.type==='sensory') this.mesh.rotation.y+=dt*0.25; else if(this.type==='active') this.mesh.rotation.y+=dt*0.08;
+  refreshJ2(){ const r=j2Rates(this.a,this.e,this.inc); this.n0=r.n; this.raanDot=r.raanDot; this.argPDot=r.argPDot; this.mDot=r.mDot; return r; }
+  raanDotDegDay(){ return (this.raanDot||0)/RAD*86400; }
+  eciKm(t){
+    const n=(this.n0||Math.sqrt(MU/Math.pow(this.a,3))); // Kepler 3rd law — same period for same a
+    const raan=this.raan+(this.raanDot||0)*t, argP=this.argP+(this.argPDot||0)*t;
+    const M=this.M0+(n+(this.mDot||0))*t;
+    let r,nu;
+    if(this.e<1e-4){ r=this.a; nu=M%(2*Math.PI); }
+    else{ const E=solveKepler(((M%(2*Math.PI))+2*Math.PI)%(2*Math.PI),this.e); nu=2*Math.atan2(Math.sqrt(1+this.e)*Math.sin(E/2),Math.sqrt(1-this.e)*Math.cos(E/2)); r=this.a*(1-this.e*Math.cos(E)); }
+    const p=r*Math.cos(nu), q=r*Math.sin(nu);
+    const co=Math.cos(raan),so=Math.sin(raan),ci=Math.cos(this.inc),si=Math.sin(this.inc),cw=Math.cos(argP),sw=Math.sin(argP);
+    return [(co*cw-so*sw*ci)*p+(-co*sw-so*cw*ci)*q,(so*cw+co*sw*ci)*p+(-so*sw+co*cw*ci)*q,(sw*si)*p+(cw*si)*q];
+  }
+  // instantaneous ECI velocity (km/s), vis-viva consistent — used for energy, drag, tooltips
+  velKmS(t){
+    try{
+      const raanT=this.raan+(this.raanDot||0)*t, argPT=this.argP+(this.argPDot||0)*t;
+      return eciVelKmS(this.a,this.e,this.inc,raanT,argPT,this.M0,t,this.n0,this.mDot);
+    }catch(_){ const v=circVel(this.a); return [v,0,0]; }
+  }
+  visVivaAt(t){ try{ const r=this.eciKm(t); const rMag=Math.hypot(r[0],r[1],r[2])||this.a; return visVivaVel(rMag,this.a); }catch(_){ return circVel(this.a); } }
+  periodSec(){ return periodSecOf(this.a); }
+  periodMin(){ return periodSecOf(this.a)/60; }
+  energyAt(t){ try{ const r=this.eciKm(t); const rMag=Math.hypot(r[0],r[1],r[2])||this.a; const v=this.visVivaAt(t); return energyOf(rMag,v); }catch(_){ return -MU/(2*this.a); } }
+  angMom(){ return angMomOf(this.a,this.e); }
+  rebuildOrbit(tNow){
+    try{
+      const t0=(tNow==null?(window._simT||0):tNow);
+      const n=(this.n0||Math.sqrt(MU/Math.pow(this.a,3)));
+      const T=2*Math.PI/n;
+      const pts=[];
+      // osculating ellipse starting at current phase (J2-propagated), one full revolution
+      for(let a=0;a<=360;a+=2){ const p=this.at(t0+(a/360)*T); pts.push(p.x,p.y,p.z); }
+      this.orbit.geometry.dispose();
+      const og=new THREE.BufferGeometry(); og.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
+      this.orbit.geometry=og;
+      if(this.userData&&this.userData._tube){ try{ scene.remove(this.userData._tube); this.userData._tube.geometry.dispose(); this.userData._tube.material.dispose(); this.userData._tube=null; }catch(_){} }
+      this.trail.length=0;
+      this._lastRebuild=t0;
+    }catch(_){}
+  }
+  setAttitude(mode){ const ok=['nadir','prograde','sun','inertial','tumble']; if(ok.indexOf(mode)>=0){ this.attitude=mode; return true; } return false; }
+  maneuver(dvP,dvR,dvN,tNow){
+    // impulsive burn in orbital frame (km/s). Phase-continuous: epoch elements re-based so r(tNow) is unchanged.
+    // Returns {dvTotal,a,e,inc,...}
+    const t=(tNow==null?(window._simT||0):tNow);
+    const r=this.eciKm(t);
+    const rr=Math.hypot(r[0],r[1],r[2]);
+    // osculating angles at burn epoch (include J2 secular offsets)
+    const n0=(this.n0||Math.sqrt(MU/Math.pow(this.a,3)));
+    const mD=(this.mDot||0), rD=(this.raanDot||0), aD=(this.argPDot||0);
+    const raanT=this.raan+rD*t, argPT=this.argP+aD*t;
+    const M=this.M0+(n0+mD)*t;
+    let nu=M%(2*Math.PI), R=rr;
+    if(this.e>=1e-4){ const E=solveKepler(((M%(2*Math.PI))+2*Math.PI)%(2*Math.PI),this.e); nu=2*Math.atan2(Math.sqrt(1+this.e)*Math.sin(E/2),Math.sqrt(1-this.e)*Math.cos(E/2)); R=this.a*(1-this.e*Math.cos(E)); }
+    const p=this.a*(1-this.e*this.e), f=Math.sqrt(MU/p);
+    const vpf=[-f*Math.sin(nu), f*(this.e+Math.cos(nu)), 0];
+    const co=Math.cos(raanT),so=Math.sin(raanT),ci=Math.cos(this.inc),si=Math.sin(this.inc),cw=Math.cos(argPT),sw=Math.sin(argPT);
+    const Rv=[[co*cw-so*sw*ci,-co*sw-so*cw*ci,so*si],[so*cw+co*sw*ci,-so*sw+co*cw*ci,-co*si],[sw*si,cw*si,ci]];
+    const v=[Rv[0][0]*vpf[0]+Rv[0][1]*vpf[1],Rv[1][0]*vpf[0]+Rv[1][1]*vpf[1],Rv[2][0]*vpf[0]+Rv[2][1]*vpf[1]];
+    const vm=Math.hypot(v[0],v[1],v[2])||7.5;
+    const uP=[v[0]/vm,v[1]/vm,v[2]/vm], uR=[r[0]/rr,r[1]/rr,r[2]/rr];
+    const uN=[(r[1]*v[2]-r[2]*v[1])/rr/vm,(r[2]*v[0]-r[0]*v[2])/rr/vm,(r[0]*v[1]-r[1]*v[0])/rr/vm];
+    const Ln=Math.hypot(uN[0],uN[1],uN[2])||1; uN[0]/=Ln; uN[1]/=Ln; uN[2]/=Ln;
+    const dv=[(dvP||0),(dvR||0),(dvN||0)];
+    const dve=[uP[0]*dv[0]+uR[0]*dv[1]+uN[0]*dv[2],uP[1]*dv[0]+uR[1]*dv[1]+uN[1]*dv[2],uP[2]*dv[0]+uR[2]*dv[1]+uN[2]*dv[2]];
+    const vn=[v[0]+dve[0],v[1]+dve[1],v[2]+dve[2]];
+    const coe=rv2coe(r,vn);
+    this.a=Math.max(KM_PER_UNIT+160,Math.min(KM_PER_UNIT+2000,coe.a));
+    this.e=Math.min(0.05,Math.max(0,coe.e));
+    this.inc=coe.inc*RAD;
+    this.refreshJ2();
+    // re-base epoch elements so position/phase at tNow is continuous (no teleport)
+    const TAU=2*Math.PI;
+    this.raan=(((coe.raan*RAD - this.raanDot*t)%TAU)+TAU)%TAU;
+    this.argP=(((coe.argP*RAD - this.argPDot*t)%TAU)+TAU)%TAU;
+    this.M0=(((coe.M0*RAD - (this.n0+this.mDot)*t)%TAU)+TAU)%TAU;
+    this.rebuildOrbit(t);
+    this.currentAlt=this.a-KM_PER_UNIT;
+    return { dvTotal: Math.hypot(dv[0],dv[1],dv[2]), a: this.a, e: this.e, inc: coe.inc };
+  }
+  at(t){ const n=(this.n0||Math.sqrt(MU/Math.pow(this.a,3))), M=this.M0+(n+(this.mDot||0))*t; const raan=this.raan+(this.raanDot||0)*t, argP=this.argP+(this.argPDot||0)*t; let r,nu; if(this.e<1e-4){ r=this.a; nu=M%(2*Math.PI);} else { const E=solveKepler(((M%(2*Math.PI))+2*Math.PI)%(2*Math.PI), this.e); nu=2*Math.atan2(Math.sqrt(1+this.e)*Math.sin(E/2), Math.sqrt(1-this.e)*Math.cos(E/2)); r=this.a*(1 - this.e*Math.cos(E)); } const p=r*Math.cos(nu), q=r*Math.sin(nu); const co=Math.cos(raan), so=Math.sin(raan), ci=Math.cos(this.inc), si=Math.sin(this.inc), cw=Math.cos(argP), sw=Math.sin(argP); const x=(co*cw - so*sw*ci)*p + (-co*sw - so*cw*ci)*q; const y=(so*cw + co*sw*ci)*p + (-so*sw + co*cw*ci)*q; const z=(sw*si)*p + (cw*si)*q; const rk=Math.sqrt(x*x+y*y+z*z); const exR=sceneRadius(rk-KM_PER_UNIT); const s=exR/rk; return new THREE.Vector3(x*s, z*s, y*s); }
+  upd(t,dt){
+    // Full force model, integrated as secular element rates (Kepler stays the propagator):
+    // drag (instantaneous rho + co-rotating atmosphere + vis-viva) + SRP w/ eclipse + lunisolar tidal,
+    // all via dE/dt = v·a_pert → da/dt; drag also circularizes de/dt. Phase-continuous (no teleport).
+    // dt includes timeScale; sim seconds advanced as dt*SIM_WARP (matches animate t += dt*timeScale*18).
+    const dtSim=Math.max(0,dt*SIM_WARP);
+    if(dtSim>0&&this.a>KM_PER_UNIT+100){
+      try{
+        const nOld=this.n0, rOld=this.raanDot, aOld=this.argPDot, mOld=this.mDot;
+        const eci=this.eciKm(t);
+        const rMag=Math.hypot(eci[0],eci[1],eci[2])||this.a;
+        const altInst=Math.max(80,rMag-KM_PER_UNIT);
+        const rho=rhoAt(Math.min(2000,altInst));
+        const vVec=this.velKmS(t);
+        const vMag=Math.hypot(vVec[0],vVec[1],vVec[2])||visVivaVel(rMag,this.a);
+        const va=atmoVelKmS(eci);
+        const vrx=vVec[0]-va[0], vry=vVec[1]-va[1], vrz=vVec[2]-va[2];
+        const vRel=Math.hypot(vrx,vry,vrz)||vMag;
+        const B=this.B||this.mass/(this.Cd*Math.max(0.001,this.area));
+        const dragA=0.5*rho*(vRel*1000)*(vRel*1000)/B; // m/s^2
+        this.dragA=dragA;
+        // environment (cached 2 sim-sec for eclipse/SRP vector + lunisolar display)
+        let ecl=this.eclipse;
+        if(t-(this._envT||-1e9)>2||!this._envT){ ecl=eclipseCyl(eci); this.eclipse=ecl; this._envT=t; this._eciCache=eci; }
+        if(ecl==null) ecl=1;
+        const srpA=srpAccelMS2(this.area,this.mass,this.Cr,ecl);
+        this.srpA=srpA;
+        const srpV=srpAccelVecKmS2(eci,this.area,this.mass,this.Cr,ecl);
+        const tbV=thirdBodyAccelVecKmS2(eci,t);
+        try{ this.tbA=(Math.hypot(tbV[0],tbV[1],tbV[2])*1000); }catch(_){ this.tbA=0; }
+        // energy rates (km^2/s^3)
+        let dEdtDrag=0;
+        if(vRel>1e-9&&rho>0){
+          const aDragKmS2=dragA/1000;
+          dEdtDrag=-(aDragKmS2)*(vVec[0]*vrx+vVec[1]*vry+vVec[2]*vrz)/vRel;
+        }
+        const dEdtSrp=srpV[0]*vVec[0]+srpV[1]*vVec[1]+srpV[2]*vVec[2];
+        const dEdtTb=tbV[0]*vVec[0]+tbV[1]*vVec[1]+tbV[2]*vVec[2];
+        const dEdt=dEdtDrag+dEdtSrp+dEdtTb;
+        const am=this.a;
+        const dadt=(2*am*am/MU)*dEdt; // km/s
+        const dadtDrag=(2*am*am/MU)*dEdtDrag;
+        // drag circularization: averaged de/dt ≈ -e·|da/dt|_drag / a
+        let dedt=0;
+        if(this.e>1e-6&&dadtDrag<0){ dedt=-this.e*Math.min(1e-6,Math.abs(dadtDrag)/am); }
+        // clamp per-step change for stability at high time warp
+        const daStep=Math.max(-0.5,Math.min(0.5,dadt*dtSim));
+        const deStep=Math.max(-0.002,Math.min(0.002,dedt*dtSim));
+        let changed=false;
+        if(Math.abs(daStep)>0){
+          this.a=Math.max(KM_PER_UNIT+120,Math.min(KM_PER_UNIT+2000,this.a+daStep));
+          changed=true;
+        }
+        if(Math.abs(deStep)>0){
+          this.e=Math.max(0,Math.min(0.05,this.e+deStep));
+          changed=true;
+        }
+        if(changed){
+          this.refreshJ2(); preservePhase(this,nOld,rOld,aOld,mOld,t);
+          this._accumDa=(this._accumDa||0)+daStep;
+          // throttled orbit-line refresh: rebuild when decay shifts shell visibly (>0.4km) or every 600 sim-s
+          try{
+            if(Math.abs(this._accumDa)>0.4||t-(this._lastRebuild||-1e9)>600){
+              this._accumDa=0;
+              this.rebuildOrbit(t);
+            }
+          }catch(_){}
+        }
+        this.decayKmPerSimSec=Math.max(0,-dadt);
+      }catch(_){}
+    }
+    // refresh eclipse/SRP display even when paused (cheap, every 2 sim-sec)
+    try{
+      if(t-(this._envT||-1e9)>2||!this._envT){
+        this._envT=t;
+        const eci=this.eciKm(t);
+        this.eclipse=eclipseCyl(eci);
+        this.srpA=srpAccelMS2(this.area,this.mass,this.Cr,this.eclipse);
+        this._eciCache=eci;
+      }
+    }catch(_){}
+    const pos=this.at(t); this.group.position.copy(pos);
+    // [5] attitude (visual only, torque-free approx)
+    try{
+      if(this.type==='debris'||this.attitude==='tumble'){ this.mesh.rotation.x+=this.spin*dt*0.8; this.mesh.rotation.y+=this.spin*dt*0.6; }
+      else if(this.attitude==='nadir'){ this.mesh.lookAt(0,0,0); }
+      else if(this.attitude==='prograde'){ try{ const p2=this.at(t+8); this.mesh.lookAt(p2); }catch(_){} }
+      else if(this.attitude==='sun'){ try{ const s=sunUnitECI(); const tgt=pos.clone().add(new THREE.Vector3(s[0],s[2],s[1])); this.mesh.lookAt(tgt); }catch(_){} }
+      else if(this.type==='sensory') this.mesh.rotation.y+=dt*0.25;
+      else if(this.type==='active') this.mesh.rotation.y+=dt*0.08;
+      // eclipse dimming: cut emissive in umbra
+      try{ if(this.mesh&&this.mesh.material&&this.mesh.material.emissive!=null&&(typeof selected==='undefined'||this!==selected)){ const e=this.eclipse==null?1:this.eclipse; this.mesh.material.emissiveIntensity=Math.max(0.05,(this.userData&&this.userData._emisI!=null?this.userData._emisI:0.3)* (0.25+0.75*e)); } }catch(_){}
+    }catch(_){ if(this.type==='debris'){ this.mesh.rotation.x+=this.spin*dt*0.8; this.mesh.rotation.y+=this.spin*dt*0.6; } else if(this.type==='sensory') this.mesh.rotation.y+=dt*0.25; else if(this.type==='active') this.mesh.rotation.y+=dt*0.08; }
     // strobe beacons: sharp double-flash (mesh emissive) + halo sprites (opacity); ion rings: soft breathing glow
     try{
       const bl=this.mesh.userData.blinkers;
@@ -1730,11 +2128,11 @@ function spawnActiveSat(opts){
       }
       else continue; // random: re-roll phase
     }
-    const sat=new Sat({type:'active', ...cand});
+    const sat=new Sat({type:'active', ...cand, mass:opts.mass??260, area:opts.area??10, Cd:opts.Cd??CD_DEFAULT, Cr:opts.Cr??CR_DEFAULT, attitude:opts.attitude||'nadir'});
     sat.label=opts.name || ('ACTIVE-'+(++activeSeq));
     sat.bots=[];
     try{ tagSatMesh(sat.mesh,sat.label,'#39ff14',R_EARTH,'active'); }catch(_){}
-    try{ sat.group.position.copy(sat.at(0)); sat.currentAlt=cand.a-KM_PER_UNIT; }catch(_){}
+    try{ sat.group.position.copy(sat.at(window._simT||0)); sat.currentAlt=cand.a-KM_PER_UNIT; }catch(_){}
     sats.push(sat);
     updateFleetCounts();
     return sat;
@@ -1757,11 +2155,11 @@ function spawnActionBot(opts){
       }
       else continue;
     }
-    const sat=new Sat({type:'action', ...cand});
+    const sat=new Sat({type:'action', ...cand, mass:opts.mass??120, area:opts.area??4, Cd:opts.Cd??CD_DEFAULT, Cr:opts.Cr??CR_DEFAULT, attitude:opts.attitude||'prograde'});
     sat.label=opts.name || ('ACTION-'+(++actionSeq));
     sat.bots=[];
     try{ tagSatMesh(sat.mesh.userData.inner||sat.mesh,sat.label,'#fb923c',R_EARTH,'action'); }catch(_){}
-    try{ sat.group.position.copy(sat.at(0)); sat.currentAlt=cand.a-KM_PER_UNIT; }catch(_){}
+    try{ sat.group.position.copy(sat.at(window._simT||0)); sat.currentAlt=cand.a-KM_PER_UNIT; }catch(_){}
     sats.push(sat);
     updateFleetCounts();
     return sat;
@@ -1792,7 +2190,7 @@ function spawnDebris(opts){
     sat.exaggeration=((0.0126*R_EARTH*KM_PER_UNIT/ALT_EXAG)/sat.realSizeKm).toFixed(0);
     sat.label=((opts.name||'DEBRIS')+'-'+(++debrisSeq));
     sat.bots=[];
-    try{ sat.group.position.copy(sat.at(0)); sat.currentAlt=f.el.a-KM_PER_UNIT; }catch(_){}
+    try{ sat.group.position.copy(sat.at(window._simT||0)); sat.currentAlt=f.el.a-KM_PER_UNIT; }catch(_){}
     try{
       const area=Math.pow(sat.realSizeM,2), B=sat.mass/(2.2*Math.max(0.001,area));
       sat.env={rho:rhoModerate(sat.currentAlt), temp:thermoTemp(sat.currentAlt,'mod'), B, lifetime:fmtLife(lifetimeYears(sat.currentAlt,B))};
@@ -1882,6 +2280,28 @@ window.IRIS.remove=function(o){ if(o && o.isBot) return disposeBot(o); return di
 window.IRIS.clear=clearFleet;
 window.IRIS.sats=sats;
 window.IRIS.bots=bots;
+// Full-physics console API (real km units; visual scaling untouched):
+// IRIS.physics.state(sat) → {rECI,vECI,rMag,vVisViva,alt,energy,h,periodMin,rho,eclipse,dragA,srpA,tidalA,raanDotDegDay,...}
+// IRIS.physics.burn(sat,dvP,dvR,dvN) → maneuver(); IRIS.physics.atmo(alt), IRIS.physics.j2(a,e,incDeg)
+window.IRIS.physics={
+  state(s,tNow){
+    const t=(tNow==null?(window._simT||0):tNow);
+    const r=s.eciKm(t), v=s.velKmS(t);
+    const rMag=Math.hypot(r[0],r[1],r[2]), vMag=Math.hypot(v[0],v[1],v[2]);
+    return {
+      rECI:r, vECI:v, rMag, vVisViva:vMag, alt:rMag-KM_PER_UNIT,
+      energy:vMag*vMag/2-MU/rMag, h:s.angMom(), periodMin:s.periodMin(),
+      rho:rhoAt(Math.min(2000,Math.max(80,rMag-KM_PER_UNIT))), eclipse:(s.eclipse==null?1:s.eclipse),
+      dragA:(s.dragA||0), srpA:(s.srpA||0), tidalA:(s.tbA||0),
+      raanDotDegDay:s.raanDotDegDay(), argPDotDegDay:(s.argPDot||0)/RAD*86400,
+      a:s.a, e:s.e, incDeg:s.inc/RAD, B:(s.B||s.mass/(s.Cd*Math.max(0.001,s.area)))
+    };
+  },
+  burn(s,dvP,dvR,dvN,tNow){ return s.maneuver(dvP||0,dvR||0,dvN||0,tNow); },
+  atmo:rhoAt, j2:(a,e,incDeg)=>j2Rates(a,e,incDeg*RAD),
+  visViva:visVivaVel, periodMin:(a)=>periodSecOf(a)/60, gmst:(t)=>gmstOf(t==null?(window._simT||0):t),
+  geodetic:(r,t)=>eciToGeodetic(r,t==null?(window._simT||0):t), simT:()=> (window._simT||0)
+};
 updateFleetCounts();
 
 // tooltip — sats + attached bots are hoverable
@@ -1908,9 +2328,11 @@ renderer.domElement.addEventListener('pointermove', e=>{
       tip.style.left=e.clientX+'px'; tip.style.top=e.clientY+'px'; tip.classList.add('show'); document.body.style.cursor='pointer'; return;
     }
     if(hit && !hit.isBot){
-      const sat=hit; hovered=sat; const alt=(sat.currentAlt??(sat.a-KM_PER_UNIT)).toFixed(0); const vel=Math.sqrt(MU/sat.a).toFixed(2); const realM=sat.realSizeM.toFixed(1); const realKm=(sat.realSizeM/1000).toFixed(4); const nb=(sat.bots||[]).length; const ev=sat.env?`<br>ρ <b>${sat.env.rho.toExponential(1)} kg/m³</b> · ${sat.env.temp.toFixed(0)}K · life <b>${sat.env.lifetime}</b>`:'';
+      const sat=hit; hovered=sat; const alt=(sat.currentAlt??(sat.a-KM_PER_UNIT)).toFixed(0); let vel='—', per='—', j2='—', drg='—';
+      try{ vel=sat.visVivaAt(window._simT||0).toFixed(2); per=sat.periodMin().toFixed(1); j2=sat.raanDotDegDay().toFixed(3); drg=((sat.dragA||0)*1e9).toFixed(1); }catch(_){ try{ vel=Math.sqrt(MU/sat.a).toFixed(2); }catch(__){} }
+      const realM=sat.realSizeM.toFixed(1); const realKm=(sat.realSizeM/1000).toFixed(4); const nb=(sat.bots||[]).length; const ev=sat.env?`<br>ρ <b>${sat.env.rho.toExponential(1)} kg/m³</b> · ${sat.env.temp.toFixed(0)}K · life <b>${sat.env.lifetime}</b>`:'';
       const payload=sat.type==='action'?`<br>EDDY damper + <b>2x POD</b> (nadir, Earth side - inert)`:'';
-      tip.innerHTML=`<b>${sat.label||sat.type.toUpperCase()}</b><br>Real Alt <b>${alt} km</b> (scene r=${sceneRadius(alt).toFixed(4)} ×${ALT_EXAG})<br>Real size <b>${realM} m</b> (${realKm} km) · mesh ×${sat.exaggeration}<br>Vel <b>${vel} km/s</b>${ev}${payload}${nb?`<br>Bots <b>${nb}</b> attached`:''}`; tip.style.left=e.clientX+'px'; tip.style.top=e.clientY+'px'; tip.classList.add('show'); document.body.style.cursor='pointer'; return;
+      tip.innerHTML=`<b>${sat.label||sat.type.toUpperCase()}</b><br>Real Alt <b>${alt} km</b> (scene r=${sceneRadius(alt).toFixed(4)} ×${ALT_EXAG})<br>Real size <b>${realM} m</b> (${realKm} km) · mesh ×${sat.exaggeration}<br>Vel <b>${vel} km/s</b> (vis-viva) · T <b>${per} min</b> · J2 <b>${j2}°/d</b> · drag <b>${drg} nm/s²</b>${ev}${payload}${nb?`<br>Bots <b>${nb}</b> attached`:''}`; tip.style.left=e.clientX+'px'; tip.style.top=e.clientY+'px'; tip.classList.add('show'); document.body.style.cursor='pointer'; return;
     }
   }
   hovered=null; tip.classList.remove('show'); document.body.style.cursor='default';
@@ -2216,17 +2638,21 @@ let t=0, timeScale=1; const clock=new THREE.Clock();
 function animate(){ 
   requestAnimationFrame(animate); 
   const dt=Math.min(0.05, clock.getDelta()); 
-  t+=dt*timeScale*18;
+  t+=dt*timeScale*SIM_WARP;
   window._simT=t;
   sats.forEach(s=>s.upd(t, dt*timeScale));
-  // live conjunction watch — min 6 km rule: warn if any pair drifts within 6 km (throttled 2s)
+  // live conjunction watch — real ECI km distances (scene mapping is anisotropic:
+  // radial ×30 vs transverse compressed, so scene distance ≠ real distance)
   try{
     window._conjT=(window._conjT||0)+dt;
     if(window._conjT>2 && sats.length>1){
       window._conjT=0;
+      const _eciCache=new Array(sats.length);
+      for(let i=0;i<sats.length;i++){ try{ _eciCache[i]=sats[i].eciKm(t); }catch(_){ _eciCache[i]=null; } }
       for(let i=0;i<sats.length;i++) for(let j=i+1;j<sats.length;j++){
-        const dScene=sats[i].group.position.distanceTo(sats[j].group.position);
-        const dReal=dScene*KM_PER_UNIT/ALT_EXAG;
+        if(!_eciCache[i]||!_eciCache[j]) continue;
+        const dx=_eciCache[i][0]-_eciCache[j][0], dy=_eciCache[i][1]-_eciCache[j][1], dz=_eciCache[i][2]-_eciCache[j][2];
+        const dReal=Math.sqrt(dx*dx+dy*dy+dz*dz);
         if(dReal<MIN_SEP_KM){ fleetNotice(`⚠ CONJUNCTION <b>${sats[i].label}</b> ↔ <b>${sats[j].label}</b> — ${dReal.toFixed(1)} km &lt; ${MIN_SEP_KM} km`); i=sats.length; break; }
       }
     }
@@ -2249,9 +2675,9 @@ function animate(){
       }catch(_){}
     }
   }catch(_){}
-  if(cloudsMesh) cloudsMesh.rotation.y+=dt*0.006*timeScale; 
+  if(cloudsMesh) cloudsMesh.rotation.y+=(WE*1.03)*dt*timeScale*SIM_WARP; // sidereal + ~3% wind super-rotation
   if(earthMesh){ 
-    earthMesh.rotation.y+=dt*0.008*timeScale; 
+    earthMesh.rotation.y+=WE*dt*timeScale*SIM_WARP; // true sidereal spin, matches GMST/ECEF (WE rad per sim-second)
     if(earthMesh.material.uniforms) earthMesh.material.uniforms.time.value=t;
   }
   // update sun flare orientation to always face camera
@@ -2459,11 +2885,20 @@ function depCompute(){
   const life=fmtLife(lifetimeYears(d.alt,d.B));
   const dragStr=d.dragA<1e-6?`${(d.dragA*1e9).toFixed(1)} nm/s²`:`${(d.dragA*1e6).toFixed(2)} µm/s²`;
   const forceStr=d.dragF<0.001?`${(d.dragF*1e6).toFixed(1)} µN`:`${(d.dragF*1000).toFixed(2)} mN`;
+  let j2Html='', srpHtml='';
+  try{
+    const jr=j2Rates(KM_PER_UNIT+d.alt, d.ecc, d.inc*RAD);
+    const rd=jr.raanDot/RAD*86400, ad=jr.argPDot/RAD*86400;
+    const sso=Math.abs(d.inc-97.4)<1.5&&d.alt>500&&d.alt<900?` <span class="good">· SSO ✓ (~+0.99°/day)</span>`:'';
+    j2Html=`<br>J2 RAAN <b>${rd>=0?'+':''}${rd.toFixed(3)}°/day</b> · ArgP <b>${ad>=0?'+':''}${ad.toFixed(3)}°/day</b>${sso}`;
+  }catch(_){}
+  try{ const sa=srpAccelMS2(d.area,d.mass,1.3,1); srpHtml=`<br>SRP <b>${(sa*1e9).toFixed(1)} nm/s²</b> (eclipse-modulated, secular ~0) · eclipse cyl-shadow · lunisolar ~µN (display)`; }catch(_){}
   depEnv.innerHTML=
     `REGION <b>${REGION_INFO[regionOf(d.alt)].name}</b> · PERIOD <b>${d.T.toFixed(1)} min</b> · ${(86400/d.T/60).toFixed(1)} orbits/day<br>`+
     `AIR ρ <b>${d.rho.toExponential(2)} kg/m³</b> (${d.sol==='min'?'solar MIN':d.sol==='max'?'solar MAX ×'+solarFactor(d.alt,d.sol).toFixed(1):'moderate F10.7 150'}) · TEMP <b>${d.temp.toFixed(0)} K</b><br>`+
-    `DRAG a <b>${dragStr}</b> · F <b>${forceStr}</b> · B=m/CdA <b>${d.B.toFixed(1)} kg/m²</b><br>`+
+    `DRAG a <b>${dragStr}</b> · F <b>${forceStr}</b> · B=m/CdA <b>${d.B.toFixed(1)} kg/m²</b> · decays ALL sats<br>`+
     `HEAT flux ½ρv³ <b>${d.heat<1?d.heat.toFixed(2):d.heat.toFixed(0)} W/m²</b> ${d.heat>50?'<span class="bad">· hot VLEO</span>':d.heat>1?'<span class="warn">· mild</span>':'<span class="good">· negligible (vacuum)</span>'} · LIFETIME <b>${life}</b>`+
+    j2Html+srpHtml+
     (d.custom?`<br>INJECTED e <b>${d.eEff.toFixed(4)}</b> · perigee <b>${d.perigee.toFixed(0)} km</b>`:`<br>ORBIT e <b>${d.ecc.toFixed(4)}</b> · circular ${(d.vCirc).toFixed(2)} km/s`)+
     (d.warn?`<br><span class="warn">⚠ ${d.warn}</span>`:'')+(d.bad?`<br><span class="bad">⛔ ${d.bad}</span>`:'');
   // orbit-uniqueness check — 6 km rule, AUTO-FIXED on deploy (never blocks, just informs)
@@ -2543,10 +2978,11 @@ document.getElementById('depGo')?.addEventListener('click', ()=>{
     closeDeploy();
     return;
   }
-  const opts={alt:finalAlt, e:eUse, inc:d.inc, raan:raanV, argP:argPV, M0:fixed.el.M0, name:depName.value.trim()||undefined, force:true};
+  const opts={alt:finalAlt, e:eUse, inc:d.inc, raan:raanV, argP:argPV, M0:fixed.el.M0, name:depName.value.trim()||undefined, force:true, mass:d.mass, area:d.area};
+  try{ window._solar=d.sol||window._solar; }catch(_){}
   const s=depType==='active'?spawnActiveSat(opts):spawnActionBot(opts);
   if(!s) return; // spawn blocked (orbit taken) — notice already shown
-  s.env={...d, alt:finalAlt, lifetime:fmtLife(lifetimeYears(finalAlt,d.B))};
+  try{ const jr=s.refreshJ2(); s.env={...d, alt:finalAlt, lifetime:fmtLife(lifetimeYears(finalAlt,d.B)), raanDot:jr.raanDot/RAD*86400, argPDot:jr.argPDot/RAD*86400}; }catch(_){ s.env={...d, alt:finalAlt, lifetime:fmtLife(lifetimeYears(finalAlt,d.B))}; }
   try{ selectSat(s); focusSat(s); }catch(_){}
   fleetNotice(`${d.custom?'INJECTED':'DEPLOYED'} <b>${s.label}</b> — ${finalAlt.toFixed(0)}km · ${d.vUsed.toFixed(2)}km/s · ≥${MIN_SEP_KM}km clear${fixed.altShifts?` · new shell ${fixed.altShifts*5>0?'+':''}${(fixed.altShifts*5).toFixed(0)}km`:''}${fixed.phaseShifts?` · phase +${(fixed.phaseShifts*0.5).toFixed(1)}°`:''}`);
   closeDeploy();
@@ -2570,7 +3006,7 @@ document.getElementById('btnAddSensory')?.addEventListener('click', ()=>{
   const b=attachBot(null,'sensory',{});
   if(b) fleetNotice(`ATTACHED <b>${b.id}</b> → <b>${b.parent.label||'ACTIVE'}</b>`);
 });
-document.getElementById('btnClearFleet')?.addEventListener('click', ()=>{ try{ restoreCcsMark(); }catch(_){} try{ clearCcsMappedOrbit(); }catch(_){} clearFleet(); window._targetDebris=null; window._ccsStore=[]; window._ccsDots=[]; window._ccsLastSeen={}; window._ccsLastPass=null; window._ccsDone=false; window._ccsPhase='collect'; try{ document.getElementById('debrisTargetSelect').innerHTML='<option value="">— start sim first —</option>'; }catch(_){} fleetNotice('FLEET CLEARED — <b>0 OBJECTS</b>'); });
+document.getElementById('btnClearFleet')?.addEventListener('click', ()=>{ try{ restoreCcsMark(); }catch(_){} try{ clearCcsMappedOrbit(); }catch(_){} clearFleet(); window._targetDebris=null; window._ccsStore=[]; window._ccsDots=[]; window._ccsInside={}; window._ccsPrevSimT=null; window._ccsLastPass=null; window._ccsDone=false; window._ccsPhase='collect'; try{ document.getElementById('debrisTargetSelect').innerHTML='<option value="">— start sim first —</option>'; }catch(_){} fleetNotice('FLEET CLEARED — <b>0 OBJECTS</b>'); });
 // SIMULATION CENTRE — random 100 demo sats + 15 action bots + 10 debris across whole LEO (160–2000km), fully random each run, ≥5km apart
 async function startSimulationDemo(){
   if(window._launching) return;
@@ -2579,7 +3015,7 @@ async function startSimulationDemo(){
   try{ if(btn){ btn.disabled=true; btn.textContent='LAUNCHING… 0/100'; } }catch(_){}
   try{ restoreCcsMark(); }catch(_){}
   try{ clearCcsMappedOrbit(); }catch(_){}
-  window._targetDebris=null; window._ccsStore=[]; window._ccsDots=[]; window._ccsLastSeen={}; window._ccsLastPass=null; window._ccsDone=false; window._ccsPhase='collect';
+  window._targetDebris=null; window._ccsStore=[]; window._ccsDots=[]; window._ccsInside={}; window._ccsPrevSimT=null; window._ccsLastPass=null; window._ccsDone=false; window._ccsPhase='collect';
   clearFleet();
   fleetNotice('LAUNCHING fleet… 0/100');
   const tick=()=>new Promise(r=>requestAnimationFrame(()=>setTimeout(r,0)));
@@ -2655,15 +3091,20 @@ function buildCcsMappedOrbit(s,fA){
   try{
     clearCcsMappedOrbit();
     const pts=[];
-    const n=Math.sqrt(MU/Math.pow(fA,3));
+    const jr=(typeof j2Rates==='function')?j2Rates(fA,s.e,s.inc):{n:Math.sqrt(MU/Math.pow(fA,3)),raanDot:0,argPDot:0,mDot:0};
+    const n=jr.n, tNow=(window._simT||0);
+    // osculating orientation at now (J2-propagated), so the gold estimate overlays the true track
+    const raanNow=s.raan+(s.raanDot||0)*tNow, argPNow=s.argP+(s.argPDot||0)*tNow;
     for(let ad=0;ad<=360;ad+=2){
-      const t=(ad/360)*(2*Math.PI/n);
-      const M=s.M0+n*t;
+      const dt=(ad/360)*(2*Math.PI/n);
+      const M=s.M0+(n+(jr.mDot||0))*tNow+(n+(jr.mDot||0))*dt - n*0; // phase from now forward
+      const raan=raanNow+(jr.raanDot||0)*dt, argP=argPNow+(jr.argPDot||0)*dt;
+      const Mm=((M%(2*Math.PI))+2*Math.PI)%(2*Math.PI);
       let r,nu;
-      if(s.e<1e-4){ r=fA; nu=M%(2*Math.PI); }
-      else{ const E=solveKepler(((M%(2*Math.PI))+2*Math.PI)%(2*Math.PI),s.e); nu=2*Math.atan2(Math.sqrt(1+s.e)*Math.sin(E/2),Math.sqrt(1-s.e)*Math.cos(E/2)); r=fA*(1-s.e*Math.cos(E)); }
+      if(s.e<1e-4){ r=fA; nu=Mm; }
+      else{ const E=solveKepler(Mm,s.e); nu=2*Math.atan2(Math.sqrt(1+s.e)*Math.sin(E/2),Math.sqrt(1-s.e)*Math.cos(E/2)); r=fA*(1-s.e*Math.cos(E)); }
       const p=r*Math.cos(nu), q=r*Math.sin(nu);
-      const co=Math.cos(s.raan),so=Math.sin(s.raan),ci=Math.cos(s.inc),si=Math.sin(s.inc),cw=Math.cos(s.argP),sw=Math.sin(s.argP);
+      const co=Math.cos(raan),so=Math.sin(raan),ci=Math.cos(s.inc),si=Math.sin(s.inc),cw=Math.cos(argP),sw=Math.sin(argP);
       const x=(co*cw-so*sw*ci)*p+(-co*sw-so*cw*ci)*q, y=(so*cw+co*sw*ci)*p+(-so*sw+co*cw*ci)*q, z=(sw*si)*p+(cw*si)*q;
       const rk=Math.sqrt(x*x+y*y+z*z), exR=sceneRadius(rk-KM_PER_UNIT), sc=exR/rk;
       pts.push(new THREE.Vector3(x*sc,z*sc,y*sc));
@@ -2682,10 +3123,10 @@ function targetDebrisByLabel(label){
   try{ deselectSat(true); }catch(_){} // never highlight true orbit — we don't know it yet
   window._targetDebris=s;
   window._ccsT0=Date.now(); window._ccsDone=false; window._ccsFinal=null; window._ccsStore=[];
-  window._ccsDots=[]; window._ccsLastSeen={}; window._ccsLastPass=null;
+  window._ccsDots=[]; window._ccsInside={}; window._ccsPrevSimT=(window._simT||0); window._ccsLastPass=null;
   window._ccsPhase='collect'; window._ccsProcessT0=0;
   window._ccsSimT0=(window._simT||0);
-  window._ccsPeriod=(2*Math.PI*Math.sqrt(Math.pow(s.a,3)/MU))/((s.speedFactor)||1);
+  window._ccsPeriod=(2*Math.PI*Math.sqrt(Math.pow(s.a,3)/MU)); // Kepler 3rd law — same a ⇒ same period
   // mesh-only marker (gold pulse), orbit untouched/unknown
   try{
     s.userData=s.userData||{};
@@ -2698,7 +3139,7 @@ function targetDebrisByLabel(label){
   fleetNotice(`TARGET LOCKED — <b>${s.label}</b> · CCS blind · null info until 2 orbits observed`);
   return s;
 }
-// CCS PANEL — STAGE 1: null until 2 real-time orbits observed → PROCESSING → one unified result.
+// CCS PANEL — STAGE 1: null until 2 sim-time orbits observed → PROCESSING → one unified result.
 function _gauss(){ return (Math.random()+Math.random()+Math.random()-1.5)*0.816; }
 window._ccsStore=[];
 function updateCCSPanel(){
@@ -2712,35 +3153,55 @@ function updateCCSPanel(){
   const orbits=Math.max(0,(simT-t0)/period);
   set('ccsTarget',s.label);
   // --- phase 1: COLLECT over 2 orbits — passes only, null info otherwise ---
+  // Warp-invariant: detection is integrated in SIM time (sub-stepped bubble-entry scan over
+  // the exact sim interval elapsed since the last tick), so TIME warp changes only how fast
+  // sim orbits elapse — never how many passes are found per orbit.
   if(orbits<2&&window._ccsPhase!=='processing'&&!window._ccsDone){
-    window._ccsDots=window._ccsDots||[]; window._ccsLastSeen=window._ccsLastSeen||{};
-    const nowR=Date.now(), gp=s.group.position;
-    const truthAlt=(s.currentAlt??(s.a-KM_PER_UNIT));
-    const truthV=Math.sqrt(MU/s.a)*(s.speedFactor||1);
-    const rA=R_EARTH_KM+truthAlt, L=gp.length()||1;
-    const debECI=[gp.x/L*rA,gp.z/L*rA,gp.y/L*rA];
+    window._ccsDots=window._ccsDots||[]; window._ccsInside=window._ccsInside||{};
+    if(window._ccsPrevSimT==null) window._ccsPrevSimT=t0;
+    const tPrev=Math.min(window._ccsPrevSimT, simT);
+    const span=Math.max(0, simT-tPrev);
+    // ≤30 sim-s between samples: even head-on (~15 km/s) moves ≤450 km per step,
+    // so a 900 km-radius bubble crossing always yields entry samples at any warp.
+    const K=Math.min(48,Math.max(1,Math.ceil(span/30)));
     let newPass=null;
-    for(let bi=0;bi<bots.length;bi++){
-      const b=bots[bi]; if(!b||!b.parent) continue;
-      let dReal=1e9; try{ dReal=b.parent.group.position.distanceTo(gp)*6371/30; }catch(_){ continue; }
-      if(dReal<900&&(!window._ccsLastSeen[bi]||nowR-window._ccsLastSeen[bi]>15000)){
-        window._ccsLastSeen[bi]=nowR;
-        let swarmECI=debECI;
-        try{
-          const rp=b.parent.group.position, rl=rp.length()||1;
-          swarmECI=[rp.x/rl*rA,rp.z/rl*rA,rp.y/rl*rA];
-        }catch(_){}
-        // exact locations at detection instant: swarm pos + debris pos + speed slice
-        window._ccsStore.push({bot:bi,alt:truthAlt+3*_gauss(),v:truthV+0.03*_gauss(),
-          mass:(s.mass||5)*(1+0.05*_gauss()),size:Math.max(0.05,(s.realSizeM||0.5)+0.15*_gauss()),
-          spin:Math.max(0,(s.spin||1)+0.2*_gauss()),decay:Math.max(0,((s.decayKmPerSimSec||0)*86400)*(1+0.1*_gauss())),
-          debrisECI:debECI.slice(),swarmECI:swarmECI.slice(),dReal:dReal,simT:simT});
-        window._ccsDots.push(debECI.slice());
-        newPass={bot:bi,debrisECI:debECI.slice(),swarmECI:swarmECI.slice(),v:truthV,dReal:dReal,simT:simT};
-        window._ccsLastPass=newPass;
+    try{
+      for(let k=1;k<=K;k++){
+        const ts=(K===1)?simT:(tPrev+span*k/K);
+        let sEci=null; try{ sEci=s.eciKm(ts); }catch(_){ continue; }
+        const rMag=Math.hypot(sEci[0],sEci[1],sEci[2])||s.a;
+        const tsAlt=rMag-R_EARTH_KM;
+        let tsV=7.5; try{ tsV=Math.sqrt(Math.max(1e-9,MU*(2/rMag-1/s.a))); }catch(_){}
+        for(let bi=0;bi<bots.length;bi++){
+          const b=bots[bi]; if(!b||!b.parent||sats.indexOf(b.parent)<0) { window._ccsInside[bi]=false; continue; }
+          let pEci=null; try{ pEci=b.parent.eciKm(ts); }catch(_){ continue; }
+          const dx=pEci[0]-sEci[0], dy=pEci[1]-sEci[1], dz=pEci[2]-sEci[2];
+          const dReal=Math.sqrt(dx*dx+dy*dy+dz*dz);
+          const inside=dReal<900;
+          const wasInside=!!window._ccsInside[bi];
+          window._ccsInside[bi]=inside;
+          if(inside&&!wasInside){
+            // bubble ENTRY at sim time ts: one pass, no duplicates, no real-time cooldown
+            window._ccsStore.push({bot:bi,alt:tsAlt+3*_gauss(),v:tsV+0.03*_gauss(),
+              mass:(s.mass||5)*(1+0.05*_gauss()),size:Math.max(0.05,(s.realSizeM||0.5)+0.15*_gauss()),
+              spin:Math.max(0,(s.spin||1)+0.2*_gauss()),decay:Math.max(0,((s.decayKmPerSimSec||0)*86400)*(1+0.1*_gauss())),
+              debrisECI:sEci.slice(),swarmECI:pEci.slice(),dReal:dReal,simT:ts});
+            window._ccsDots.push(sEci.slice());
+            newPass={bot:bi,debrisECI:sEci.slice(),swarmECI:pEci.slice(),v:tsV,dReal:dReal,simT:ts};
+            window._ccsLastPass=newPass;
+          }
+        }
       }
-    }
+    }catch(_){}
+    window._ccsPrevSimT=simT;
     if(window._ccsStore.length>5000) window._ccsStore.splice(0,window._ccsStore.length-5000);
+    // live coordinate display: current ECI + vis-viva speed at simT
+    let debECI=[0,0,0], truthV=7.5, truthAlt=(s.currentAlt??(s.a-KM_PER_UNIT));
+    try{
+      debECI=s.eciKm(simT);
+      const rm=Math.hypot(debECI[0],debECI[1],debECI[2])||s.a;
+      truthAlt=rm-R_EARTH_KM; truthV=Math.sqrt(Math.max(1e-9,MU*(2/rm-1/s.a)));
+    }catch(_){ try{ truthV=s.visVivaAt(simT); }catch(__){} }
     // live coordinate updation: propagate last pass via speed+trajectory (current ECI shown live)
     let propTxt=`live ECI ${debECI.map(v=>v.toFixed(0)).join(', ')} (propagated via speed ${truthV.toFixed(2)}km/s + trajectory)`;
     let swarmTxt=window._ccsLastPass?`BOT-${window._ccsLastPass.bot} pass d=${window._ccsLastPass.dReal.toFixed(0)}km · dots ${window._ccsDots.length}`:'waiting for first pass…';
@@ -2777,7 +3238,13 @@ function updateCCSPanel(){
   if(!F) return;
   try{
     let nearest=1e9;
-    for(const o of sats){ if(o===s) continue; try{ const dkm=o.group.position.distanceTo(s.group.position)*6371/30; if(dkm<nearest) nearest=dkm; }catch(_){} }
+    let _sE=null; try{ _sE=s.eciKm(window._simT||0); }catch(_){ _sE=null; }
+    for(const o of sats){ if(o===s) continue; try{
+      let dkm=1e9;
+      if(_sE){ const _oE=o.eciKm(window._simT||0); const ddx=_oE[0]-_sE[0], ddy=_oE[1]-_sE[1], ddz=_oE[2]-_sE[2]; dkm=Math.sqrt(ddx*ddx+ddy*ddy+ddz*ddz); }
+      else dkm=o.group.position.distanceTo(s.group.position)*KM_PER_UNIT/ALT_EXAG;
+      if(dkm<nearest) nearest=dkm;
+    }catch(_){} }
     window._ccsNearest=nearest;
   }catch(_){}
   set('ccsAlt',F.alt.toFixed(1)); set('ccsVel',F.v.toFixed(3));
@@ -2790,7 +3257,7 @@ function updateCCSPanel(){
     document.getElementById('ccsOrbit').textContent=`FINAL orbit a ${F.a.toFixed(0)}km · e ${s.e.toFixed(4)} · i ${(s.inc/RAD).toFixed(1)}° · T ${F.period.toFixed(1)}min · ${(window._ccsDots||[]).length} dots connected`;
     document.getElementById('ccsAir').textContent=`FINAL decay ${F.decay.toFixed(3)}km/day (drag+SRP+tumble fused)`;
     document.getElementById('ccsOrient').textContent=`${s.mesh.rotation.x.toFixed(2)}/${s.mesh.rotation.y.toFixed(2)}/${s.mesh.rotation.z.toFixed(2)}`;
-    document.getElementById('ccsSwarm').textContent=`${(window._ccsDots||[]).length} passes · 40 bots · ${window._ccsStore.length} packets · 2 orbits`;
+    document.getElementById('ccsSwarm').textContent=`${(window._ccsDots||[]).length} passes · ${bots.length} observers · ${window._ccsStore.length} packets · 2 orbits`;
     document.getElementById('ccsSensors').textContent=`UNIFIED from ${window._ccsStore.length} packets · ORBITS 2/2 ✓`;
   }catch(_){}
   if(st) st.innerHTML=`UNIFIED DETAILS ✓ — final orbit + final decay from 2 orbits · ${window._ccsStore.length} packets fused`;
