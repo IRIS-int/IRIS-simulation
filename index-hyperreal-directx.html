@@ -109,6 +109,28 @@ window.addEventListener('DOMContentLoaded', ()=>{
   .zone-btn i{margin-left:auto;font-style:normal;font-size:13px;opacity:0.5}
   .zone-btn.active i{opacity:0.9}
   .zb-dot{width:9px;height:9px;border-radius:50%;background:var(--c);box-shadow:0 0 10px var(--c);flex:none}
+  /* === CASE 1 SEQUENCE FEED — minimizable chat-box in left bar === */
+  #case1Seq{margin-top:10px;border:1px solid rgba(250,204,21,0.22);border-radius:12px;background:rgba(2,6,23,0.6);overflow:hidden}
+  #case1SeqHead{display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;user-select:none;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;color:#fde68a}
+  #case1SeqHead .pill{margin-left:auto;padding:3px 8px;font-size:9px}
+  #case1SeqMin{cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 8px;border-radius:999px;border:1px solid rgba(250,204,21,0.35);background:rgba(15,23,42,0.8);color:#fde68a}
+  #case1SeqBody{display:block;padding:0 10px 10px}
+  #case1SeqBody.hide{display:none}
+  #case1Steps{display:flex;flex-direction:column;gap:0;margin:2px 0 8px;max-height:220px;overflow-y:auto}
+  .c1step{display:flex;gap:8px;padding:5px 2px;border-bottom:1px solid rgba(250,204,21,0.08);font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.45;opacity:0.45}
+  .c1step .n{flex:none;width:16px;height:16px;border-radius:50%;border:1px solid rgba(250,204,21,0.4);display:grid;place-items:center;font-size:9px}
+  .c1step.done{opacity:0.85}
+  .c1step.done .n{background:#4ade80;border-color:#4ade80;color:#020617}
+  .c1step.active{opacity:1;background:rgba(250,204,21,0.07);border-radius:8px;padding-left:6px;padding-right:6px}
+  .c1step.active .n{background:#facc15;border-color:#facc15;color:#020617;box-shadow:0 0 10px rgba(250,204,21,0.7)}
+  .c1step.hold{opacity:1}
+  .c1step.hold .n{background:#f87171;border-color:#f87171;color:#020617}
+  .c1step small{display:block;opacity:0.75;font-size:9px}
+  .c1step b{color:#fde68a;font-weight:600}
+  #case1Chat{display:flex;flex-direction:column;gap:4px;max-height:150px;overflow-y:auto;background:rgba(2,6,23,0.85);border:1px solid rgba(96,165,250,0.14);border-radius:8px;padding:7px;font-family:'JetBrains Mono',monospace;font-size:9px;line-height:1.5}
+  #case1Chat .msg{opacity:0.9}
+  #case1Chat .msg span{opacity:0.45;margin-right:5px}
+  #case1Chat .msg b{color:#7dd3fc}
   /* Mobile: 4-region rule — only top bar + toggle visible by default */
   @media(max-width:860px){
     .topbar{height:auto;min-height:56px;padding:8px 12px;flex-wrap:wrap;gap:8px}
@@ -226,6 +248,19 @@ window.addEventListener('DOMContentLoaded', ()=>{
       <option value="">— start sim first —</option>
     </select>
     <button class="btn ghost" id="btnTargetDebris" style="margin-top:8px;width:100%;">◎ TARGET DEBRIS</button>
+    <div style="border-top:1px solid rgba(96,165,250,0.18);margin:12px 0 10px;"></div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:0.65;letter-spacing:0.08em;">CASE 1 · CONTROLLED SCENARIO (uses your fleet)</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:0.65;margin:10px 0 6px;letter-spacing:0.08em;">1 · SELECT TARGET DEBRIS (click it, or pick below)</div>
+    <select id="case1TargetSelect" style="width:100%;background:rgba(2,6,23,0.9);border:1px solid rgba(250,204,21,0.35);border-radius:8px;color:#e6eef8;padding:7px 9px;font-family:'JetBrains Mono',monospace;font-size:12px;outline:none;">
+      <option value="">— no debris —</option>
+    </select>
+    <button class="btn ghost" id="btnSetCase1Target" style="margin-top:8px;width:100%;">◎ SET AS CASE-1 TARGET</button>
+    <div id="case1Validation" style="font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.6;opacity:0.8;margin:8px 0;text-align:left;">Deploy fleet first, then validate.</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn" id="btnStartCase1" style="flex:1;">▸ START CASE 1</button>
+      <button class="btn ghost" id="btnAbortCase1" style="flex:1;">■ ABORT</button>
+    </div>
+    <div id="case1Status" style="font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.6;opacity:0.85;margin-top:8px;text-align:left;">IDLE — no Case 1 running.</div>
   </div>
   <div class="panel" id="ccsPanel" style="position:absolute;left:50%;top:335px;transform:translateX(-50%);padding:12px 14px;z-index:4;display:none;min-width:360px;max-width:94vw;max-height:46vh;overflow-y:auto;">
     <div class="kicker" style="margin:0 0 6px;justify-content:center;">CCS PANEL · STAGE 1 COLLECT/STORE — <span id="ccsTarget">—</span><button id="btnCcsMin" title="Minimize panel" style="margin-left:8px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 8px;border-radius:999px;border:1px solid rgba(96,165,250,0.3);background:rgba(15,23,42,0.8);color:#cbd5e1;">–</button></div>
@@ -300,6 +335,14 @@ window.addEventListener('DOMContentLoaded', ()=>{
       <div style="display:flex;gap:8px;margin-top:8px">
         <button class="btn ghost" style="flex:1" id="btnAddDebris">+ DEBRIS</button>
         <button class="btn ghost" style="flex:1;font-size:10px" id="btnClearFleet">CLEAR FLEET</button>
+      </div>
+    </div>
+    <div id="case1Seq">
+      <div id="case1SeqHead">▸ CASE 1 · SEQUENCE<span class="pill" id="case1SeqPill">IDLE</span><button id="case1SeqMin" title="Minimize/expand">–</button></div>
+      <div id="case1SeqBody" class="hide">
+        <div id="case1Steps"></div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.14em;opacity:0.55;margin:2px 0 5px">LIVE FEED — execution chat</div>
+        <div id="case1Chat"><div class="msg"><span>--</span>pick a target debris, then START CASE 1</div></div>
       </div>
     </div>
   </div>
@@ -2087,6 +2130,7 @@ function updateFleetCounts(){
   document.getElementById('debrisCount').textContent=String(nDebris);
   document.getElementById('activeCount').textContent=String(nActive);
   document.getElementById('swarmCount').textContent=String(nAction+nSensory);
+  try{ if(typeof case1RefreshTargetOptions==='function') case1RefreshTargetOptions(); }catch(_){}
 }
 function fleetNotice(html, ms){
   try{
@@ -2315,28 +2359,7 @@ function disposeBot(bot){
     if(pi>=0) bot.parent.bots.splice(pi,1);
   }catch(_){}
   try{ if(bot.parent) bot.parent.group.remove(bot.mesh); }catch(_){}
-  try{
-    bot.mesh.traverse(o=>{
-      if(o.isMesh || o.isSprite){
-        try{ if(o.geometry) o.geometry.dispose(); }catch(_){}
-        try{
-          const m=o.material;
-          const kill=mm=>{
-            try{
-              let shared=[];
-              try{ shared=Object.values(_texCache||{}); }catch(_){}
-              ['map','emissiveMap'].forEach(k=>{
-                try{ const tx=mm[k]; if(tx && shared.indexOf(tx)<0){ try{ tx.dispose(); }catch(_){} } }catch(_){}
-              });
-            }catch(_){}
-            try{ mm.dispose(); }catch(_){}
-          };
-          if(Array.isArray(m)) m.forEach(kill);
-          else if(m) kill(m);
-        }catch(_){}
-      }
-    });
-  }catch(_){}
+  try{ bot.mesh.geometry.dispose(); if(bot.mesh.material) bot.mesh.material.dispose(); }catch(_){}
   try{ if(typeof hovered!=='undefined' && hovered===bot){ hovered=null; tip.classList.remove('show'); } }catch(_){}
   updateFleetCounts();
   return true;
@@ -2420,6 +2443,8 @@ renderer.domElement.addEventListener('click', ()=>{
   if(hovered){
     if(hovered.isBot){ try{ selectSat(hovered.parent); }catch(_){} focusSat(hovered.parent); }
     else { selectSat(hovered); focusSat(hovered); }
+    // Case 1: clicking a debris pre-selects it as the single Case-1 target (only while idle)
+    try{ if(!hovered.isBot && hovered.type==='debris' && typeof case1SetTarget==='function') case1SetTarget(hovered, true); }catch(_){}
   } else deselectSat();
 });
 // Neon-green selection — clicked debris/sat orbit turns neon green, restores on re-select/empty-click
@@ -2730,6 +2755,11 @@ function animate(){
       for(let i=0;i<sats.length;i++){ try{ _eciCache[i]=sats[i].eciKm(t); }catch(_){ _eciCache[i]=null; } }
       for(let i=0;i<sats.length;i++) for(let j=i+1;j<sats.length;j++){
         if(!_eciCache[i]||!_eciCache[j]) continue;
+        // combined pair (bot stuck to debris) is one object — never a conjunction
+        try{
+          if(typeof CASE1!=='undefined'&&CASE1.attached&&CASE1.bot&&CASE1.target&&
+            ((sats[i]===CASE1.bot&&sats[j]===CASE1.target)||(sats[i]===CASE1.target&&sats[j]===CASE1.bot))) continue;
+        }catch(_){}
         const dx=_eciCache[i][0]-_eciCache[j][0], dy=_eciCache[i][1]-_eciCache[j][1], dz=_eciCache[i][2]-_eciCache[j][2];
         const dReal=Math.sqrt(dx*dx+dy*dy+dz*dz);
         if(dReal<MIN_SEP_KM){ fleetNotice(`⚠ CONJUNCTION <b>${sats[i].label}</b> ↔ <b>${sats[j].label}</b> — ${dReal.toFixed(1)} km &lt; ${MIN_SEP_KM} km`); i=sats.length; break; }
@@ -2765,6 +2795,7 @@ function animate(){
   updateArrowKeys(dt);
   controls.update(); 
   updTel(); 
+  try{ if(typeof case1VisualFrame==='function') case1VisualFrame(dt); }catch(_){}
   if(composer){
     composer.render();
   } else {
@@ -3085,7 +3116,7 @@ document.getElementById('btnAddSensory')?.addEventListener('click', ()=>{
   const b=attachBot(null,'sensory',{});
   if(b) fleetNotice(`ATTACHED <b>${b.id}</b> → <b>${b.parent.label||'ACTIVE'}</b>`);
 });
-document.getElementById('btnClearFleet')?.addEventListener('click', ()=>{ try{ restoreCcsMark(); }catch(_){} try{ clearCcsMappedOrbit(); }catch(_){} clearFleet(); window._targetDebris=null; window._ccsStore=[]; window._ccsDots=[]; window._ccsInside={}; window._ccsPrevSimT=null; window._ccsLastPass=null; window._ccsDone=false; window._ccsPhase='collect'; try{ document.getElementById('debrisTargetSelect').innerHTML='<option value="">— start sim first —</option>'; }catch(_){} fleetNotice('FLEET CLEARED — <b>0 OBJECTS</b>'); });
+document.getElementById('btnClearFleet')?.addEventListener('click', ()=>{ try{ restoreCcsMark(); }catch(_){} try{ clearCcsMappedOrbit(); }catch(_){} try{ if(typeof case1Abort==='function') case1Abort('fleet cleared'); }catch(_){} try{ CASE1.live={pos:null,vel:null,alt:0,t:-1e12,observer:'—'}; }catch(_){} clearFleet(); window._targetDebris=null; window._ccsStore=[]; window._ccsDots=[]; window._ccsInside={}; window._ccsPrevSimT=null; window._ccsLastPass=null; window._ccsDone=false; window._ccsPhase='collect'; try{ document.getElementById('debrisTargetSelect').innerHTML='<option value="">— start sim first —</option>'; }catch(_){} try{ case1RenderValidation(null); }catch(_){} try{ if(typeof case1Render==='function') case1Render(); }catch(_){} fleetNotice('FLEET CLEARED — <b>0 OBJECTS</b>'); });
 // SIMULATION CENTRE — small demo fleet across whole LEO (160–2000km), fully random each run, ≥5km apart.
 // Kept SMALL on purpose: 100+ sats caused O(n²) physics/conjunction overload,
 // per-frame trail realloc + 200+ nameplate textures → lag + overlapping orbits.
@@ -3369,6 +3400,1723 @@ document.getElementById('btnSimCentre')?.addEventListener('click', ()=>{
   if(!p) return;
   p.style.display=(p.style.display==='none'||!p.style.display)?'block':'none';
 });
+// ================= CASE 1 — CONTROLLED DETERMINISTIC SCENARIO (extends existing fleet/physics) =================
+// Stage A (dynamic Fleet Builder deployment) is untouched above. Stage B below ONLY normalizes/uses
+// dynamically created objects — it never spawns hidden demo objects and never uses Math.random().
+// All physics reuses the existing engine: eciKm/velKmS/visViva/periodSecOf/MU/maneuver/refreshJ2/rebuildOrbit.
+// All timing uses simulation time (window._simT); time-warp only changes how fast sim seconds elapse.
+// STRICT: Case 1 never uses eddy-current despin or any EM hardware — high tumble pauses/rejects the op.
+// State is exposed as window.CASE1 so a future sidebar can bind to it (no sidebar created here).
+const CASE_1_CONFIG={
+  counts:{ debrisMin:2, debrisMax:4, sensoryMin:6, sensoryMax:8, actionMin:2, actionMax:4, cleanActiveMin:2 },
+  debris:{ mass:40, alt:550, e:0.001, inc:102, raanBase:10, raanStep:25, argP:0, m0Base:0, m0Step:90, size:0.8, tumbleRadS:0.0105 },
+  action:{ mass:150, area:4, alt:550, e:0.001, inc:102, raanBase:10, argP:0, altOffsetKm:50, incOffsetDeg:0.05, raanOffsetDeg:0.08, m0Offset:0.10, m0Spacing:0.20, dvBudgetKmS:0.6, reserveKmS:0.15, precisionBase:0.97, precisionStep:0.01, lifetimeMinYr:1 },
+  active:{ mass:260, area:10, alt:600, e:0.001, inc:53, raanBase:40, raanStep:30, argP:0, m0Step:45 },
+  sensory:{ dirNote:'anticlockwise (rides prograde hosts)', detectRangeKm:2500 },
+  safety:{ distanceKm:0.01, horizonRevs:3, stepSimSec:30, maxBurnDelays:4 },
+  live:{ freshnessSimSec:60 },
+  tumble:{ maxRadS:0.05 },
+  precision:{ min:0.9 },
+  select:{ maxRelVelKmS:4.5 },
+  rendezvous:{ maxDistKm:5, maxRelVelKmS:0.08, phaseRateDegPerSimSec:0.02, fuelPerDegKmS:0.002, timeoutRevs:2 },
+  // TRAILING STANDOFF: each bot flies its OWN offset orbit ~50km ABOVE the debris
+  // (vertical shell separation — clearly distinct orbits, never overlapping) plus a
+  // small ahead phase. Same period class + gentle phase HOLD (below), so the gap is
+  // stable (no fast drift, no same-orbit chase). Release corridor 15–110km covers
+  // the 50–100km held band. The bot NEVER leaves this orbit to hit the debris.
+  standoff:{ minKm:15, maxKm:110, maxRelVelKmS:0.6, holdRateDegPerSimSec:0.005 },
+  // PROPELLER (deployment-platform model): the Action Bot NEVER flies at the debris.
+  // On command it solves a future-trajectory intercept from actual state vectors
+  // (bot/debris pos+vel, release time, time of flight, intercept point/time), then
+  // releases one small propeller object. The bot holds ahead at a viewable gap; the
+  // propeller is released DOWNWARD (earthward) so its short arc CROSSES the debris
+  // trajectory a few (sim-)seconds later — projected to intersect, never thrown at it.
+  // The propeller then flies its own Kepler orbit (same propagator as everything
+  // else) to the predicted meeting point. captureKm/captureRelVelKmS gate ATTACHED.
+  prop:{ captureKm:2.5, captureRelVelKmS:1.2, deployDvMaxKmS:0.35, downBiasKmS:0.04, deadlineRev:1,
+    tofMinSec:90, graceSec:180, massKg:8, thrustN:500 },
+  burn:{ targetPerigeeKm:115, thrustN:500, pushDurSec:480 },
+  reentry:{ safePerigeeMinKm:100, safePerigeeMaxKm:150, uncertaintyKm:50 },
+  verify:{ deviationKm:5, postBurnRevs:1 }
+};
+const CASE1={
+  state:'IDLE', prev:null, log:[], errors:[],
+  debris:[], actions:[], sensory:[], hosts:[], cleanActives:[],
+  target:null, targetSel:null, bot:null, backupBots:[],
+  rev1:{ start:0, period:0, samples:[] }, rev2:{ start:0, period:0, samples:[] },
+  mapped:null, decayKmPerDay:0, predRev3:null,
+  live:{ pos:null, vel:null, alt:0, t:-1e12, observer:'—' },
+  burn:null, preBurn:null, burnUntil:0, predicted:null, postBurn:{ start:0, period:0 },
+  safety:null, handoffCount:0, reentry:null, attached:false, prop:null, propDist:null,
+  detectingIds:[], relMs:null, distKm:null
+};
+window.CASE_1_CONFIG=CASE_1_CONFIG; window.CASE1=CASE1;
+function case1Now(){ return (window._simT||0); }
+function case1Log(m){ try{ CASE1.log.push({t:case1Now(), m}); if(CASE1.log.length>300) CASE1.log.shift(); }catch(_){} }
+function case1SetState(s, note){
+  CASE1.prev=CASE1.state; CASE1.state=s;
+  case1Log('STATE '+CASE1.prev+' → '+s+(note?' — '+note:''));
+  try{ fleetNotice('CASE 1 · <b>'+s+'</b>'+(note?' — '+note:'')); }catch(_){}
+  case1Render();
+}
+function case1HVec(r, v){
+  return [r[1]*v[2]-r[2]*v[1], r[2]*v[0]-r[0]*v[2], r[0]*v[1]-r[1]*v[0]];
+}
+function case1SameDir(a, b, t){
+  try{
+    const ra=a.eciKm(t), va=a.velKmS(t), rb=b.eciKm(t), vb=b.velKmS(t);
+    const ha=case1HVec(ra,va), hb=case1HVec(rb,vb);
+    return (ha[0]*hb[0]+ha[1]*hb[1]+ha[2]*hb[2])>0;
+  }catch(_){ return false; }
+}
+function case1RelVel(a, b, t){
+  try{
+    const va=a.velKmS(t), vb=b.velKmS(t);
+    return Math.hypot(va[0]-vb[0], va[1]-vb[1], va[2]-vb[2]);
+  }catch(_){ return 1e9; }
+}
+function case1DistKm(a, b, t){
+  try{
+    const ra=a.eciKm(t), rb=b.eciKm(t);
+    return Math.hypot(ra[0]-rb[0], ra[1]-rb[1], ra[2]-rb[2]);
+  }catch(_){ return 1e9; }
+}
+function case1Tumble(s){ return (s.tumbleRadS!=null)?s.tumbleRadS:(s.spin||0)*0.1; }
+function case1BotBudget(s){ return Math.max(0,(s.dvBudgetKmS||0)-(s.dvUsedKmS||0)); }
+// Kepler ECI propagation for prediction (same math as Sat.eciKm, J2-linear from epoch t0)
+function case1PropECI(el, t){
+  try{
+    const raan=el.raan+(el.raanDot||0)*t, argP=el.argP+(el.argPDot||0)*t;
+    const M=el.M0+(el.n+(el.mDot||0))*t;
+    let r, nu;
+    if((el.e||0)<1e-4){ r=el.a; nu=M%(2*Math.PI); }
+    else{ const E=solveKepler(((M%(2*Math.PI))+2*Math.PI)%(2*Math.PI), el.e); nu=2*Math.atan2(Math.sqrt(1+el.e)*Math.sin(E/2), Math.sqrt(1-el.e)*Math.cos(E/2)); r=el.a*(1-el.e*Math.cos(E)); }
+    const p=r*Math.cos(nu), q=r*Math.sin(nu);
+    const co=Math.cos(raan),so=Math.sin(raan),ci=Math.cos(el.inc),si=Math.sin(el.inc),cw=Math.cos(argP),sw=Math.sin(argP);
+    return [(co*cw-so*sw*ci)*p+(-co*sw-so*cw*ci)*q,(so*cw+co*sw*ci)*p+(-so*sw+co*cw*ci)*q,(sw*si)*p+(cw*si)*q];
+  }catch(_){ return [0,0,0]; }
+}
+function case1ValidateFleet(){
+  const debris=sats.filter(s=>s.type==='debris');
+  const actions=sats.filter(s=>s.type==='action');
+  const sensory=bots.filter(b=>b&&b.kind==='sensory'&&b.parent&&sats.indexOf(b.parent)>=0);
+  const actives=sats.filter(s=>s.type==='active');
+  const clean=actives.filter(s=>(s.bots||[]).length===0);
+  const c=CASE_1_CONFIG.counts, errs=[];
+  if(debris.length<c.debrisMin||debris.length>c.debrisMax) errs.push('Debris: need '+c.debrisMin+'–'+c.debrisMax+' (have '+debris.length+') — add/remove via Fleet Builder.');
+  if(actions.length<c.actionMin||actions.length>c.actionMax) errs.push('Action Bots: need '+c.actionMin+'–'+c.actionMax+' (have '+actions.length+').');
+  if(sensory.length<c.sensoryMin||sensory.length>c.sensoryMax) errs.push('Sensory Bots: need '+c.sensoryMin+'–'+c.sensoryMax+' (have '+sensory.length+') — attach via + SENSORY BOT.');
+  if(clean.length<c.cleanActiveMin) errs.push('Clean actives (no sensory): need ≥'+c.cleanActiveMin+' (have '+clean.length+') — add actives without attaching bots.');
+  return { ok:errs.length===0, errors:errs, debris, actions, sensory, clean, actives };
+}
+function case1RenderValidation(v){
+  try{
+    const el=document.getElementById('case1Validation');
+    if(!el) return;
+    if(!v){ el.innerHTML='Deploy fleet first, then validate.'; return; }
+    if(v.ok) el.innerHTML='<span style="color:#4ade80;">✓ FLEET VALID</span> — '+v.debris.length+' debris · '+v.actions.length+' action · '+v.sensory.length+' sensory · '+v.clean.length+' clean active';
+    else el.innerHTML='<span style="color:#f87171;">✕ CANNOT START</span><br>• '+v.errors.join('<br>• ');
+  }catch(_){}
+}
+function case1Render(){
+  try{
+    const el=document.getElementById('case1Status');
+    if(!el) return;
+    const L=CASE1.live;
+    const fresh=(case1Now()-L.t)<=CASE_1_CONFIG.live.freshnessSimSec;
+    const PHASE={
+      IDLE:'STANDBY — select a target debris',
+      INITIALIZING_CASE_1:'INIT — validating + normalizing fleet',
+      ARRANGING_SCENARIO:'INIT — deterministic layout',
+      OBSERVING_REVOLUTION_1:'REVOLUTION 1/2 · TRAJECTORY MAPPING',
+      OBSERVING_REVOLUTION_2:'REVOLUTION 2/2 · DECAY ESTIMATION',
+      CALCULATING_DECAY:'FUSING 2 REVS · decay rate',
+      PREDICTING_REVOLUTION_3:'REV 3 · PREDICTED EXECUTION WINDOW',
+      SELECTING_ACTION_BOT:'ACTION-BOT SELECTION (energy first)',
+      RENDEZVOUS:'OFFSET HOLD · own orbit, regular gap (bot never hits)',
+      TUMBLE_VERIFICATION:'READY FOR OPERATION · tumble check',
+      SAFETY_VALIDATION:'READY FOR OPERATION · descent safety',
+      BURN_EXECUTION:'◈ CALCULATE + RELEASE PROPELLER · intercept solution',
+      PROPELLER_FLIGHT:'◈ PROPELLER INTERCEPTING · solved track (bot holds orbit)',
+      POST_BURN_VERIFICATION:'POST-BURN · predicted vs actual',
+      REENTRY_TRACKING:'RE-ENTRY TRACKING',
+      CASE_1_COMPLETE:'✓ COMPLETE',
+      TUMBLE_HOLD:'HOLD · tumble too high (no despin)',
+      SAFETY_HOLD:'HOLD · descent unsafe',
+      VALIDATION_FAILED:'BLOCKED · fix fleet',
+      ABORTED:'ABORTED'
+    };
+    let extra='<br><span style="opacity:0.7">'+(PHASE[CASE1.state]||CASE1.state)+'</span>';
+    if(CASE1.targetSel&&!CASE1.target) extra+='<br>TARGET <b style="color:#facc15">'+CASE1.targetSel.label+'</b> (staged)';
+    if(CASE1.target) extra+='<br>TARGET <b style="color:#facc15">'+CASE1.target.label+'</b> a '+(CASE1.target.a-KM_PER_UNIT).toFixed(1)+'km e '+CASE1.target.e.toFixed(4);
+    if(CASE1.bot) extra+=' · DEPLOY BOT <b style="color:#22d3ee">'+CASE1.bot.label+'</b> (own orbit)';
+    if(CASE1.prop){
+      const _ps=CASE1.prop.state||(CASE1.attached?'ATTACHED':'—');
+      extra+=' · PROP <b style="color:#fb923c">PROPELLER:'+_ps+'</b>'+(CASE1.attached?' <b style="color:#4ade80">ATTACHED</b>':(CASE1.propDist!=null?' '+CASE1.propDist.toFixed(1)+'km':''));
+      if(CASE1.prop.tIntercept!=null&&(CASE1.prop.state==='INTERCEPTING')){
+        const _eta=Math.max(0, CASE1.prop.tIntercept-case1Now());
+        extra+=' · T-intercept <b>T+'+Math.round(_eta)+'s</b>';
+      }
+    }
+    if(CASE1.detectingIds.length) extra+='<br>TRACKING: <b style="color:#4ade80">'+CASE1.detectingIds.length+' sensory</b> · '+CASE1.detectingIds.slice(0,3).join(', ')+(CASE1.detectingIds.length>3?'…':'');
+    if(CASE1.state==='RENDEZVOUS'&&CASE1.relMs!=null) extra+='<br>OFFSET ORBIT d <b>'+(CASE1.distKm||0).toFixed(1)+' km</b> · rel '+(CASE1.relMs||0).toFixed(0)+' m/s → hold 15–110km & ≤600m/s (own orbit, bot never hits)';
+    if(CASE1.state==='PROPELLER_FLIGHT'&&CASE1.prop){
+      const _rr=CASE1.propRelMs!=null?' · rel '+(CASE1.propRelMs).toFixed(0)+'m/s':'';
+      extra+='<br>PROPELLER <b>'+(CASE1.prop.state||'INTERCEPTING')+'</b> d <b>'+(CASE1.propDist!=null?CASE1.propDist.toFixed(1):'…')+' km</b>'+_rr+' → capture ≤2.5km & ≤'+((CASE_1_CONFIG.prop.captureRelVelKmS||1.2)*1000).toFixed(0)+'m/s (no forced capture)';
+    }
+    if(CASE1.decayKmPerDay) extra+='<br>DECAY <b>'+CASE1.decayKmPerDay.toFixed(4)+' km/day</b>';
+    if(CASE1.live.pos) extra+='<br>LIVE '+(fresh?'fresh':'<b style="color:#f87171">STALE</b>')+' · '+(L.alt||0).toFixed(1)+'km · obs '+L.observer;
+    if(CASE1.burn){ let _pp=''; try{ const _P=CASE1.prop; if(_P&&_P.state==='PUSHING'&&_P.push&&_P.push.total>0) _pp=' '+Math.min(99,Math.round(100*(_P.push.applied||0)/_P.push.total))+'%'; }catch(_){}
+      extra+='<br>'+(CASE1.prop&&CASE1.prop.state==='PUSHING'?'<b style="color:#4ade80">BURN ACTIVE</b> gradual propeller push'+_pp+' · ':'PROPELLER PUSH · ')+'Δv <b>'+CASE1.burn.dv.toFixed(3)+'km/s</b> retrograde → perigee '+CASE1.burn.perigee.toFixed(0)+'km'; }
+    if(CASE1.preBurn&&CASE1.burn) extra+='<br>ORBIT a '+CASE1.preBurn.a.toFixed(1)+'→<b>'+CASE1.target.a.toFixed(1)+'km</b> · e '+CASE1.preBurn.e.toFixed(4)+'→<b>'+CASE1.target.e.toFixed(4)+'</b>';
+    if(CASE1.reentry) extra+='<br>'+(CASE1.reentry.burned?'🔥 BURNED UP ':'REENTRY ')+CASE1.reentry.lat.toFixed(1)+'°/'+CASE1.reentry.lon.toFixed(1)+'° ±'+CASE_1_CONFIG.reentry.uncertaintyKm+'km'+(CASE1.reentry.burned?' · deleted':'');
+    el.innerHTML='STATE <b>'+CASE1.state+'</b>'+extra+(CASE1.errors.length?'<br><span style="color:#f87171">'+CASE1.errors[CASE1.errors.length-1]+'</span>':'');
+    try{ case1SeqRender(); }catch(_){}
+  }catch(_){}
+}
+// ---------- CASE 1 SEQUENCE FEED (left-bar chat-box: steps + short calcs + live log) ----------
+// Step order mirrors the case1Tick state machine. Rendered by case1SeqRender(), called
+// from case1Render() (every state change + every 500ms tick), so numbers are always live.
+const CASE1_SEQ=[
+  {label:'Init + arrange', states:['INITIALIZING_CASE_1','ARRANGING_SCENARIO']},
+  {label:'Rev 1/2 · map trajectory', states:['OBSERVING_REVOLUTION_1']},
+  {label:'Rev 2/2 · decay rate', states:['OBSERVING_REVOLUTION_2','CALCULATING_DECAY']},
+  {label:'Predict rev-3 window', states:['PREDICTING_REVOLUTION_3']},
+  {label:'Select action bot', states:['SELECTING_ACTION_BOT']},
+  {label:'Offset hold (own orbit)', states:['RENDEZVOUS']},
+  {label:'Tumble + safety checks', states:['TUMBLE_VERIFICATION','SAFETY_VALIDATION','TUMBLE_HOLD','SAFETY_HOLD']},
+  {label:'Solve + release propeller', states:['BURN_EXECUTION']},
+  {label:'Propeller intercept → attach → push', states:['PROPELLER_FLIGHT']},
+  {label:'Post-push verify', states:['POST_BURN_VERIFICATION']},
+  {label:'Re-entry → burn <135km', states:['REENTRY_TRACKING']},
+  {label:'Burned up · deleted', states:['CASE_1_COMPLETE']},
+];
+function case1SeqIdx(){
+  const s=CASE1.state;
+  if(s==='IDLE'||s==='VALIDATION_FAILED') return -1;
+  if(s==='ABORTED') return -2;
+  for(let i=0;i<CASE1_SEQ.length;i++) if(CASE1_SEQ[i].states.indexOf(s)>=0) return i;
+  return -1;
+}
+function case1SeqCalc(i){
+  // short expected-trajectory calcs per step, straight from live CASE1 data
+  try{
+    const kmA=x=>(x-KM_PER_UNIT).toFixed(1);
+    const tgt=CASE1.target;
+    switch(i){
+      case 0: return (CASE1.targetSel?('tgt '+(CASE1.targetSel.label||'')):'no target')+' · '+CASE1.debris.length+' deb '+CASE1.actions.length+' act '+CASE1.sensory.length+' sen';
+      case 1: { const n=(CASE1.rev1.samples||[]).length, T=CASE1.rev1.period||(tgt?tgt.periodSec():0);
+        return 'T≈'+T.toFixed(0)+'s · '+n+' samples'+(CASE1.mapped?(' · a '+kmA(CASE1.mapped.a)+'km e '+CASE1.mapped.e.toFixed(4)+' v '+CASE1.mapped.v.toFixed(2)+'km/s'):''); }
+      case 2: return 'decay '+(CASE1.decayKmPerDay?CASE1.decayKmPerDay.toFixed(4):'…')+' km/day';
+      case 3: return CASE1.predRev3?('rev-3 a '+kmA(CASE1.predRev3.a)+'km · T '+(CASE1.predRev3.period/60).toFixed(1)+'min'):'propagating…';
+      case 4: return CASE1.bot?(CASE1.bot.label+' · margin '+(CASE1._selMargin!=null?((CASE1._selMargin>=0?'+':'')+CASE1._selMargin.toFixed(3)):'…')+'km/s · d '+(CASE1._selDist!=null?CASE1._selDist.toFixed(0):'…')+'km'):'scoring bots…';
+      case 5: return (CASE1.bot?CASE1.bot.label:'—')+' offset orbit d '+(CASE1.distKm!=null?CASE1.distKm.toFixed(1):'…')+'km · rel '+(CASE1.relMs!=null?CASE1.relMs.toFixed(0):'…')+'m/s → hold 15–110km (own orbit)';
+      case 6: { const tb=tgt?case1Tumble(tgt):null;
+        return 'tumble '+(tb!=null?tb.toFixed(4):'…')+' ≤0.05 · sep '+(CASE1._safeMin!=null?CASE1._safeMin.toFixed(2):'…')+'km'+(CASE1._safeDelay?' delay '+CASE1._safeDelay+'/4':''); }
+      case 7: {
+        const P=CASE1.prop;
+        if(!P) return 'arming — solving intercept…';
+        if(P.state==='FAILED') return 'PROP INTERCEPT FAILED — no safe solution';
+        if(P.state==='INTERCEPTING'){
+          const eta=(P.tIntercept!=null)?(' · T-'+Math.max(0,Math.round(P.tIntercept-case1Now()))+'s'):'';
+          return 'drop ↓ Δv '+(P.dvMag!=null?P.dvMag.toFixed(3):'…')+'km/s · cross in '+(P.tIntercept!=null&&P.tRelease!=null?Math.round(P.tIntercept-P.tRelease)+'s':'…')+eta+' · d '+(CASE1.propDist!=null?CASE1.propDist.toFixed(1):'…')+'km';
+        }
+        return 'state '+(P.state||'…');
+      }
+      case 8: { let _tag=''; try{ const _P8=CASE1.prop;
+          if(_P8&&_P8.state==='PUSHING'&&_P8.push&&_P8.push.total>0){ const _pc=Math.min(99,Math.round(100*(_P8.push.applied||0)/_P8.push.total)); _tag=' · <b>BURN ACTIVE '+_pc+'%</b>'; }
+          else if(CASE1.attached) _tag=' · <b>PROP ATTACHED</b>';
+        }catch(_){}
+        return CASE1.burn?('propeller Δv '+CASE1.burn.dv.toFixed(3)+'km/s retrograde → perigee '+CASE1.burn.perigee.toFixed(0)+'km'+_tag):'awaiting intercept — no impulse before attach…'; }
+      case 9: { let d='…'; try{ const P=CASE1.predicted; if(P&&tgt){ const t=case1Now(), pp=case1PropECI(P.el,t), ap=tgt.eciKm(t); d=Math.hypot(pp[0]-ap[0],pp[1]-ap[1],pp[2]-ap[2]).toFixed(1)+'km'; } }catch(_){}
+        return 'dev '+d+' ≤5km'; }
+      case 10: { const r=CASE1.reentry; return 'alt '+(CASE1.live&&CASE1.live.pos?CASE1.live.alt.toFixed(0):'…')+'km → burn <135km'+(r&&r.perigee!=null?(' · perigee '+r.perigee.toFixed(0)+'km'):''); }
+      case 11: { const r=CASE1.reentry; return r&&r.burned?('burned @ '+r.lat.toFixed(1)+'°/'+r.lon.toFixed(1)+'° alt '+r.alt.toFixed(0)+'km · deleted'):''; }
+    }
+  }catch(_){}
+  return '';
+}
+function case1SeqRender(){
+  const stepsEl=document.getElementById('case1Steps'), chatEl=document.getElementById('case1Chat'), pill=document.getElementById('case1SeqPill');
+  if(!stepsEl||!chatEl) return;
+  if(pill) pill.textContent=CASE1.state;
+  let idx=case1SeqIdx();
+  if(idx>=0) CASE1._seqLast=idx;
+  const hold=(CASE1.state==='TUMBLE_HOLD'||CASE1.state==='SAFETY_HOLD'||idx===-2);
+  const cur=(idx===-2)?(CASE1._seqLast!=null?CASE1._seqLast:-1):idx;
+  let html='';
+  for(let i=0;i<CASE1_SEQ.length;i++){
+    let cls='';
+    if(cur>=0){ if(i<cur) cls='done'; else if(i===cur) cls=hold?'hold':'active'; }
+    const tick=(cls==='done'?'✓':(i+1));
+    html+='<div class="c1step '+cls+'"><span class="n">'+tick+'</span><span>'+CASE1_SEQ[i].label+'<small>'+(case1SeqCalc(i)||'&nbsp;')+'</small></span></div>';
+  }
+  stepsEl.innerHTML=html;
+  // chat feed — last 30 log lines, escaped, auto-scroll only if already near bottom
+  const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const log=CASE1.log||[];
+  const nearBottom=(chatEl.scrollHeight-chatEl.scrollTop-chatEl.clientHeight)<40;
+  chatEl.innerHTML=log.length?log.slice(-30).map(e=>'<div class="msg"><span>T+'+Math.round(e.t)+'s</span>'+esc(e.m)+'</div>').join(''):'<div class="msg"><span>--</span>pick a target debris, then START CASE 1</div>';
+  if(nearBottom) chatEl.scrollTop=chatEl.scrollHeight;
+}
+function case1SeqExpand(open){
+  try{
+    const b=document.getElementById('case1SeqBody'), m=document.getElementById('case1SeqMin');
+    if(!b) return;
+    const show=(open==null)?b.classList.contains('hide'):open;
+    b.classList.toggle('hide',!show);
+    if(m) m.textContent=show?'–':'+';
+    if(show) try{ case1SeqRender(); }catch(_){}
+  }catch(_){}
+}
+try{ document.getElementById('case1SeqHead')?.addEventListener('click', ()=>case1SeqExpand()); }catch(_){}
+try{ case1SeqRender(); }catch(_){}
+// ---------- CASE 1 VISUAL STATE (all indicators driven by CASE1 state + live physics) ----------
+// No new physics here: sprites/beams/plume only mirror sats/bots positions and CASE1.state.
+const case1Vis={ tgtRing:null, tgtLabel:null, botRing:null, botLabel:null, beams:{}, link:null, plume:[], exhaust:null, preburn:null, tgtOrbitOrig:null, botOrbitOrig:null, propPath:null, interceptMark:null, pushFx:null, pushLine:null };
+function case1CanvasTex(draw, w, h){
+  const c=document.createElement('canvas'); c.width=w||256; c.height=h||64;
+  draw(c.getContext('2d'), c.width, c.height);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=4;
+  return t;
+}
+function case1MakeLabel(text, fg){
+  const tex=case1CanvasTex((x,w,h)=>{
+    x.fillStyle='rgba(2,8,20,0.82)'; x.fillRect(0,0,w,h);
+    x.strokeStyle=fg||'#facc15'; x.lineWidth=4; x.strokeRect(3,3,w-6,h-6);
+    x.fillStyle=fg||'#facc15'; x.font='bold 26px monospace'; x.textAlign='center'; x.textBaseline='middle';
+    x.fillText(String(text).slice(0,22), w/2, h/2+1);
+  });
+  const m=new THREE.SpriteMaterial({ map:tex, transparent:true, depthTest:false });
+  const s=new THREE.Sprite(m); s.scale.set(0.36,0.09,1); s.renderOrder=30;
+  return s;
+}
+function case1MakeRing(color){
+  const tex=case1CanvasTex((x,w,h)=>{
+    x.strokeStyle=color||'#facc15'; x.lineWidth=7;
+    x.beginPath(); x.arc(w/2,h/2,52,0,Math.PI*2); x.stroke();
+    x.lineWidth=5;
+    [[w/2,4],[w/2,h-4],[4,h/2],[w-4,h/2]].forEach(p=>{ x.beginPath(); x.moveTo(w/2+(p[0]-w/2)*0.72, h/2+(p[1]-h/2)*0.72); x.lineTo(w/2+(p[0]-w/2)*0.98, h/2+(p[1]-h/2)*0.98); x.stroke(); });
+  }, 128, 128);
+  const m=new THREE.SpriteMaterial({ map:tex, transparent:true, depthTest:false });
+  const s=new THREE.Sprite(m); s.scale.set(0.15,0.15,1); s.renderOrder=29;
+  return s;
+}
+function case1MakeGlow(color, scale){
+  const tex=case1CanvasTex((x,w,h)=>{
+    const g=x.createRadialGradient(w/2,h/2,2,w/2,h/2,w/2);
+    g.addColorStop(0,'rgba(255,255,255,1)'); g.addColorStop(0.35,color||'rgba(251,146,60,0.9)'); g.addColorStop(1,'rgba(0,0,0,0)');
+    x.fillStyle=g; x.fillRect(0,0,w,h);
+  }, 128, 128);
+  const m=new THREE.SpriteMaterial({ map:tex, transparent:true, depthTest:false, blending:THREE.AdditiveBlending });
+  const s=new THREE.Sprite(m); s.scale.set(scale||0.2,scale||0.2,1); s.renderOrder=31;
+  return s;
+}
+function case1DisposeObj(o){
+  try{
+    if(!o) return;
+    if(o.parent) o.parent.remove(o);
+    o.traverse(n=>{ try{ if(n.geometry) n.geometry.dispose(); }catch(_){} try{ if(n.material){ const ms=Array.isArray(n.material)?n.material:[n.material]; ms.forEach(m=>{ try{ if(m.map) m.map.dispose(); }catch(_){} try{ m.dispose(); }catch(_){} }); } }catch(_){} });
+  }catch(_){}
+}
+function case1WorldOf(sat, out){
+  try{ return (out||new THREE.Vector3()).copy(sat.group.position); }catch(_){ return out||new THREE.Vector3(); }
+}
+// strict single target: only debris, only while idle (pre-start)
+function case1SetTarget(ref, fromClick){
+  try{
+    const idle=(CASE1.state==='IDLE'||CASE1.state==='VALIDATION_FAILED'||CASE1.state==='ABORTED'||CASE1.state==='CASE_1_COMPLETE');
+    if(!idle){ if(!fromClick) try{ fleetNotice('CASE 1 running — target locked to <b>'+(CASE1.target?CASE1.target.label:'—')+'</b>'); }catch(_){} return false; }
+    const s=(typeof ref==='string')?sats.find(x=>x.type==='debris'&&x.label===ref):ref;
+    if(!s||s.type!=='debris'||sats.indexOf(s)<0){ try{ fleetNotice('Select a valid <b>debris</b> object first'); }catch(_){} return false; }
+    case1ClearTargetVisuals();
+    CASE1.targetSel=s;
+    try{ const dd=document.getElementById('case1TargetSelect'); if(dd) dd.value=s.label; }catch(_){}
+    try{ fleetNotice('CASE 1 TARGET — <b>'+s.label+'</b> · other debris ignored'); }catch(_){}
+    case1Log('target selected: '+s.label);
+    case1Render();
+    return true;
+  }catch(_){ return false; }
+}
+function case1RefreshTargetOptions(){
+  try{
+    if(typeof CASE_1_CONFIG==='undefined') return;
+    const dd=document.getElementById('case1TargetSelect');
+    if(!dd) return;
+    const ds=sats.filter(s=>s.type==='debris');
+    const cur=dd.value;
+    dd.innerHTML=ds.length?ds.map(s=>`<option value="${s.label}">${s.label} · ${(s.currentAlt??(s.a-KM_PER_UNIT)).toFixed(0)}km</option>`).join(''):'<option value="">— no debris —</option>';
+    if(CASE1.targetSel&&sats.indexOf(CASE1.targetSel)>=0) dd.value=CASE1.targetSel.label;
+    else if(cur&&ds.some(s=>s.label===cur)) dd.value=cur;
+    if(CASE1.targetSel&&sats.indexOf(CASE1.targetSel)<0){ case1ClearTargetVisuals(); CASE1.targetSel=null; }
+  }catch(_){}
+}
+function case1ClearTargetVisuals(){
+  try{
+    if(CASE1.targetSel&&case1Vis.tgtOrbitOrig){
+      try{ CASE1.targetSel.orbit.material.color.setHex(case1Vis.tgtOrbitOrig.c); CASE1.targetSel.orbit.material.opacity=case1Vis.tgtOrbitOrig.o; }catch(_){}
+    }
+  }catch(_){}
+  case1Vis.tgtOrbitOrig=null;
+  ['tgtRing','tgtLabel'].forEach(k=>{ case1DisposeObj(case1Vis[k]); case1Vis[k]=null; });
+}
+function case1ClearBotVisuals(){
+  try{
+    if(CASE1.bot&&case1Vis.botOrbitOrig){
+      try{ CASE1.bot.orbit.material.color.setHex(case1Vis.botOrbitOrig.c); CASE1.bot.orbit.material.opacity=case1Vis.botOrbitOrig.o; }catch(_){}
+    }
+  }catch(_){}
+  case1Vis.botOrbitOrig=null;
+  ['botRing','botLabel'].forEach(k=>{ case1DisposeObj(case1Vis[k]); case1Vis[k]=null; });
+}
+function case1ClearRunVisuals(){
+  Object.keys(case1Vis.beams).forEach(k=>{ case1DisposeObj(case1Vis.beams[k]); delete case1Vis.beams[k]; });
+  case1DisposeObj(case1Vis.link); case1Vis.link=null;
+  case1Vis.plume.forEach(case1DisposeObj); case1Vis.plume=[];
+  case1DisposeObj(case1Vis.exhaust); case1Vis.exhaust=null;
+  case1DisposeObj(case1Vis.preburn); case1Vis.preburn=null;
+  case1DisposeObj(case1Vis.propPath); case1Vis.propPath=null;
+  case1DisposeObj(case1Vis.interceptMark); case1Vis.interceptMark=null;
+  case1DisposeObj(case1Vis.pushFx); case1Vis.pushFx=null;
+  case1DisposeObj(case1Vis.pushLine); case1Vis.pushLine=null;
+  case1ClearBotVisuals();
+  try{ case1DisposePropeller(); }catch(_){}
+  try{ CASE1.detectingIds=[]; CASE1.relMs=null; CASE1.distKm=null; }catch(_){}
+}
+function case1ClearAllVisuals(){ case1ClearRunVisuals(); case1ClearTargetVisuals(); }
+// sensory detection = actual ECI range host↔target (drives glow + beams, nothing faked)
+function case1DetectingBots(){
+  const out=[];
+  try{
+    const tgt=CASE1.target||CASE1.targetSel;
+    if(!tgt||sats.indexOf(tgt)<0) return out;
+    const t=case1Now(), R=CASE_1_CONFIG.sensory.detectRangeKm;
+    let te=null; try{ te=tgt.eciKm(t); }catch(_){ return out; }
+    for(const b of (CASE1.sensory.length?CASE1.sensory:bots.filter(x=>x.kind==='sensory'))){
+      if(!b||!b.parent||sats.indexOf(b.parent)<0) continue;
+      let pe=null; try{ pe=b.parent.eciKm(t); }catch(_){ continue; }
+      const d=Math.hypot(pe[0]-te[0],pe[1]-te[1],pe[2]-te[2]);
+      if(d<R) out.push({ bot:b, d });
+    }
+  }catch(_){}
+  return out;
+}
+function case1BeamFor(id){
+  let l=case1Vis.beams[id];
+  if(!l){
+    const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]);
+    l=new THREE.Line(g,new THREE.LineBasicMaterial({color:0xfacc15,transparent:true,opacity:0.55,depthTest:false}));
+    l.renderOrder=28; l.frustumCulled=false; scene.add(l); case1Vis.beams[id]=l;
+  }
+  return l;
+}
+// per-frame mirror of state → visuals. Called from animate(); never touches physics state.
+function case1VisualFrame(dt){
+  try{
+    const now=performance.now(), pulse=0.5+0.5*Math.sin(now/280);
+    const active=(CASE1.state!=='IDLE'&&CASE1.state!=='ABORTED');
+    const tgt=(active?CASE1.target:CASE1.targetSel);
+    // --- target ring + label + orbit ---
+    if(tgt&&sats.indexOf(tgt)>=0&&(active||CASE1.state==='IDLE'||CASE1.state==='VALIDATION_FAILED'||CASE1.state==='CASE_1_COMPLETE')){
+      if(!case1Vis.tgtRing){ case1Vis.tgtRing=case1MakeRing('#facc15'); scene.add(case1Vis.tgtRing); }
+      if(!case1Vis.tgtLabel){ case1Vis.tgtLabel=case1MakeLabel('TARGET: '+(tgt.label||'DEBRIS'),'#facc15'); scene.add(case1Vis.tgtLabel); }
+      const p=case1WorldOf(tgt);
+      case1Vis.tgtRing.position.copy(p);
+      const rs=0.13+pulse*0.035; case1Vis.tgtRing.scale.set(rs,rs,1);
+      case1Vis.tgtLabel.position.set(p.x,p.y+0.17,p.z); // high: staggered vs bot label (+0.07) so both read separately
+      try{
+        if(!case1Vis.tgtOrbitOrig) case1Vis.tgtOrbitOrig={ c:tgt.orbit.material.color.getHex(), o:tgt.orbit.material.opacity };
+        if(typeof selected==='undefined'||selected!==tgt){ tgt.orbit.material.color.setHex(0xfacc15); tgt.orbit.material.opacity=0.95; }
+      }catch(_){}
+    } else if(!tgt||sats.indexOf(tgt)<0){
+      if(CASE1.targetSel===tgt) CASE1.targetSel=null;
+      case1DisposeObj(case1Vis.tgtRing); case1Vis.tgtRing=null;
+      case1DisposeObj(case1Vis.tgtLabel); case1Vis.tgtLabel=null;
+    }
+    if(!active){
+      // idle: hide run visuals, keep target marker only
+      Object.keys(case1Vis.beams).forEach(k=>{ try{ case1Vis.beams[k].visible=false; }catch(_){} });
+      if(case1Vis.link) try{ case1Vis.link.visible=false; }catch(_){}
+      return;
+    }
+    // --- deployment-bot ring + label (auto-follows CASE1.bot, incl. handoff) ---
+    // The selected bot is the DEPLOYMENT PLATFORM (§9) — it never leaves its orbit.
+    const b=CASE1.bot;
+    if(b&&sats.indexOf(b)>=0){
+      if(!case1Vis.botRing){ case1Vis.botRing=case1MakeRing('#22d3ee'); scene.add(case1Vis.botRing); }
+      const _role=(CASE1.state!=='IDLE'&&CASE1.state!=='ABORTED'&&CASE1.state!=='CASE_1_COMPLETE')?'DEPLOYMENT BOT: ':'ACTION: ';
+      if(!case1Vis.botLabel||case1Vis.botLabel._for!==(_role+b.label)){
+        case1DisposeObj(case1Vis.botLabel);
+        case1Vis.botLabel=case1MakeLabel(_role+(b.label||'BOT'),'#22d3ee'); case1Vis.botLabel._for=(_role+b.label); scene.add(case1Vis.botLabel);
+      }
+      const p=case1WorldOf(b);
+      case1Vis.botRing.position.copy(p);
+      const rs=0.12+pulse*0.03; case1Vis.botRing.scale.set(rs,rs,1);
+      case1Vis.botLabel.position.set(p.x,p.y+0.07,p.z); // low: staggered vs target label (+0.17) so both read separately
+      try{
+        if(!case1Vis.botOrbitOrig) case1Vis.botOrbitOrig={ c:b.orbit.material.color.getHex(), o:b.orbit.material.opacity };
+        if(typeof selected==='undefined'||selected!==b){ b.orbit.material.color.setHex(0x22d3ee); b.orbit.material.opacity=0.9; }
+      }catch(_){}
+      // live rel-velocity / distance from ACTUAL state vectors (shown in status)
+      try{ CASE1.relMs=case1RelVel(CASE1.target,b,case1Now())*1000; CASE1.distKm=case1DistKm(CASE1.target,b,case1Now()); }catch(_){}
+    }
+    // --- sensory detection beams + glow (only true in-range detectors) ---
+    const dets=(CASE1.state==='OBSERVING_REVOLUTION_1'||CASE1.state==='OBSERVING_REVOLUTION_2'||CASE1.state==='POST_BURN_VERIFICATION'||CASE1.state==='REENTRY_TRACKING'||CASE1.state==='RENDEZVOUS')?case1DetectingBots():[];
+    CASE1.detectingIds=dets.map(d=>d.bot.id);
+    const seen={};
+    const tp=tgt?case1WorldOf(tgt):null;
+    dets.forEach(({bot,d})=>{
+      seen[bot.id]=true;
+      try{
+        if(bot._c1cone===undefined){
+          bot._c1cone=null;
+          try{ bot.mesh.traverse(n=>{ if(!bot._c1cone&&n.isMesh&&n.material&&n.material.isMeshBasicMaterial) bot._c1cone=n; }); }catch(_){}
+          try{ bot._c1emis=(bot.mesh.material&&bot.mesh.material.emissiveIntensity)||0.35; }catch(_){ bot._c1emis=0.35; }
+        }
+        if(bot._c1cone) bot._c1cone.material.opacity=0.42+pulse*0.25;
+        try{ bot.mesh.material.emissiveIntensity=(bot._c1emis||0.35)+1.4+pulse; }catch(_){}
+        const l=case1BeamFor(bot.id); l.visible=true;
+        const bp=new THREE.Vector3(); try{ bot.mesh.getWorldPosition(bp); }catch(_){ bp.copy(bot.parent.group.position); }
+        const pos=l.geometry.getAttribute('position');
+        pos.setXYZ(0,bp.x,bp.y,bp.z); pos.setXYZ(1,tp.x,tp.y,tp.z); pos.needsUpdate=true;
+      }catch(_){}
+    });
+    Object.keys(case1Vis.beams).forEach(k=>{
+      if(!seen[k]) try{ case1Vis.beams[k].visible=false; }catch(_){}
+    });
+    // restore glow for non-detectors
+    try{
+      for(const sb of CASE1.sensory){
+        if(!sb||CASE1.detectingIds.indexOf(sb.id)>=0) continue;
+        try{ if(sb._c1cone) sb._c1cone.material.opacity=0.14; }catch(_){}
+        try{ if(sb._c1emis!=null) sb.mesh.material.emissiveIntensity=sb._c1emis; }catch(_){}
+      }
+    }catch(_){}
+    // --- propeller: separate object on its SOLVED trajectory (§7, §9) ---
+    // Visible marker (larger/brighter), flown trail, solved predicted path + intercept mark.
+    const PF=CASE1.prop;
+    if(PF&&PF.vis&&(CASE1.state==='BURN_EXECUTION'||CASE1.state==='PROPELLER_FLIGHT'||CASE1.state==='POST_BURN_VERIFICATION'||CASE1.state==='REENTRY_TRACKING')){
+      try{
+        const wp=case1EciToScene(PF.eci);
+        PF.vis.group.visible=true;
+        PF.vis.group.position.copy(wp);
+        try{ PF.vis.body.rotation.z+=(dt||0.016)*4; }catch(_){}
+        try{
+          const hot=(PF.state==='PUSHING');
+          PF.vis.ring.visible=true; PF.vis.ring.position.copy(wp);
+          const prs=(hot?0.13:0.10)+pulse*0.02; PF.vis.ring.scale.set(prs,prs,1);
+          try{ PF.vis.ring.material.color.setHex(hot?0x4ade80:0xfb923c); }catch(_){}
+        }catch(_){}
+        try{
+          const want=(PF.state==='PUSHING')?'BURN ACTIVE':(PF.state==='ATTACHED'||CASE1.attached?'PROPELLER ATTACHED':'PROPELLER → '+(PF.targetId||'TARGET'));
+          case1SetPropLabel(PF, want);
+        }catch(_){}
+        try{ PF.vis.label.position.set(wp.x,wp.y+0.09,wp.z); }catch(_){}
+        try{
+          PF.vis.pts.push(wp.clone()); if(PF.vis.pts.length>60) PF.vis.pts.shift();
+          const arr=new Float32Array(Math.max(2,PF.vis.pts.length)*3);
+          for(let qi=0;qi<PF.vis.pts.length;qi++){ arr[qi*3]=PF.vis.pts[qi].x; arr[qi*3+1]=PF.vis.pts[qi].y; arr[qi*3+2]=PF.vis.pts[qi].z; }
+          PF.vis.trail.geometry.setAttribute('position', new THREE.BufferAttribute(arr,3));
+          PF.vis.trail.geometry.setDrawRange(0,PF.vis.pts.length);
+          PF.vis.trail.visible=PF.vis.pts.length>1;
+        }catch(_){}
+        // solved predicted path + intercept point marker while INTERCEPTING
+        try{
+          const showPath=(PF.state==='INTERCEPTING'&&case1Vis.propPath);
+          if(showPath) case1Vis.propPath.visible=true;
+          const showMark=(PF.state==='INTERCEPTING'&&case1Vis.interceptMark);
+          if(case1Vis.interceptMark) case1Vis.interceptMark.visible=!!showMark;
+          if(showMark){ const s=0.09+pulse*0.02; case1Vis.interceptMark.scale.set(s,s,1); }
+        }catch(_){}
+      }catch(_){}
+    } else if(PF&&PF.vis){
+      try{ PF.vis.group.visible=false; PF.vis.ring.visible=false; PF.vis.trail.visible=false; }catch(_){}
+      try{ if(case1Vis.propPath) case1Vis.propPath.visible=false; }catch(_){}
+      try{ if(case1Vis.interceptMark) case1Vis.interceptMark.visible=false; }catch(_){}
+    } else {
+      // no live propeller: hide solved-path visuals unless attached burn is showing
+      try{ if(case1Vis.propPath&&CASE1.state!=='POST_BURN_VERIFICATION'&&CASE1.state!=='REENTRY_TRACKING') case1Vis.propPath.visible=false; }catch(_){}
+      try{ if(case1Vis.interceptMark) case1Vis.interceptMark.visible=false; }catch(_){}
+    }
+    // attached push burn effect (§11): directional exhaust on the propeller/debris
+    // assembly, oriented along +velocity (thrust itself is retrograde, §12), shown
+    // ONLY inside the recorded burn window that started with the impulse.
+    try{
+      const P0=CASE1.prop, BW=CASE1.burn;
+      const burnOn=(P0&&P0.state==='PUSHING'&&P0.burn&&BW&&tgt&&sats.indexOf(tgt)>=0&&
+        (case1Now()>=P0.burn.t0&&case1Now()<=P0.burn.t0+P0.burn.dur)&&
+        (CASE1.state==='POST_BURN_VERIFICATION'||CASE1.state==='REENTRY_TRACKING'||CASE1.state==='PROPELLER_FLIGHT'));
+      if(burnOn){
+        const p=case1WorldOf(tgt);
+        if(!case1Vis.pushFx){ case1Vis.pushFx=case1MakeGlow('rgba(74,222,128,0.95)',0.16); scene.add(case1Vis.pushFx); }
+        case1Vis.pushFx.visible=true; case1Vis.pushFx.position.copy(p);
+        const sc=0.16+pulse*0.05; case1Vis.pushFx.scale.set(sc,sc,1);
+        if(!case1Vis.pushLine){
+          const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]);
+          case1Vis.pushLine=new THREE.Line(g,new THREE.LineBasicMaterial({color:0x4ade80,transparent:true,opacity:0.95,depthTest:false}));
+          case1Vis.pushLine.renderOrder=31; case1Vis.pushLine.frustumCulled=false; scene.add(case1Vis.pushLine);
+        }
+        case1Vis.pushLine.visible=true;
+        try{
+          const v=tgt.velKmS(case1Now()), L=Math.hypot(v[0],v[1],v[2])||1;
+          const dx=v[0]/L, dy=v[2]/L, dz=v[1]/L;
+          const pos=case1Vis.pushLine.geometry.getAttribute('position');
+          pos.setXYZ(0,p.x,p.y,p.z); pos.setXYZ(1,p.x+dx*0.30,p.y+dy*0.30,p.z+dz*0.30); pos.needsUpdate=true;
+        }catch(_){}
+      } else {
+        if(case1Vis.pushFx) try{ case1Vis.pushFx.visible=false; }catch(_){}
+        if(case1Vis.pushLine) try{ case1Vis.pushLine.visible=false; }catch(_){}
+      }
+    }catch(_){}
+    // --- readiness connector (bot ↔ target) ONLY before release (§4: no hardcoded
+    // bot→debris line once the propeller is the actor), green once operational ---
+    // --- intercept connector (propeller → target) while INTERCEPTING, amber; green when ATTACHED ---
+    const linkStates=['RENDEZVOUS','TUMBLE_VERIFICATION','SAFETY_VALIDATION'];
+    if(CASE1.state==='PROPELLER_FLIGHT'&&PF&&PF.vis&&tgt&&sats.indexOf(tgt)>=0){
+      if(!case1Vis.link){
+        const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]);
+        case1Vis.link=new THREE.Line(g,new THREE.LineBasicMaterial({color:0x22d3ee,transparent:true,opacity:0.8,depthTest:false}));
+        case1Vis.link.renderOrder=28; case1Vis.link.frustumCulled=false; scene.add(case1Vis.link);
+      }
+      case1Vis.link.visible=true;
+      try{ case1Vis.link.material.color.setHex(0xfbbf24); }catch(_){}
+      try{
+        const pos=case1Vis.link.geometry.getAttribute('position');
+        const a=PF.vis.group.position, c=case1WorldOf(tgt);
+        pos.setXYZ(0,a.x,a.y,a.z); pos.setXYZ(1,c.x,c.y,c.z); pos.needsUpdate=true;
+      }catch(_){}
+    } else if((CASE1.state==='POST_BURN_VERIFICATION'||CASE1.state==='REENTRY_TRACKING')&&CASE1.attached&&tgt&&sats.indexOf(tgt)>=0){
+      // attached confirmation: short green propeller→debris connector (they coincide)
+      if(!case1Vis.link){
+        const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]);
+        case1Vis.link=new THREE.Line(g,new THREE.LineBasicMaterial({color:0x22d3ee,transparent:true,opacity:0.8,depthTest:false}));
+        case1Vis.link.renderOrder=28; case1Vis.link.frustumCulled=false; scene.add(case1Vis.link);
+      }
+      case1Vis.link.visible=true;
+      try{ case1Vis.link.material.color.setHex(0x4ade80); }catch(_){}
+      try{
+        const pos=case1Vis.link.geometry.getAttribute('position');
+        const c=case1WorldOf(tgt);
+        pos.setXYZ(0,c.x,c.y,c.z); pos.setXYZ(1,c.x,c.y+0.06,c.z); pos.needsUpdate=true;
+      }catch(_){}
+    } else if(b&&tgt&&linkStates.indexOf(CASE1.state)>=0){
+      if(!case1Vis.link){
+        const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]);
+        case1Vis.link=new THREE.Line(g,new THREE.LineBasicMaterial({color:0x22d3ee,transparent:true,opacity:0.8,depthTest:false}));
+        case1Vis.link.renderOrder=28; case1Vis.link.frustumCulled=false; scene.add(case1Vis.link);
+      }
+      case1Vis.link.visible=true;
+      const ready=(CASE1.state!=='RENDEZVOUS');
+      try{ case1Vis.link.material.color.setHex(ready?0x4ade80:0x22d3ee); }catch(_){}
+      try{
+        const pos=case1Vis.link.geometry.getAttribute('position');
+        const a=case1WorldOf(b), c=case1WorldOf(tgt);
+        pos.setXYZ(0,a.x,a.y,a.z); pos.setXYZ(1,c.x,c.y,c.z); pos.needsUpdate=true;
+      }catch(_){}
+    } else if(case1Vis.link){ try{ case1Vis.link.visible=false; }catch(_){} }
+    // --- NO fire at push point: propeller only pushes (BURN_EXECUTION stays clean) ---
+    // --- atmospheric reentry fire: drag/friction heating when the TARGETED debris dives
+    // into close atmosphere. Only the targeted debris burns, and only in thick air —
+    // never on propeller contact. Plume objects are reused here as the reentry fireball.
+    let _burnAlt=null;
+    try{
+      if(tgt&&sats.indexOf(tgt)>=0&&CASE1.burn&&
+        (CASE1.state==='BURN_EXECUTION'||CASE1.state==='POST_BURN_VERIFICATION'||CASE1.state==='REENTRY_TRACKING')){
+        const _ec=tgt.eciKm(case1Now());
+        _burnAlt=Math.hypot(_ec[0],_ec[1],_ec[2])-KM_PER_UNIT;
+      }
+    }catch(_){ _burnAlt=null; }
+    // LATE/LOW fire only: glow starts once the pushed debris truly dives close to
+    // Earth (<150km) and peaks deep (<135km, same as burn-up) — never early/high.
+    const _inAtmo=(_burnAlt!=null&&_burnAlt<150);
+    const _intense=(_burnAlt!=null&&_burnAlt<135);
+    if(_inAtmo&&tgt&&sats.indexOf(tgt)>=0){
+      if(!case1Vis.plume.length){
+        const core=case1MakeGlow('rgba(255,250,220,1)',0.10), outer=case1MakeGlow('rgba(251,146,60,0.85)',0.24);
+        scene.add(core); scene.add(outer); case1Vis.plume=[core,outer];
+        const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]);
+        case1Vis.exhaust=new THREE.Line(g,new THREE.LineBasicMaterial({color:0xfb923c,transparent:true,opacity:0.9,depthTest:false}));
+        case1Vis.exhaust.renderOrder=31; case1Vis.exhaust.frustumCulled=false; scene.add(case1Vis.exhaust);
+      }
+      const p=case1WorldOf(tgt);
+      const depthF=THREE.MathUtils.clamp((150-_burnAlt)/40,0,1); // 0 @150km → 1 @110km (deep dip only)
+      const _bothBurn=(CASE1.attached&&CASE1.prop);
+      const fl=(1+0.22*Math.sin(now/23)+0.10*Math.sin(now/13))*(0.7+depthF*1.6)*(_bothBurn?1.25:1.0);
+      case1Vis.plume.forEach((s,i)=>{ s.visible=true; s.position.copy(p); const sc=(i?0.24:0.10)*fl*(_intense?1.35:1.0); s.scale.set(sc,sc,1); });
+      try{
+        const v=tgt.velKmS(case1Now());
+        const L=Math.hypot(v[0],v[1],v[2])||1;
+        const dx=v[0]/L, dy=v[2]/L, dz=v[1]/L; // ECI(x,y,z) → scene(x,z,y)
+        const pos=case1Vis.exhaust.geometry.getAttribute('position');
+        const exLen=0.22*(0.7+depthF*1.8);
+        pos.setXYZ(0,p.x,p.y,p.z); pos.setXYZ(1,p.x-dx*exLen,p.y-dy*exLen,p.z-dz*exLen); pos.needsUpdate=true;
+        case1Vis.exhaust.visible=true;
+        try{ case1Vis.exhaust.material.opacity=_intense?0.95:0.6; }catch(_){}
+      }catch(_){}
+      // heat-tint the combined pair itself (friction glow) — restored when it climbs back out (see else branch)
+      try{
+        tgt.userData=tgt.userData||{};
+        if(tgt.userData._heatOrig===undefined){
+          try{ tgt.userData._heatOrig={hex:tgt.mesh.material.emissive.getHex(),i:tgt.mesh.material.emissiveIntensity}; }catch(_){ tgt.userData._heatOrig=null; }
+        }
+        tgt.mesh.material.emissive.setHex(_intense?0xff4400:0xff6a00);
+        tgt.mesh.material.emissiveIntensity=(_intense?2.6:1.4)+pulse*0.9;
+      }catch(_){}
+      // attached propeller burns with it — same heat tint so the pair glows as one
+      try{
+        const _pp=CASE1.prop;
+        if(CASE1.attached&&_pp&&_pp.vis&&_pp.vis.body){
+          if(_pp._heatOrig===undefined){
+            try{ _pp._heatOrig={hex:_pp.vis.body.material.emissive.getHex(),i:_pp.vis.body.material.emissiveIntensity}; }catch(_){ _pp._heatOrig=null; }
+          }
+          try{ _pp.vis.body.material.emissive.setHex(_intense?0xff4400:0xff6a00); }catch(_){}
+          try{ _pp.vis.body.material.emissiveIntensity=(_intense?2.6:1.4)+pulse*0.9; }catch(_){}
+        }
+      }catch(_){}
+    } else {
+      case1Vis.plume.forEach(s=>{ try{ s.visible=false; }catch(_){} });
+      if(case1Vis.exhaust) try{ case1Vis.exhaust.visible=false; }catch(_){}
+      // cool-down: restore pre-heat tint when back out of thick air (e.g., coasting back to apogee)
+      try{
+        if(tgt&&tgt.userData&&tgt.userData._heatOrig!==undefined&&tgt.userData._heatOrig){
+          if(typeof selected==='undefined'||selected!==tgt){
+            try{ tgt.mesh.material.emissive.setHex(tgt.userData._heatOrig.hex); tgt.mesh.material.emissiveIntensity=tgt.userData._heatOrig.i; }catch(_){}
+          }
+          tgt.userData._heatOrig=undefined;
+        } else if(tgt&&tgt.userData){ tgt.userData._heatOrig=undefined; }
+        const _pp2=CASE1.prop;
+        if(_pp2&&_pp2._heatOrig!==undefined&&_pp2._heatOrig){
+          try{ _pp2.vis.body.material.emissive.setHex(_pp2._heatOrig.hex); _pp2.vis.body.material.emissiveIntensity=_pp2._heatOrig.i; }catch(_){}
+          _pp2._heatOrig=undefined;
+        } else if(_pp2){ _pp2._heatOrig=undefined; }
+      }catch(_){}
+    }
+  }catch(_){}
+}
+// Deterministic role assignment: sort by label (reproducible, no random).
+// The Case-1 TARGET is always the user-selected debris — never auto-picked.
+function case1AssignRoles(v){
+  const byLabel=(a,b)=>(a.label||'').localeCompare(b.label||'');
+  CASE1.debris=v.debris.slice().sort(byLabel);
+  CASE1.actions=v.actions.slice().sort(byLabel);
+  CASE1.sensory=v.sensory.slice().sort((a,b)=>(a.id||'').localeCompare(b.id||''));
+  CASE1.cleanActives=v.clean.slice().sort(byLabel);
+  CASE1.hosts=v.actives.filter(s=>(s.bots||[]).length>0).sort(byLabel);
+  CASE1.target=(CASE1.targetSel&&CASE1.debris.indexOf(CASE1.targetSel)>=0)?CASE1.targetSel:CASE1.debris[0]||null;
+}
+// Normalize one sat to fixed elements + refresh physics (deterministic teleport for scenario setup)
+function case1SetElements(s, alt, e, incDeg, raanDeg, argPDeg, m0Deg){
+  const t=case1Now();
+  s.a=KM_PER_UNIT+alt; s.e=e; s.inc=incDeg*RAD;
+  const TAU=2*Math.PI;
+  const jr=j2Rates(s.a, s.e, s.inc);
+  // store epoch elements so that angles(t) equal the desired deterministic angles
+  s.n0=jr.n; s.raanDot=jr.raanDot; s.argPDot=jr.argPDot; s.mDot=jr.mDot;
+  s.raan=(((raanDeg*RAD-jr.raanDot*t)%TAU)+TAU)%TAU;
+  s.argP=(((argPDeg*RAD-jr.argPDot*t)%TAU)+TAU)%TAU;
+  s.M0=(((m0Deg*RAD-(jr.n+jr.mDot)*t)%TAU)+TAU)%TAU;
+  s.trail.length=0;
+  try{ s.trailLine.geometry.setDrawRange(0,0); }catch(_){}
+  s.rebuildOrbit(t);
+  s.currentAlt=alt;
+}
+function case1NormalizeArrange(){
+  const C=CASE_1_CONFIG, t=case1Now();
+  CASE1.debris.forEach((s,i)=>{
+    s.mass=C.debris.mass; s.realSizeM=C.debris.size; s.realSizeKm=C.debris.size/1000;
+    s.area=Math.pow(C.debris.size,2); s.B=s.mass/(s.Cd*Math.max(0.001,s.area));
+    s.attitude='tumble'; s.tumbleRadS=C.debris.tumbleRadS; s.spin=C.debris.tumbleRadS*8;
+    case1SetElements(s, C.debris.alt, C.debris.e, C.debris.inc,
+      C.debris.raanBase+i*C.debris.raanStep, C.debris.argP, C.debris.m0Base+i*C.debris.m0Step);
+  });
+  // target's deterministic slot (bots key off it so every target choice yields a valid geometry)
+  const ti=Math.max(0, CASE1.debris.indexOf(CASE1.target));
+  const tRaan=C.debris.raanBase+ti*C.debris.raanStep, tM0=C.debris.m0Base+ti*C.debris.m0Step;
+  CASE1.actions.forEach((s,i)=>{
+    s.mass=C.action.mass; s.area=C.action.area; s.B=s.mass/(s.Cd*Math.max(0.001,s.area));
+    s.attitude='prograde';
+    s.dvBudgetKmS=C.action.dvBudgetKmS; s.dvUsedKmS=0;
+    s.precision=Math.max(0.8, C.action.precisionBase-i*C.action.precisionStep);
+    s.case1Unavailable=false; s.needsDisposal=false;
+    try{ s.envLifetimeYr=lifetimeYears(C.action.alt, s.B); }catch(_){ s.envLifetimeYr=5; }
+    // TRAILING OFFSET ORBITS: each bot gets its OWN orbit — a full shell ~50km ABOVE
+    // the debris (vertical separation, never overlapping) plus slight plane tilt and
+    // trailing phase. Bots spread along-track so neighbours stay ~24km+ apart (no
+    // conjunctions). The phase HOLD freezes each slot, so the 50–100km held band
+    // persists to release. Only the propeller leaves — downward across the path.
+    case1SetElements(s, C.action.alt+(C.action.altOffsetKm||6), C.action.e,
+      C.debris.inc+(C.action.incOffsetDeg||0.22),
+      tRaan+(C.action.raanOffsetDeg||0.30), C.debris.argP,
+      tM0+(C.action.m0Offset||0.28)+i*(C.action.m0Spacing||0.10));
+  });
+  const allActives=CASE1.hosts.concat(CASE1.cleanActives);
+  allActives.forEach((s,j)=>{
+    s.mass=C.active.mass; s.area=C.active.area; s.B=s.mass/(s.Cd*Math.max(0.001,s.area));
+    s.attitude='nadir';
+    case1SetElements(s, C.active.alt, C.active.e, C.active.inc,
+      C.active.raanBase+j*C.active.raanStep, C.active.argP, j*C.active.m0Step);
+  });
+  // sensory: deterministic golden-angle offsets + phases (stay attached to their dynamic parents)
+  const perParent={};
+  CASE1.sensory.forEach((b)=>{
+    const p=b.parent, k=(perParent[p.label]||0); perParent[p.label]=k+1;
+    const a=k*2.39996, SZ=R_EARTH*0.70;
+    b.baseOffset=new THREE.Vector3(Math.cos(a)*0.055*SZ, 0.045*SZ, Math.sin(a)*0.055*SZ);
+    b.bobPhase=k*1.1; b.mesh.position.copy(b.baseOffset);
+  });
+  // formation slots: each action bot's ahead-gap vs the target, frozen from here on
+  // by the phase HOLD (case1HoldFormation) so differential drift can never collapse
+  // the viewable separation mid-mission. Ahead = positive M0 delta (bot in front).
+  try{
+    const TAU=2*Math.PI;
+    if(CASE1.target&&sats.indexOf(CASE1.target)>=0){
+      for(const s of CASE1.actions){
+        let d=(s.M0-CASE1.target.M0)%TAU;
+        if(d>Math.PI) d-=TAU; if(d<-Math.PI) d+=TAU;
+        s._holdDelta=d;
+      }
+    }
+    CASE1._lastHoldT=case1Now();
+  }catch(_){}
+  try{ updateFleetCounts(); }catch(_){}
+}
+// Phase HOLD — gentle station-keeping that freezes every action bot's assigned
+// ahead-gap: counters differential mean-motion drift with sub-visible M0 nudges
+// (≤1km/tick, costed to dvUsed like any maneuver). Runs from arrange through release
+// so the bot–debris separation measured at layout is the separation at release.
+// The bot never approaches: this only preserves its slot, never chases the debris.
+function case1HoldFormation(t){
+  try{
+    const deb=CASE1.target;
+    if(!deb||sats.indexOf(deb)<0||!CASE1.actions.length) return;
+    const TAU=2*Math.PI;
+    const dtSim=Math.max(0, t-(CASE1._lastHoldT!=null?CASE1._lastHoldT:t));
+    CASE1._lastHoldT=t;
+    if(dtSim<=0) return; // paused: nothing to hold
+    const rate=(CASE_1_CONFIG.standoff.holdRateDegPerSimSec||0.005)*RAD;
+    // correction tracks the drift exactly at any warp (the nudge never exceeds the
+    // drift itself, dwarfed by ambient warp motion); absolute cap only binds sleep
+    // transients so the slot re-converges over a few ticks instead of jumping.
+    const maxStep=Math.min(rate*dtSim, 0.5*RAD);
+    if(maxStep<=0) return;
+    for(const b of CASE1.actions){
+      if(!b||sats.indexOf(b)<0||b.case1Unavailable) continue;
+      if(b._holdDelta==null||!isFinite(b._holdDelta)) continue;
+      let err=((b.M0-deb.M0)-b._holdDelta)%TAU;
+      if(err>Math.PI) err-=TAU; if(err<-Math.PI) err+=TAU;
+      if(!isFinite(err)||Math.abs(err)<1e-9) continue;
+      const step=Math.max(-maxStep, Math.min(maxStep, err*0.2));
+      b.M0=((b.M0+step)%TAU+TAU)%TAU;
+      b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(step)/RAD*CASE_1_CONFIG.rendezvous.fuelPerDegKmS;
+    }
+  }catch(_){}
+}
+// Live sampling from ACTUAL sim state (truth attributed to nearest sensory host)
+function case1SampleLive(){
+  const s=CASE1.target; if(!s||sats.indexOf(s)<0) return null;
+  const t=case1Now();
+  let r=[0,0,0], v=[7.5,0,0];
+  try{ r=s.eciKm(t); v=s.velKmS(t); }catch(_){}
+  const rMag=Math.hypot(r[0],r[1],r[2])||s.a;
+  let best='—', bestD=1e18;
+  try{
+    for(const b of CASE1.sensory){
+      if(!b.parent||sats.indexOf(b.parent)<0) continue;
+      const rp=b.parent.eciKm(t);
+      const d=Math.hypot(rp[0]-r[0], rp[1]-r[1], rp[2]-r[2]);
+      if(d<bestD){ bestD=d; best=b.id+' ('+d.toFixed(0)+'km)'; }
+    }
+  }catch(_){}
+  CASE1.live={ pos:r.slice(), vel:v.slice(), alt:rMag-KM_PER_UNIT, t, observer:best };
+  return CASE1.live;
+}
+function case1LiveFresh(){
+  return (case1Now()-CASE1.live.t)<=CASE_1_CONFIG.live.freshnessSimSec;
+}
+// Deorbit Δv via vis-viva (retrograde burn at current radius → target perigee). Real physics, existing MU.
+function case1EstimateBurn(s, targetPerigeeKm){
+  const t=case1Now();
+  const r=s.eciKm(t), rMag=Math.hypot(r[0],r[1],r[2])||s.a;
+  const vC=Math.sqrt(MU/rMag);
+  const rP=KM_PER_UNIT+targetPerigeeKm;
+  const aNew=(rMag+rP)/2;
+  const vNew=Math.sqrt(Math.max(1e-9, MU*(2/rMag-1/aNew)));
+  const dv=Math.max(0, vC-vNew);
+  const eNew=Math.min(0.09, Math.max(0,(rMag-rP)/(rMag+rP)));
+  const impulse=dv*1000*(s.mass||40);
+  const dur=impulse/Math.max(1,CASE_1_CONFIG.burn.thrustN);
+  return { dv, aNew, eNew, rMag, vC, vNew, perigee:targetPerigeeKm, impulse, burnSec:dur };
+}
+// --- Propeller intercept machinery: deployment-platform model, existing physics only ---
+// Orbital-frame unit vectors at (r,v): prograde / radial-out / normal. Same convention
+// as Sat.maneuver (dvP along +v, dvR along +r, dvN along r×v), so release vectors and
+// push vectors decompose identically to the engine that applies them.
+function case1OrbFrame(r, v){
+  const rr=Math.hypot(r[0],r[1],r[2])||1, vm=Math.hypot(v[0],v[1],v[2])||7.5;
+  const uR=[r[0]/rr,r[1]/rr,r[2]/rr], uP=[v[0]/vm,v[1]/vm,v[2]/vm];
+  let uN=[r[1]*v[2]-r[2]*v[1], r[2]*v[0]-r[0]*v[2], r[0]*v[1]-r[1]*v[0]];
+  const ln=Math.hypot(uN[0],uN[1],uN[2])||1; uN=[uN[0]/ln,uN[1]/ln,uN[2]/ln];
+  return { uP, uR, uN };
+}
+// Build a Kepler epoch-element set (same fields as case1ElOf + J2 rates) from an
+// ECI position/velocity at sim time t, phase-continuous at t. Reuses rv2coe +
+// j2Rates — the same path Sat.maneuver uses — so the propeller propagates with the
+// identical propagator (case1PropECI) as every other object. No second physics engine.
+// NOTE: deliberately UNCLAMPED (unlike Sat.maneuver) — the intercept solver needs raw
+// dynamics during differential correction; hyperbolic/non-finite guesses are rejected
+// (null) instead of clamped, so bad guesses fail clean instead of converging falsely.
+function case1BuildElFromRV(r, v, t){
+  try{
+    if(!r||!v||r.some(x=>!isFinite(x))||v.some(x=>!isFinite(x))) return null;
+    const coe=rv2coe(r, v);
+    if(!coe||!isFinite(coe.a)||!isFinite(coe.e)||!isFinite(coe.inc)||!isFinite(coe.raan)||!isFinite(coe.argP)||!isFinite(coe.M0)) return null;
+    if(!(coe.a>0)||coe.e<0||coe.e>=1) return null; // hyperbolic/parabolic guess — reject
+    const jr=j2Rates(coe.a, coe.e, coe.inc*RAD);
+    if(!isFinite(jr.n)) return null;
+    const TAU=2*Math.PI;
+    return { a:coe.a, e:coe.e, inc:coe.inc*RAD,
+      raan:(((coe.raan*RAD-jr.raanDot*t)%TAU)+TAU)%TAU,
+      argP:(((coe.argP*RAD-jr.argPDot*t)%TAU)+TAU)%TAU,
+      M0:(((coe.M0*RAD-(jr.n+jr.mDot)*t)%TAU)+TAU)%TAU,
+      n:jr.n, raanDot:jr.raanDot, argPDot:jr.argPDot, mDot:jr.mDot };
+  }catch(_){ return null; }
+}
+// ECI velocity of a Kepler element set at sim time t, via central finite difference
+// of the shared propagator (accurate to mm/s at 1s step, no new dynamics).
+function case1VelOfEl(el, t){
+  try{
+    const h=1.0, a=case1PropECI(el, t-h), b=case1PropECI(el, t+h);
+    return [(b[0]-a[0])/(2*h),(b[1]-a[1])/(2*h),(b[2]-a[2])/(2*h)];
+  }catch(_){ return [0,0,0]; }
+}
+// FUTURE-TRAJECTORY INTERCEPT SOLVER (rendezvous problem, §3–§5).
+// Inputs: actual bot/debris state vectors at release time t0 (positions+velocities from
+// the live sim). The bot holds AHEAD at a viewable gap, so the solver seeds each shot
+// with a DOWNWARD (earthward, −radial) bias: the propeller drops off the hold point
+// and its short arc CROSSES the debris trajectory seconds later — a projected
+// intersection, not a throw at the debris. For each candidate time-of-flight it
+// predicts the debris future point rT=debris(t0+TOF), then differentially corrects
+// (shooting) a deployment Δv so the propeller's Kepler trajectory — propagated with
+// the SAME case1PropECI used everywhere — arrives at rT at t0+TOF. Short flights are
+// preferred (fast crossing, small integration error); among equal flights the
+// downward release wins. Returns ranked feasible solutions or null. Nothing is
+// hardcoded: geometry, release vector (ECI + orbital PRN frame), intercept point/time
+// all derive from state.
+function case1SolveIntercept(bot, deb, t0){
+  try{
+    const PC=CASE_1_CONFIG.prop;
+    if(!bot||!deb||sats.indexOf(bot)<0||sats.indexOf(deb)<0) return null;
+    let rB=null, vB=null, debEl=null;
+    try{ rB=bot.eciKm(t0); vB=bot.velKmS(t0); debEl=case1ElOf(deb); }catch(_){ return null; }
+    if(!rB||!vB||!debEl) return null;
+    const fr=case1OrbFrame(rB, vB);
+    // short-arc grid only: shooting converges reliably here and the crossing happens
+    // seconds later as required (long arcs diverge under linear correction — dropped).
+    const TOFS=[90,120,160,220,300,420,600];
+    const bias=(PC.downBiasKmS||0);
+    const sols=[];
+    for(const tof of TOFS){
+      const tI=t0+tof;
+      let rT=null, vT=null;
+      try{ rT=deb.eciKm(tI); vT=deb.velKmS(tI); }catch(_){ continue; }
+      // initial guess: linear closing velocity + downward release bias
+      let dv=[(rT[0]-rB[0])/tof-vB[0]+fr.uR[0]*-bias,
+              (rT[1]-rB[1])/tof-vB[1]+fr.uR[1]*-bias,
+              (rT[2]-rB[2])/tof-vB[2]+fr.uR[2]*-bias];
+      let el=null, miss=1e18, best=null, bestDown=null;
+      for(let k=0;k<6;k++){
+        const vP0=[vB[0]+dv[0], vB[1]+dv[1], vB[2]+dv[2]];
+        el=case1BuildElFromRV(rB, vP0, t0);
+        if(!el){ miss=1e18; break; } // non-Keplerian guess (hyperbolic) — abandon this TOF
+        let rP=null;
+        try{ rP=case1PropECI(el, tI); }catch(_){ miss=1e18; break; }
+        if(!rP||rP.some(x=>!isFinite(x))){ miss=1e18; break; }
+        const m=[rT[0]-rP[0], rT[1]-rP[1], rT[2]-rP[2]];
+        miss=Math.hypot(m[0],m[1],m[2]);
+        const dvMag=Math.hypot(dv[0],dv[1],dv[2]);
+        const dvRnow=dv[0]*fr.uR[0]+dv[1]*fr.uR[1]+dv[2]*fr.uR[2];
+        if(isFinite(miss)&&isFinite(dvMag)){
+          if(!best||miss<best.miss) best={ el, miss, dv:dv.slice(), dvMag, dvR:dvRnow };
+          // downward releases are preferred: the arc visibly drops off the hold point
+          // and crosses the debris trajectory (never a throw at the debris)
+          if(dvRnow<-0.005&&(!bestDown||miss<bestDown.miss)) bestDown={ el, miss, dv:dv.slice(), dvMag, dvR:dvRnow };
+        }
+        if(miss<=(PC.captureKm||2.5)) break;
+        // damped differential correction, step-limited so far guesses can't explode
+        let cx=m[0]/tof*0.7, cy=m[1]/tof*0.7, cz=m[2]/tof*0.7;
+        const cl=Math.hypot(cx,cy,cz);
+        if(cl>0.5){ cx*=0.5/cl; cy*=0.5/cl; cz*=0.5/cl; }
+        dv=[dv[0]+cx, dv[1]+cy, dv[2]+cz];
+        if(Math.hypot(dv[0],dv[1],dv[2])>2.0) break; // runaway — this TOF is hopeless
+      }
+      if(!best||!(best.miss<=(PC.captureKm||2.5))) continue;
+      if(!(best.dvMag<=(PC.deployDvMaxKmS||0.35))) continue;
+      // one candidate per TOF: the downward crossing if it meets the gates, else best
+      const cand=(bestDown&&bestDown.miss<=(PC.captureKm||2.5)&&bestDown.dvMag<=(PC.deployDvMaxKmS||0.35))?bestDown:best;
+      const vP=case1VelOfEl(cand.el, tI);
+      const rel=Math.hypot(vP[0]-vT[0],vP[1]-vT[1],vP[2]-vT[2]);
+      if(!isFinite(rel)||!(rel<=(PC.captureRelVelKmS||1.2))) continue;
+      const dvP=cand.dv[0]*fr.uP[0]+cand.dv[1]*fr.uP[1]+cand.dv[2]*fr.uP[2];
+      const dvR=cand.dv[0]*fr.uR[0]+cand.dv[1]*fr.uR[1]+cand.dv[2]*fr.uR[2];
+      const dvN=cand.dv[0]*fr.uN[0]+cand.dv[1]*fr.uN[1]+cand.dv[2]*fr.uN[2];
+      sols.push({ tof, tRelease:t0, tIntercept:tI, interceptECI:rT.slice(), interceptVel:vT.slice(),
+        releaseECI:rB.slice(), releaseVel:[vB[0]+cand.dv[0],vB[1]+cand.dv[1],vB[2]+cand.dv[2]],
+        dvECI:cand.dv.slice(), dvMag:cand.dvMag, dvPRN:[dvP,dvR,dvN], propEl:cand.el, missKm:cand.miss, relVelKmS:rel, down:(cand.dvR<-0.005) });
+      if(sols.length>=6) break;
+    }
+    if(!sols.length) return null;
+    // shortest crossing first (seconds later as required), downward release preferred,
+    // then smallest deployment Δv.
+    sols.sort((a,b)=>(a.tof-b.tof)||((b.down?1:0)-(a.down?1:0))||(a.dvMag-b.dvMag));
+    return sols.slice(0,3);
+  }catch(_){ return null; }
+}
+// Transit safety: sample the solved propeller trajectory against all sats (target+bot
+// excluded — proximity to them is the mission) with the existing conjunction threshold.
+function case1PropTransitSafety(propEl, tR, tI){
+  try{
+    const step=Math.max(10, (tI-tR)/40);
+    let minD=1e18, minInfo=null;
+    const others=sats.filter(s=>s!==CASE1.target&&s!==CASE1.bot);
+    for(let t=tR; t<=tI; t+=step){
+      const pp=case1PropECI(propEl, t);
+      for(const o of others){
+        let op=null; try{ op=o.eciKm(t); }catch(_){ continue; }
+        const d=Math.hypot(pp[0]-op[0],pp[1]-op[1],pp[2]-op[2]);
+        if(d<minD){ minD=d; minInfo={ t, other:o.label||o.type, d }; }
+        if(d<CASE_1_CONFIG.safety.distanceKm) return { safe:false, minD:d, at:minInfo };
+      }
+    }
+    return { safe:minD>=CASE_1_CONFIG.safety.distanceKm, minD, at:minInfo };
+  }catch(_){ return { safe:false, minD:0, at:null }; }
+}
+// Full-descent conjunction check: predicted debris vs every sat at matching sim times
+function case1SafetyCheck(elPred, tStart, horizonSec, stepSec, exclude){
+  const C=CASE_1_CONFIG.safety;
+  stepSec=stepSec||C.stepSimSec;
+  let minD=1e18, minInfo=null;
+  const others=sats.filter(s=>s!==exclude&&s!==CASE1.target&&s!==CASE1.bot); // servicer excluded: docked/backed-off, not a conjunction
+  for(let dt=0; dt<=horizonSec; dt+=stepSec){
+    const t=tStart+dt;
+    const dp=case1PropECI(elPred, t);
+    for(const o of others){
+      let op=null;
+      try{ op=o.eciKm(t); }catch(_){ continue; }
+      const d=Math.hypot(dp[0]-op[0], dp[1]-op[1], dp[2]-op[2]);
+      if(d<minD){ minD=d; minInfo={ t, other:o.label||o.type, d }; }
+      if(d<CASE_1_CONFIG.safety.distanceKm) return { safe:false, minD:d, at:minInfo };
+    }
+  }
+  return { safe:minD>=CASE_1_CONFIG.safety.distanceKm, minD, at:minInfo };
+}
+function case1ElOf(s){
+  return { a:s.a, e:s.e, inc:s.inc, raan:s.raan, argP:s.argP, M0:s.M0, n:s.n0, raanDot:s.raanDot, argPDot:s.argPDot, mDot:s.mDot };
+}
+// Action-bot selection: same direction → relVel → fuel/energy → precision → lifetime → safety. Energy over distance.
+function case1SelectBot(){
+  const C=CASE_1_CONFIG, t=case1Now(), deb=CASE1.target;
+  const cands=[];
+  for(const b of CASE1.actions){
+    if(b.case1Unavailable) continue;
+    const reasons=[];
+    if(!case1SameDir(deb, b, t)) reasons.push('opposite direction');
+    const rel=case1RelVel(deb, b, t);
+    if(rel>C.select.maxRelVelKmS) reasons.push('relVel '+rel.toFixed(2)+'km/s');
+    const est=case1EstimateBurn(deb, C.burn.targetPerigeeKm);
+    const dDeg=Math.abs(((b.M0-deb.M0)/RAD%360+540)%360-180); // deterministic phase gap (deg)
+    const phaseNeed=dDeg;
+    const rendezvousCost=phaseNeed*C.rendezvous.fuelPerDegKmS;
+    const required=0.05+rendezvousCost+est.dv; // terminal match + phasing + deorbit burn (phasing resolves along-track cheaply; relVel gates separately above)
+    const margin=case1BotBudget(b)-required-C.action.reserveKmS;
+    if(margin<0) reasons.push('energy shortfall '+margin.toFixed(3)+'km/s');
+    if((b.precision||0)<C.precision.min) reasons.push('precision '+(b.precision||0).toFixed(2));
+    let life=99; try{ life=lifetimeYears(b.a-KM_PER_UNIT, b.B||12); }catch(_){}
+    if(life<C.action.lifetimeMinYr) reasons.push('lifetime '+life.toFixed(1)+'yr');
+    const dist=case1DistKm(deb, b, t);
+    if(reasons.length){ cands.push({ bot:b, ok:false, reasons, rel, dist, margin }); continue; }
+    // quick trajectory safety for the bot over next rev (coarse)
+    const el=case1ElOf(b); let safe=true;
+    try{
+      const chk=case1SafetyCheck(el, t, b.periodSec(), 120, b);
+      safe=chk.safe;
+      if(!safe) reasons.push('trajectory unsafe ('+chk.minD.toFixed(3)+'km)');
+    }catch(_){}
+    if(reasons.length){ cands.push({ bot:b, ok:false, reasons, rel, dist, margin }); continue; }
+    const score=margin*10-dist*0.001-rel*0.5+(b.precision||0);
+    cands.push({ bot:b, ok:true, reasons:[], rel, dist, margin, required, est, score });
+  }
+  const valid=cands.filter(c=>c.ok).sort((x,y)=>y.score-x.score);
+  return { all:cands, best:valid[0]||null, rest:valid.slice(1) };
+}
+function case1Start(){
+  if(CASE1.state!=='IDLE'&&CASE1.state!=='VALIDATION_FAILED'&&CASE1.state!=='ABORTED'&&CASE1.state!=='CASE_1_COMPLETE'&&CASE1.state!=='TUMBLE_HOLD'&&CASE1.state!=='SAFETY_HOLD'){
+    try{ fleetNotice('CASE 1 already running — <b>'+CASE1.state+'</b> (ABORT first)'); }catch(_){}
+    return;
+  }
+  const v=case1ValidateFleet();
+  case1RenderValidation(v);
+  try{ case1SeqExpand(true); }catch(_){}
+  if(!v.ok){
+    CASE1.state='VALIDATION_FAILED'; CASE1.errors=v.errors;
+    case1Log('validation failed: '+v.errors.join(' | '));
+    try{ fleetNotice('CASE 1 BLOCKED — fix fleet: '+v.errors.length+' issue(s)'); }catch(_){}
+    case1Render();
+    return;
+  }
+  // strict single target: user must have selected exactly one debris first
+  if(!CASE1.targetSel||v.debris.indexOf(CASE1.targetSel)<0){
+    try{ fleetNotice('CASE 1 BLOCKED — <b>select a target debris first</b> (click it or SET AS CASE-1 TARGET)'); }catch(_){}
+    try{ document.getElementById('case1Validation').innerHTML='<span style="color:#fbbf24;">⚠ NO TARGET</span> — click a debris in 3D or pick one above, then SET AS CASE-1 TARGET.'; }catch(_){}
+    case1Log('start blocked: no user-selected target');
+    return;
+  }
+  CASE1.errors=[]; CASE1.log=[]; CASE1.handoffCount=0;
+  CASE1.rev1={start:0,period:0,samples:[]}; CASE1.rev2={start:0,period:0,samples:[]};
+  CASE1.mapped=null; CASE1.decayKmPerDay=0; CASE1.predRev3=null;
+  CASE1.live={pos:null,vel:null,alt:0,t:-1e12,observer:'—'};
+  CASE1.burn=null; CASE1.predicted=null; CASE1.postBurn={start:0,period:0};
+  CASE1.safety=null; CASE1.reentry=null; CASE1.bot=null; CASE1.backupBots=[]; CASE1.attached=false;
+  try{ case1DisposePropeller(); }catch(_){}
+  CASE1.propDist=null; CASE1.propRelMs=null; CASE1.deployAttempts=0; CASE1.propAttempts=0;
+  CASE1._botLostLogged=false; CASE1._backoff=false;
+  CASE1.burn=null; CASE1.preBurn=null; CASE1.burnUntil=0;
+  CASE1.detectingIds=[]; CASE1.relMs=null; CASE1.distKm=null;
+  CASE1._selMargin=CASE1._selDist=CASE1._selRel=null; CASE1._safeDelay=CASE1._safeMin=null; CASE1._seqLast=null;
+  try{ case1ClearRunVisuals(); }catch(_){} // fresh run visuals (target marker kept)
+  case1AssignRoles(v);
+  case1SetState('INITIALIZING_CASE_1', CASE1.debris.length+' debris · '+CASE1.actions.length+' action · '+CASE1.sensory.length+' sensory');
+}
+function case1Abort(reason){
+  if(CASE1.state==='IDLE') return;
+  case1SetState('ABORTED', reason||'operator abort');
+  CASE1.bot=null; CASE1.attached=false;
+  try{ case1DisposePropeller(); }catch(_){}
+  CASE1._botLostLogged=false; CASE1._backoff=false;
+  try{ case1ClearAllVisuals(); }catch(_){}
+  try{ CASE1.targetSel=null; CASE1.target=null; }catch(_){}
+  try{ const dd=document.getElementById('case1TargetSelect'); if(dd) dd.value=''; }catch(_){}
+  try{ case1RefreshTargetOptions(); }catch(_){}
+}
+// PROPELLER as a SEPARATE SIMULATION OBJECT (deployment-platform model, §6).
+// The Action Bot is only the deployment platform: it calculates, positions, releases.
+// The propeller owns: position, velocity, mass, Kepler trajectory (same propagator),
+// state, deployment time, target debris id, intercept point/time. Sub-states:
+// PROP_NOT_DEPLOYED → CALCULATING_INTERCEPT → DEPLOYED → INTERCEPTING → ATTACHED →
+// PUSHING → COMPLETE / FAILED. Never teleported: it flies its solved orbit to the
+// predicted meeting point. Strictly no eddy/EM hardware — mechanical + propulsion only.
+function case1EciToScene(eci){
+  const rk=Math.hypot(eci[0],eci[1],eci[2])||1;
+  const s=sceneRadius(rk-KM_PER_UNIT)/rk; // same mapping as Sat.at: scene(x,z,y)
+  return new THREE.Vector3(eci[0]*s, eci[2]*s, eci[1]*s);
+}
+function case1SpawnPropellerMesh(state){
+  const SZ=R_EARTH*0.70;
+  const group=new THREE.Group();
+  const body=new THREE.Mesh(
+    new THREE.ConeGeometry(0.009*SZ,0.030*SZ,10),
+    new THREE.MeshStandardMaterial({color:0xfb923c, emissive:0xea580c, emissiveIntensity:2.0, roughness:0.35, metalness:0.6})
+  );
+  body.rotation.x=Math.PI/2;
+  group.add(body);
+  const glow=case1MakeGlow('rgba(251,146,60,0.95)',0.14); group.add(glow);
+  const label=case1MakeLabel(state==='ATTACHED'?'PROPELLER ATTACHED':(state==='PUSHING'||state==='BURN'?'BURN ACTIVE':'PROPELLER'),'#fb923c'); label.position.set(0,0.09,0); group.add(label);
+  const ring=case1MakeRing('#fb923c'); ring.scale.set(0.10,0.10,1); scene.add(ring);
+  scene.add(group);
+  const tg=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]);
+  const trail=new THREE.Line(tg,new THREE.LineBasicMaterial({color:0xfb923c,transparent:true,opacity:0.85,depthTest:false}));
+  trail.renderOrder=29; trail.frustumCulled=false; scene.add(trail);
+  return {group, body, glow, label, ring, trail, pts:[]};
+}
+function case1SetPropLabel(P, text){
+  try{
+    if(!P||!P.vis||!P.vis.label) return;
+    if(P.vis.label._txt===text) return;
+    const parent=P.vis.label.parent;
+    const pos=P.vis.label.position.clone();
+    try{ if(P.vis.label.material&&P.vis.label.material.map) P.vis.label.material.map.dispose(); }catch(_){}
+    try{ if(P.vis.label.material) P.vis.label.material.dispose(); }catch(_){}
+    try{ if(parent) parent.remove(P.vis.label); }catch(_){}
+    const nl=case1MakeLabel(text,'#fb923c'); nl.position.copy(pos); nl._txt=text;
+    try{ if(P.vis.group) P.vis.group.add(nl); }catch(_){}
+    P.vis.label=nl;
+  }catch(_){}
+}
+function case1DisposePropeller(){
+  const P=CASE1.prop;
+  if(!P) return;
+  try{ if(P.vis){ case1DisposeObj(P.vis.group); case1DisposeObj(P.vis.ring); case1DisposeObj(P.vis.trail); } }catch(_){}
+  try{ case1DisposeObj(case1Vis.propPath); case1Vis.propPath=null; }catch(_){}
+  try{ case1DisposeObj(case1Vis.interceptMark); case1Vis.interceptMark=null; }catch(_){}
+  try{ case1DisposeObj(case1Vis.pushFx); case1Vis.pushFx=null; }catch(_){}
+  try{ case1DisposeObj(case1Vis.pushLine); case1Vis.pushLine=null; }catch(_){}
+  CASE1.prop=null; CASE1.propDist=null; CASE1.propRelMs=null;
+}
+// ATTACHED FLIGHT: after intercept the propeller sticks combined with the debris
+// (same ECI each tick). The ACTION BOT stays on its own offset orbit the whole
+// time — it never approaches, never docks, never hits, never pushes.
+function case1LockPropToDebris(t){
+  try{
+    const P=CASE1.prop, deb=CASE1.target;
+    if(!CASE1.attached||!P||P.state==='FAILED'||!deb||sats.indexOf(deb)<0) return;
+    P.eci=deb.eciKm(t);
+    try{ P.vel=deb.velKmS(t); }catch(_){}
+  }catch(_){}
+}
+// Draw the SOLVED predicted propeller trajectory + intercept marker (§9). Pure
+// visualization of the underlying solution — sampled from the solved Kepler elements.
+function case1BuildPropPathVisual(P){
+  try{
+    case1DisposeObj(case1Vis.propPath); case1Vis.propPath=null;
+    case1DisposeObj(case1Vis.interceptMark); case1Vis.interceptMark=null;
+    if(!P||!P.el) return;
+    const pts=[];
+    const N=64;
+    for(let i=0;i<=N;i++){
+      const tt=P.tRelease+(P.tIntercept-P.tRelease)*i/N;
+      pts.push(case1EciToScene(case1PropECI(P.el, tt)));
+    }
+    const g=new THREE.BufferGeometry().setFromPoints(pts);
+    case1Vis.propPath=new THREE.Line(g, new THREE.LineBasicMaterial({color:0xfbbf24,transparent:true,opacity:0.75,depthTest:false}));
+    case1Vis.propPath.renderOrder=27; case1Vis.propPath.frustumCulled=false; scene.add(case1Vis.propPath);
+    case1Vis.interceptMark=case1MakeRing('#4ade80'); case1Vis.interceptMark.scale.set(0.09,0.09,1);
+    case1Vis.interceptMark.position.copy(case1EciToScene(P.interceptECI)); scene.add(case1Vis.interceptMark);
+  }catch(_){}
+}
+// RELEASE ON COMMAND (§5): solve the intercept from ACTUAL state vectors, verify the
+// propeller transit + the resulting de-orbit descent against safety, then deploy.
+// Returns true on deployment, false when no safe solution exists (caller retries once,
+// then reports PROP INTERCEPT FAILED to CCS — never forces/teleports a capture).
+// The bot only provides the release state; it keeps its own orbit throughout.
+function case1ReleasePropeller(t){
+  const b=CASE1.bot, deb=CASE1.target, PC=CASE_1_CONFIG.prop;
+  try{ case1DisposePropeller(); }catch(_){}
+  if(!b||!deb||sats.indexOf(b)<0||sats.indexOf(deb)<0) return false;
+  let rB=null, vB=null, rD=null, vD=null;
+  try{ rB=b.eciKm(t); vB=b.velKmS(t); rD=deb.eciKm(t); vD=deb.velKmS(t); }catch(_){ return false; }
+  const bad=[rB,vB,rD,vD].some(a=>!a||a.some(x=>!isFinite(x)));
+  if(bad){ case1Log('intercept calc aborted — non-finite state vector'); return false; }
+  case1Log('CALCULATING_INTERCEPT — bot '+b.label+' r=['+rB.map(x=>x.toFixed(1)).join(',')+'] v='+Math.hypot(vB[0],vB[1],vB[2]).toFixed(3)+'km/s · debris '+deb.label+' r=['+rD.map(x=>x.toFixed(1)).join(',')+'] v='+Math.hypot(vD[0],vD[1],vD[2]).toFixed(3)+'km/s');
+  const sols=case1SolveIntercept(b, deb, t);
+  if(!sols||!sols.length){
+    case1Log('CALCULATING_INTERCEPT — no feasible deployment (Δv≤'+(PC.deployDvMaxKmS||0.35)+'km/s, miss≤'+(PC.captureKm||2.5)+'km) → will retry once, else PROP INTERCEPT FAILED');
+    CASE1.prop={ state:'FAILED', failReason:'no-solution', tRelease:t, targetId:deb.label||'DEBRIS', vis:null };
+    return false;
+  }
+  // First SAFE solution wins: propeller transit must be conjunction-free and the
+  // resulting de-orbit descent must satisfy the existing Case-1 safety gate.
+  let pick=null, transit=null;
+  for(const s of sols){
+    const tr=case1PropTransitSafety(s.propEl, s.tRelease, s.tIntercept);
+    if(!tr.safe){ case1Log('solution TOF '+s.tof+'s rejected — transit min sep '+tr.minD.toFixed(3)+'km'); continue; }
+    pick=s; transit=tr; break;
+  }
+  if(!pick){
+    case1Log('CALCULATING_INTERCEPT — all solutions transit-unsafe → will retry once, else PROP INTERCEPT FAILED');
+    CASE1.prop={ state:'FAILED', failReason:'transit-unsafe', tRelease:t, targetId:deb.label||'DEBRIS', vis:null };
+    return false;
+  }
+  const vis=case1SpawnPropellerMesh('DEPLOYED');
+  CASE1.prop={ state:'INTERCEPTING', eci:pick.releaseECI.slice(), vel:pick.releaseVel.slice(), el:pick.propEl,
+    massKg:PC.massKg||8, tRelease:pick.tRelease, tIntercept:pick.tIntercept, interceptECI:pick.interceptECI.slice(),
+    dvECI:pick.dvECI.slice(), dvMag:pick.dvMag, dvPRN:pick.dvPRN.slice(), missKm:pick.missKm, relVelKmS:pick.relVelKmS,
+    deadline:pick.tIntercept+(PC.graceSec||180), attached:false, burn:null,
+    targetId:deb.label||'DEBRIS', from:(b?b.label:'BOT'), vis, _lastT:t };
+  CASE1.propDist=Math.hypot(rB[0]-rD[0],rB[1]-rD[1],rB[2]-rD[2]);
+  CASE1.propRelMs=null;
+  // Deployment cost is the small release Δv only — the bot NEVER pays the de-orbit Δv
+  // (the attached propeller performs that burn itself, §10). Bot stays on its orbit.
+  if(b){ b.dvUsedKmS=(b.dvUsedKmS||0)+pick.dvMag; }
+  try{ case1BuildPropPathVisual(CASE1.prop); }catch(_){}
+  case1Log('DEPLOYED — '+b.label+' released propeller DOWNWARD (Δv '+pick.dvMag.toFixed(4)+'km/s = P'+pick.dvPRN[0].toFixed(4)+'/R'+pick.dvPRN[1].toFixed(4)+'/N'+pick.dvPRN[2].toFixed(4)+' orbital frame) · arc crosses '+deb.label+' path in '+pick.tof+'s · intercept ['+pick.interceptECI.map(x=>x.toFixed(1)).join(',')+'] @T+'+Math.round(pick.tIntercept)+'s · miss '+pick.missKm.toFixed(2)+'km · relVel '+pick.relVelKmS.toFixed(3)+'km/s · transit min '+transit.minD.toFixed(2)+'km (bot holds ahead, viewable gap)');
+  try{ fleetNotice('◈ PROPELLER RELEASED ↓ — <b>'+b.label+'</b> dropped propeller downward → crosses <b>'+deb.label+'</b> path in <b>'+pick.tof+'s</b> (Δv '+pick.dvMag.toFixed(3)+'km/s, bot holds ahead)'); }catch(_){}
+  return true;
+}
+// Ballistic flight update (§7): propagate the propeller on its SOLVED Kepler orbit
+// with the shared propagator — no homing, no steering, no teleport. The whole tick
+// interval [tPrev,t] is sub-sampled (≤5 sim-s steps) so a fast crossing can never be
+// skipped over between ticks at high time-warp: capture is decided at the interval's
+// closest-approach sample. Returns {dist, relVel} or {failed} past the deadline.
+function case1StepPropeller(t){
+  const P=CASE1.prop, deb=CASE1.target, PC=CASE_1_CONFIG.prop;
+  if(!P||!deb||sats.indexOf(deb)<0||!P.el) return null;
+  const tPrev=(P._lastT!=null?P._lastT:(P.tRelease!=null?P.tRelease:t));
+  P._lastT=t;
+  const span=Math.max(0, t-tPrev);
+  const nSub=Math.min(240, Math.max(1, Math.ceil(span/5)));
+  let bestD=1e18, bestT=t, bestPE=null;
+  for(let i=0;i<=nSub;i++){
+    const ti=(nSub===1)?t:(tPrev+span*i/nSub);
+    let pe=null, de=null;
+    try{ pe=case1PropECI(P.el, ti); de=deb.eciKm(ti); }catch(_){ return null; }
+    if(!pe||!de||pe.some(x=>!isFinite(x))||de.some(x=>!isFinite(x))) return null;
+    const d=Math.hypot(de[0]-pe[0],de[1]-pe[1],de[2]-pe[2]);
+    if(d<bestD){ bestD=d; bestT=ti; bestPE=pe; }
+    if(d<=(PC.captureKm||2.5)) break; // inside radius — closest sample is enough
+  }
+  let pv=null, dvv=null;
+  try{ pv=case1VelOfEl(P.el, bestT); dvv=deb.velKmS(bestT); }catch(_){ return null; }
+  if(!pv||!dvv||pv.some(x=>!isFinite(x))||dvv.some(x=>!isFinite(x))) return null;
+  P.eci=bestPE; P.vel=pv;
+  const rel=Math.hypot(dvv[0]-pv[0],dvv[1]-pv[1],dvv[2]-pv[2]);
+  CASE1.propDist=bestD; CASE1.propRelMs=rel*1000;
+  if(bestD<=(PC.captureKm||2.5)&&rel<=(PC.captureRelVelKmS||1.2)) return { dist:bestD, relVel:rel, captured:true };
+  if(t>P.deadline) return { dist:bestD, relVel:rel, failed:true }; // missed window — no forced capture
+  return { dist:bestD, relVel:rel, captured:false };
+}
+// INTERCEPT → ATTACHED → PUSHING. Gate: separation within attachment radius AND
+// relative velocity within limits at the predicted time (§8). Only the ATTACHED
+// propeller applies the de-orbit impulse (§10): vis-viva retrograde Δv derived from
+// the debris orbital state (lower energy → lower perigee), applied via the existing
+// maneuver() so the new trajectory results from the changed state (§17–18). The
+// Action Bot is untouched. Burn visuals start at the same sim time as the impulse (§11).
+function case1PropIntercept(t){
+  const deb=CASE1.target, b=CASE1.bot, S=CASE1.safety, P=CASE1.prop, PC=CASE_1_CONFIG.prop;
+  const est=S?S.est:case1EstimateBurn(deb, CASE_1_CONFIG.burn.targetPerigeeKm);
+  try{
+    const vv=deb.velKmS(t), vm=Math.hypot(vv[0],vv[1],vv[2]);
+    CASE1.preBurn={ a:deb.a, e:deb.e, v:vm, alt:deb.a-KM_PER_UNIT, perigee:deb.a*(1-deb.e)-KM_PER_UNIT, t };
+  }catch(_){ CASE1.preBurn=null; }
+  try{
+    case1DisposeObj(case1Vis.preburn); case1Vis.preburn=null;
+    case1Vis.preburn=new THREE.Line(deb.orbit.geometry.clone(), new THREE.LineBasicMaterial({color:0x94a3b8,transparent:true,opacity:0.35,depthWrite:false}));
+    case1Vis.preburn.renderOrder=5; case1Vis.preburn.frustumCulled=false; scene.add(case1Vis.preburn);
+  }catch(_){}
+  // GRADUAL PUSH (§10): the stuck propeller feeds the SAME total retrograde Δv in
+  // small fractions over pushDurSec (low-thrust spiral down, visibly gradual) instead
+  // of one instant kick. Each fraction goes through the existing maneuver(), so the
+  // trajectory always results from the changed state. Started here, metered per tick
+  // by case1ProgressPush — BURN ACTIVE spans the whole window from this sim time.
+  const _dvMag = est.dv;
+  const impulse=_dvMag*1000*(deb.mass||40);
+  const pushDur=Math.max(60, CASE_1_CONFIG.burn.pushDurSec||480);
+  const burnSec=pushDur;
+  CASE1.burn={ dv:est.dv, impulse, burnSec, perigee:est.perigee, t, burnT0:t, by:'PROPELLER (gradual)' };
+  CASE1.predicted={ el:case1ElOf(deb), t };
+  CASE1.postBurn={ start:t, period:deb.periodSec() };
+  // STICK: propeller stays combined with the debris — same position each tick,
+  // burns and disposes together (see case1CheckBurnup).
+  CASE1.attached=true;
+  if(P){ P.attached=true; P.state='PUSHING'; P.burn={ t0:t, dur:pushDur, dv:_dvMag };
+    P.push={ total:_dvMag, applied:0, t0:t, dur:pushDur };
+    try{ P.eci=deb.eciKm(t); P.vel=deb.velKmS(t); }catch(_){}
+    try{ case1SetPropLabel(P,'BURN ACTIVE'); }catch(_){}
+  }
+  if(b&&sats.indexOf(b)>=0&&case1BotBudget(b)<CASE_1_CONFIG.action.reserveKmS){
+    b.needsDisposal=true;
+    try{ fleetNotice('CCS ALERT — <b>'+b.label+'</b> below energy reserve · awaiting confirmation (IRIS.confirmDisposal)'); }catch(_){}
+    case1Log('EOL watch: '+b.label+' needsDisposal — waiting CCS, not auto-disposing');
+  }
+  try{ fleetNotice('◈ PROPELLER ATTACHED — crossed <b>'+deb.label+'</b> path · <b>BURN ACTIVE</b> gradual propeller push Δv '+est.dv.toFixed(3)+'km/s retrograde over ~'+Math.round(pushDur)+'s sim → perigee '+est.perigee+'km'+(b?' · <b>'+b.label+'</b> holds ahead safe':'')+''); }catch(_){}
+  case1Log('ATTACHED→PUSHING: propeller stuck on '+deb.label+' — gradual Δv '+est.dv.toFixed(4)+'km/s retrograde (impulse '+Math.round(impulse)+'N·s metered over ~'+Math.round(pushDur)+'s sim) from simT '+Math.round(t)+' — pushes down progressively');
+  case1SetState('POST_BURN_VERIFICATION','gradual propeller push underway — tracking predicted vs actual');
+}
+// GRADUAL-PUSH METERING: applies the attached propeller's total Δv as small
+// retrograde fractions across its burn window (same maneuver() engine per fraction).
+// Returns true while pushing is still underway. No-ops safely once complete.
+function case1ProgressPush(t){
+  try{
+    const P=CASE1.prop, deb=CASE1.target;
+    if(!P||P.state!=='PUSHING'||!P.push||!deb||sats.indexOf(deb)<0) return false;
+    const frac=Math.max(0, Math.min(1, (t-P.push.t0)/Math.max(1,P.push.dur)));
+    const target=P.push.total*frac, d=target-(P.push.applied||0);
+    if(d>1e-9&&isFinite(d)){
+      deb.maneuver(-d, 0, 0, t);
+      P.push.applied=target;
+    }
+    try{ P.eci=deb.eciKm(t); P.vel=deb.velKmS(t); }catch(_){}
+    if(frac>=1){
+      P.state='ATTACHED';
+      try{ case1SetPropLabel(P,'PROPELLER ATTACHED'); }catch(_){}
+      case1Log('PUSHING→ATTACHED — gradual push complete ('+P.push.total.toFixed(4)+'km/s delivered) — propeller rides attached');
+      return false;
+    }
+    return true;
+  }catch(_){ return false; }
+}
+// ATMOSPHERIC BURN-UP: targeted debris burns in thick air via drag/friction, then vanishes (deleted).
+// Only after the downward push (CASE1.burn exists). Threshold 135km = deep-atmosphere
+// ceiling so the debris must coast DOWN close to Earth first — no early burn high up.
+// With target perigee ~115km this triggers only on the low dip near perigee.
+// Returns true if burn-up executed (caller must break — state is now CASE_1_COMPLETE).
+function case1CheckBurnup(deb, t){
+  try{
+    if(!deb||sats.indexOf(deb)<0||!CASE1.burn) return false;
+    let ec=null;
+    try{ ec=deb.eciKm(t); }catch(_){ return false; }
+    const altInst=Math.hypot(ec[0],ec[1],ec[2])-KM_PER_UNIT;
+    if(!(altInst<135)) return false;
+    let bLat=0, bLon=0;
+    try{ const g=eciToGeodetic(ec, t); bLat=g.lat; bLon=g.lon; }catch(_){}
+    const per=deb.a*(1-deb.e)-KM_PER_UNIT;
+    const label=deb.label||'DEBRIS';
+    // combined pair burns as one: attached propeller disposes with the debris.
+    // The action bot survives on its offset orbit — only debris+propeller are deleted.
+    const b=CASE1.bot;
+    const withProp=(CASE1.attached&&CASE1.prop);
+    case1Log('atmospheric burn-up: '+label+(withProp?'+PROPELLER':'')+' alt '+altInst.toFixed(1)+'km perigee '+per.toFixed(0)+'km — drag/friction burn, deleting '+(withProp?'both':'debris')+(b&&sats.indexOf(b)>=0?(' · '+b.label+' survives'):''));
+    try{ disposeSat(deb); }catch(_){}
+    try{ case1DisposePropeller(); }catch(_){}
+    try{ case1ClearRunVisuals(); }catch(_){}
+    CASE1.reentry={ perigee:per, lat:bLat, lon:bLon, burned:true, alt:altInst };
+    CASE1.attached=false;
+    case1SetState('CASE_1_COMPLETE','burned up @ '+bLat.toFixed(1)+'°/'+bLon.toFixed(1)+'° alt '+altInst.toFixed(0)+'km — '+label+(withProp?'+PROPELLER':'')+' deleted (drag/friction)'+(b&&sats.indexOf(b)>=0?(' · '+b.label+' safe'):''));
+    return true;
+  }catch(_){ return false; }
+}
+function case1Tick(){
+  try{ case1Render(); }catch(_){}
+  if(CASE1.state==='IDLE'||CASE1.state==='ABORTED'||CASE1.state==='CASE_1_COMPLETE'||CASE1.state==='VALIDATION_FAILED') return;
+  const t=case1Now(), deb=CASE1.target;
+  if(!deb||sats.indexOf(deb)<0){ CASE1.errors.push('target debris removed'); case1SetState('ABORTED','target lost'); return; }
+  // formation HOLD (runs in every active state incl. holds): freezes the assigned
+  // ahead-gaps so drift can never collapse the bot–debris separation mid-mission.
+  // Pure station-keeping — never an approach, never a chase.
+  try{ case1HoldFormation(t); }catch(_){}
+  switch(CASE1.state){
+    case 'INITIALIZING_CASE_1': {
+      case1NormalizeArrange();
+      try{ if(deb) { try{ deselectSat(true); }catch(_){} focusSat(deb); } }catch(_){}
+      case1SampleLive();
+      case1SetState('ARRANGING_SCENARIO','deterministic layout applied');
+      break;
+    }
+    case 'ARRANGING_SCENARIO': {
+      // one tick to let visuals settle, then lock revolution-1 epoch to ACTUAL period
+      CASE1.rev1={ start:t, period:deb.periodSec(), samples:[] };
+      case1SampleLive();
+      case1SetState('OBSERVING_REVOLUTION_1','T='+CASE1.rev1.period.toFixed(0)+'s sim time');
+      break;
+    }
+    case 'OBSERVING_REVOLUTION_1': {
+      const L=case1SampleLive();
+      CASE1.rev1.samples.push({ t, a:deb.a, e:deb.e, alt:L.alt, v:Math.hypot(L.vel[0],L.vel[1],L.vel[2]), mass:deb.mass, tumble:case1Tumble(deb) });
+      if(t-CASE1.rev1.start>=CASE1.rev1.period){
+        const n=CASE1.rev1.samples.length||1;
+        const mean=k=>CASE1.rev1.samples.reduce((s,r)=>s+r[k],0)/n;
+        CASE1.mapped={ a:mean('a'), e:mean('e'), alt:mean('alt'), v:mean('v'), mass:mean('mass'), tumble:mean('tumble'), inc:deb.inc, period:CASE1.rev1.period };
+        CASE1.rev2={ start:t, period:deb.periodSec(), samples:[] };
+        case1SetState('OBSERVING_REVOLUTION_2','rev-1 mapped · '+n+' samples');
+      }
+      break;
+    }
+    case 'OBSERVING_REVOLUTION_2': {
+      const L=case1SampleLive();
+      CASE1.rev2.samples.push({ t, a:deb.a, e:deb.e, alt:L.alt, v:Math.hypot(L.vel[0],L.vel[1],L.vel[2]) });
+      if(t-CASE1.rev2.start>=CASE1.rev2.period){
+        case1SetState('CALCULATING_DECAY','fusing 2 revs');
+      }
+      break;
+    }
+    case 'CALCULATING_DECAY': {
+      const n1=CASE1.rev1.samples.length||1, n2=CASE1.rev2.samples.length||1;
+      const a1=CASE1.rev1.samples.reduce((s,r)=>s+r.a,0)/n1;
+      const a2=CASE1.rev2.samples.reduce((s,r)=>s+r.a,0)/n2;
+      const dt=Math.max(1, CASE1.rev2.start-CASE1.rev1.start);
+      CASE1.decayKmPerDay=(a2-a1)/dt*86400;
+      case1SetState('PREDICTING_REVOLUTION_3','decay '+CASE1.decayKmPerDay.toFixed(4)+' km/day');
+      break;
+    }
+    case 'PREDICTING_REVOLUTION_3': {
+      const aPred=CASE1.mapped.a+CASE1.decayKmPerDay/86400*CASE1.rev2.period;
+      CASE1.predRev3={ a:aPred, e:deb.e, period:periodSecOf(aPred) };
+      case1SetState('SELECTING_ACTION_BOT','rev-3 a '+(aPred-KM_PER_UNIT).toFixed(1)+'km');
+      break;
+    }
+    case 'SELECTING_ACTION_BOT': {
+      const sel=case1SelectBot();
+      const why=sel.all.map(c=>(c.bot.label||'bot')+': '+(c.ok?('OK margin '+c.margin.toFixed(3)+'km/s score '+c.score.toFixed(2)):('REJECT — '+c.reasons.join(', ')))).join(' | ');
+      case1Log('selection: '+why);
+      if(!sel.best){
+        CASE1.errors.push('No valid Action Bot — '+sel.all.map(c=>c.reasons.join('+')).join('; '));
+        try{ fleetNotice('CASE 1 HOLD — <b>no valid Action Bot</b> (energy/direction/filter)'); }catch(_){}
+        case1SetState('ABORTED','selection failed — notified CCS');
+        break;
+      }
+      CASE1.bot=sel.best.bot; CASE1.backupBots=sel.rest.map(r=>r.bot);
+      CASE1._selMargin=sel.best.margin; CASE1._selDist=sel.best.dist; CASE1._selRel=sel.best.rel;
+      CASE1.bot._phaseFrom=CASE1.bot.M0;
+      CASE1._lastRzT=t; CASE1.rzDeadline=t+CASE_1_CONFIG.rendezvous.timeoutRevs*deb.periodSec()+600;
+      try{ fleetNotice('CASE 1 BOT <b>'+CASE1.bot.label+'</b> margin '+sel.best.margin.toFixed(3)+'km/s · dist '+sel.best.dist.toFixed(0)+'km'); }catch(_){}
+      case1SetState('RENDEZVOUS', CASE1.bot.label+' → '+deb.label);
+      break;
+    }
+    case 'RENDEZVOUS': {
+      const b=CASE1.bot;
+      if(!b||sats.indexOf(b)<0||b.case1Unavailable){ case1Handoff('bot lost'); break; }
+      const L=case1SampleLive();
+      if(!case1LiveFresh()){ case1Log('live stale — fresh sample requested'); case1SampleLive(); }
+      // TRAILING-STANDOFF hold: bot KEEPS its own offset orbit and never flies at the
+      // debris. Only trims along-track drift while outside the 15-110km release
+      // corridor. The propeller is the sole interceptor (trajectory intersect).
+      const SO=CASE_1_CONFIG.standoff;
+      const dtRz=Math.max(0, t-(CASE1._lastRzT!=null?CASE1._lastRzT:t));
+      CASE1._lastRzT=t;
+      const dist0=case1DistKm(deb, b, t);
+      if(dist0<SO.minKm){
+        // COLLISION AVOID: too near — back the phase off, away from the debris,
+        // then adopt the pushed-out slot so the formation HOLD keeps the new gap.
+        if(dtRz>0){
+          const diffDeg=(((deb.M0-b.M0)/RAD%360+540)%360)-180;
+          const step=CASE_1_CONFIG.rendezvous.phaseRateDegPerSimSec*dtRz;
+          const away=(diffDeg>=0?-1:1);
+          b.M0=((b.M0+away*step*RAD)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
+          b.dvUsedKmS=(b.dvUsedKmS||0)+step*CASE_1_CONFIG.rendezvous.fuelPerDegKmS;
+          try{ const TAU=2*Math.PI; let nd=(b.M0-deb.M0)%TAU; if(nd>Math.PI) nd-=TAU; if(nd<-Math.PI) nd+=TAU; b._holdDelta=nd; }catch(_){}
+        }
+        if(!CASE1._backoff){ CASE1._backoff=true; case1Log('collision-avoid backoff — bot holds offset orbit, propeller goes instead (never a hit)'); }
+        if(t>(CASE1.rzDeadline||Infinity)){ case1Handoff('offset corridor unreachable d='+dist0.toFixed(1)+'km'); }
+        break;
+      }
+      CASE1._backoff=false;
+      // STATION-KEEP only: close the gap while OUTSIDE the corridor; hold still inside
+      // it so the offset orbit keeps its regular little distance (no chase, no hit).
+      // (The formation HOLD already freezes the slot; this only re-acquires it.)
+      if(dist0>SO.maxKm&&dtRz>0){
+        const diffDeg=(((deb.M0-b.M0)/RAD%360+540)%360)-180; // signed shortest arc, deg
+        const step=CASE_1_CONFIG.rendezvous.phaseRateDegPerSimSec*dtRz;
+        const mv=Math.max(-step, Math.min(step, diffDeg));
+        b.M0=((b.M0+mv*RAD)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
+        b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(mv)*CASE_1_CONFIG.rendezvous.fuelPerDegKmS;
+        try{ const TAU=2*Math.PI; let nd=(b.M0-deb.M0)%TAU; if(nd>Math.PI) nd-=TAU; if(nd<-Math.PI) nd+=TAU; b._holdDelta=nd; }catch(_){}
+      }
+      const dist=case1DistKm(deb, b, t), rel=case1RelVel(deb, b, t);
+      if(dist<=SO.maxKm&&rel<=SO.maxRelVelKmS){
+        case1SetState('TUMBLE_VERIFICATION','offset-orbit hold dist '+dist.toFixed(1)+'km rel '+rel.toFixed(3)+'km/s — bot holds own orbit, propeller will intercept');
+        break;
+      }
+      if(t>(CASE1.rzDeadline||Infinity)){
+        case1Handoff('rendezvous timeout d='+dist.toFixed(1)+'km');
+      }
+      break;
+    }
+    case 'TUMBLE_VERIFICATION': {
+      const tb=case1Tumble(deb);
+      if(tb>CASE_1_CONFIG.tumble.maxRadS){
+        // STRICT: no eddy/EM despin — pause and notify, never artificially despin
+        CASE1.errors.push('tumble '+tb.toFixed(4)+' rad/s exceeds '+CASE_1_CONFIG.tumble.maxRadS+' — HOLD (no despin hardware in Case 1)');
+        try{ fleetNotice('CASE 1 HOLD — <b>tumble too high</b>, CCS notified (no despin)'); }catch(_){}
+        case1SetState('TUMBLE_HOLD','awaiting CCS — operation paused');
+        break;
+      }
+      case1SetState('SAFETY_VALIDATION','tumble '+tb.toFixed(4)+' rad/s OK');
+      break;
+    }
+    case 'SAFETY_VALIDATION': {
+      const est=case1EstimateBurn(deb, CASE_1_CONFIG.burn.targetPerigeeKm);
+      const jr=j2Rates(est.aNew, est.eNew, deb.inc);
+      let ok=false, used=null, delayK=0;
+      for(let k=0;k<=CASE_1_CONFIG.safety.maxBurnDelays;k++){
+        const tB=t+k*deb.periodSec()/4;
+        // predicted post-burn epoch elements, phase-continuous at tB
+        const Mb=deb.M0+(deb.n0+deb.mDot)*tB;
+        const TAU=2*Math.PI;
+        const el={ a:est.aNew, e:est.eNew, inc:deb.inc,
+          raan:(((deb.raan+deb.raanDot*tB-jr.raanDot*tB)%TAU)+TAU)%TAU,
+          argP:(((deb.argP+deb.argPDot*tB-jr.argPDot*tB)%TAU)+TAU)%TAU,
+          M0:(((Mb-(jr.n+(jr.mDot||0))*tB)%TAU)+TAU)%TAU,
+          n:jr.n, raanDot:jr.raanDot, argPDot:jr.argPDot, mDot:jr.mDot };
+        const chk=case1SafetyCheck(el, tB, deb.periodSec()*CASE_1_CONFIG.safety.horizonRevs, CASE_1_CONFIG.safety.stepSimSec, null);
+        if(chk.safe){ ok=true; used={ el, tB, chk, est }; delayK=k; break; }
+      }
+      if(!ok){
+        CASE1.errors.push('descent unsafe for all burn timings — HOLD, CCS notified');
+        try{ fleetNotice('CASE 1 HOLD — <b>unsafe descent</b>, no burn executed'); }catch(_){}
+        case1SetState('SAFETY_HOLD','no safe window');
+        break;
+      }
+      CASE1.safety=used;
+      CASE1._safeDelay=delayK; CASE1._safeMin=used.chk.minD;
+      case1Log('safety OK delay x'+delayK+'/4 · min sep '+used.chk.minD.toFixed(3)+'km');
+      case1SetState('BURN_EXECUTION','Δv '+est.dv.toFixed(3)+'km/s'+(delayK?' delay '+delayK+'/4 rev':''));
+      break;
+    }
+    case 'BURN_EXECUTION': {
+      // DEPLOY ON COMMAND: solve the intercept from live state vectors, verify safety,
+      // release the propeller from the bot's CURRENT hold point. The bot never moves
+      // toward the debris — it keeps its offset orbit; only the propeller departs.
+      const b=CASE1.bot, S=CASE1.safety;
+      if(!b||sats.indexOf(b)<0||b.case1Unavailable){ case1Handoff('bot failed at release'); break; }
+      case1SampleLive();
+      if(!case1LiveFresh()){ case1Log('release postponed one tick — live stale'); break; }
+      if(case1Tumble(deb)>CASE_1_CONFIG.tumble.maxRadS){ case1SetState('TUMBLE_HOLD','tumble rose before release'); break; }
+      if(case1RelVel(deb,b,t)>CASE_1_CONFIG.standoff.maxRelVelKmS+0.05){ case1SetState('RENDEZVOUS','offset drifted — re-hold corridor'); break; }
+      try{
+        case1DisposeObj(case1Vis.preburn); case1Vis.preburn=null;
+        case1Vis.preburn=new THREE.Line(deb.orbit.geometry.clone(), new THREE.LineBasicMaterial({color:0x94a3b8,transparent:true,opacity:0.35,depthWrite:false}));
+        case1Vis.preburn.renderOrder=5; case1Vis.preburn.frustumCulled=false; scene.add(case1Vis.preburn);
+      }catch(_){}
+      let ok=false;
+      try{ ok=case1ReleasePropeller(t); }catch(_){ ok=false; }
+      if(!ok){
+        // §14: one recalculation on the next tick (fresh state vectors), then fail to CCS.
+        CASE1.deployAttempts=(CASE1.deployAttempts||0)+1;
+        if(CASE1.deployAttempts>=2){
+          CASE1.errors.push('propeller deployment infeasible — PROP INTERCEPT FAILED, CCS notified');
+          try{ fleetNotice('CCS ALERT — <b>PROP INTERCEPT FAILED</b> (no safe intercept solution for <b>'+deb.label+'</b>)'); }catch(_){}
+          case1Log('PROP INTERCEPT FAILED — no safe solution after recalculation; no impulse applied');
+          try{ case1DisposePropeller(); }catch(_){}
+          case1SetState('ABORTED','deployment infeasible — notified CCS');
+        } else {
+          case1Log('deployment solution unavailable — recalculating once with fresh vectors');
+        }
+        break;
+      }
+      CASE1.deployAttempts=0; CASE1.propAttempts=0;
+      CASE1._botLostLogged=false;
+      case1SetState('PROPELLER_FLIGHT','propeller flying solved intercept — bot '+b.label+' holds offset orbit');
+      break;
+    }
+    case 'PROPELLER_FLIGHT': {
+      // Ballistic intercept on the SOLVED orbit; bot holds its offset orbit throughout.
+      const b=CASE1.bot, P=CASE1.prop;
+      if(!P||!P.el){ try{ case1ReleasePropeller(t); }catch(_){} break; }
+      if(P.state==='FAILED'){ CASE1.errors.push('propeller deployment failed'); case1SetState('ABORTED','propeller failed'); break; }
+      if((!b||sats.indexOf(b)<0)&&!CASE1._botLostLogged){ CASE1._botLostLogged=true; case1Log('action bot lost after release — propeller continues autonomously on solved orbit'); }
+      case1SampleLive();
+      const r=case1StepPropeller(t);
+      if(r==null){ CASE1.errors.push('propeller tracking lost'); case1SetState('ABORTED','propeller failed'); break; }
+      if(r.failed){
+        // §14: missed the window — one fresh re-deployment from the (still separate) bot.
+        CASE1.propAttempts=(CASE1.propAttempts||0)+1;
+        try{ fleetNotice('PROP MISS — separation '+r.dist.toFixed(1)+'km relVel '+(r.relVel*1000).toFixed(0)+'m/s — '+(CASE1.propAttempts>=2?'reporting <b>PROP INTERCEPT FAILED</b>':'recalculating deployment')); }catch(_){}
+        case1Log('INTERCEPTING→'+(CASE1.propAttempts>=2?'FAILED':'recalculate')+' — miss dist '+r.dist.toFixed(2)+'km relVel '+r.relVel.toFixed(4)+'km/s past deadline; no impulse applied');
+        if(CASE1.propAttempts>=2){
+          CASE1.errors.push('propeller missed intercept — PROP INTERCEPT FAILED, CCS notified');
+          try{ case1DisposePropeller(); }catch(_){}
+          case1SetState('ABORTED','intercept missed — notified CCS');
+        } else {
+          try{ case1DisposePropeller(); }catch(_){}
+          case1SetState('BURN_EXECUTION','recalculating deployment from bot hold point');
+        }
+        break;
+      }
+      if(r.captured){
+        try{ case1SetPropLabel(P,'PROPELLER ATTACHED'); }catch(_){}
+        case1PropIntercept(t);
+      }
+      break;
+    }
+    case 'POST_BURN_VERIFICATION': {
+      case1SampleLive();
+      try{ case1LockPropToDebris(t); }catch(_){}
+      // GRADUAL PUSH metering: stuck propeller feeds its Δv in small retrograde
+      // fractions across the burn window — debris spirals down progressively while
+      // BURN ACTIVE shows. Completes (→ATTACHED) once the full Δv is delivered.
+      try{ case1ProgressPush(t); }catch(_){}
+      // burn in atmosphere as soon as the downward trajectory dips into thick air (even during verification)
+      if(case1CheckBurnup(deb, t)) break;
+      const P=CASE1.predicted;
+      if(P){
+        const pp=case1PropECI(P.el, t), ap=deb.eciKm(t);
+        const dev=Math.hypot(pp[0]-ap[0], pp[1]-ap[1], pp[2]-ap[2]);
+        if(dev>CASE_1_CONFIG.verify.deviationKm){
+          case1Log('trajectory deviation '+dev.toFixed(1)+'km — updating prediction + rerunning safety');
+          CASE1.predicted={ el:case1ElOf(deb), t };
+          try{
+            const chk=case1SafetyCheck(CASE1.predicted.el, t, deb.periodSec()*2, 60, null);
+            if(!chk.safe){ CASE1.errors.push('post-burn conjunction '+chk.minD.toFixed(3)+'km — CCS notified'); try{ fleetNotice('CCS ALERT — <b>post-burn conjunction</b> '+chk.minD.toFixed(2)+'km'); }catch(_){} }
+          }catch(_){}
+        }
+      }
+      if(t-CASE1.postBurn.start>=CASE1.postBurn.period*CASE_1_CONFIG.verify.postBurnRevs){
+        const per=deb.a*(1-deb.e)-KM_PER_UNIT;
+        if(per<=CASE_1_CONFIG.reentry.safePerigeeMaxKm) case1SetState('REENTRY_TRACKING','perigee '+per.toFixed(0)+'km');
+        else { CASE1.errors.push('burn did not lower perigee ('+per.toFixed(0)+'km)'); case1SetState('ABORTED','burn ineffective'); }
+      }
+      break;
+    }
+    case 'REENTRY_TRACKING': {
+      case1SampleLive();
+      try{ case1LockPropToDebris(t); }catch(_){}
+      try{ case1ProgressPush(t); }catch(_){} // backstop: finish any undelivered push fraction
+      const per=deb.a*(1-deb.e)-KM_PER_UNIT;
+      const halfP=deb.periodSec()/2;
+      let lat=0, lon=0;
+      try{
+        const ec=deb.eciKm(t+halfP);
+        const g=eciToGeodetic(ec, t+halfP);
+        lat=g.lat; lon=g.lon;
+      }catch(_){}
+      const ok=per>=CASE_1_CONFIG.reentry.safePerigeeMinKm&&per<=CASE_1_CONFIG.reentry.safePerigeeMaxKm;
+      if(!ok){
+        CASE1.errors.push('reentry band unsafe: perigee '+per.toFixed(0)+'km (want 100–150)');
+        try{ fleetNotice('CCS FLAG — <b>unsafe reentry band</b> '+per.toFixed(0)+'km'); }catch(_){}
+        case1SetState('ABORTED','unsafe reentry footprint');
+        break;
+      }
+      // wait for actual atmospheric entry: debris coasts on its new Earth-leaning
+      // trajectory until deep air (<135km) burns it via drag/friction (deleted in
+      // case1CheckBurnup). It must dip CLOSE to Earth first — no early/high burn.
+      // Do NOT complete while still high — burn happens deep in the atmosphere, not at push point.
+      if(case1CheckBurnup(deb, t)) break;
+      let curAlt=null;
+      try{ const ec0=deb.eciKm(t); curAlt=Math.hypot(ec0[0],ec0[1],ec0[2])-KM_PER_UNIT; }catch(_){}
+      CASE1.reentry={ perigee:per, lat, lon, alt:curAlt };
+      try{ const _bl=(CASE1.bot&&sats.indexOf(CASE1.bot)>=0)?' · bot <b>'+CASE1.bot.label+'</b> safe on offset orbit':''; fleetNotice('REENTRY TRACKING — <b>'+deb.label+'</b>+PROPELLER combined perigee '+per.toFixed(0)+'km · alt '+(curAlt!=null?curAlt.toFixed(0):'—')+'km → joint burn below 135km'+_bl); }catch(_){}
+      case1Log('reentry tracking: '+deb.label+'+propeller combined alt '+(curAlt!=null?curAlt.toFixed(1):'—')+'km, coasting closer to Earth, waiting for <135km joint burn-up');
+      break;
+    }
+    default: break;
+  }
+  try{ case1Render(); }catch(_){}
+}
+function case1Handoff(reason){  const b=CASE1.bot;
+  CASE1.attached=false;
+  try{ case1DisposePropeller(); }catch(_){}
+  try{ if(b) b.case1Unavailable=true; }catch(_){}
+  case1Log('handoff: '+(b?b.label:'?')+' failed ('+reason+') — re-evaluating');
+  try{ fleetNotice('CASE 1 HANDOFF — <b>'+(b?b.label:'bot')+'</b> unavailable ('+reason+')'); }catch(_){}
+  CASE1.handoffCount++;
+  CASE1.deployAttempts=0; CASE1.propAttempts=0;
+  const sel=case1SelectBot();
+  if(sel.best){
+    CASE1.bot=sel.best.bot; CASE1.backupBots=sel.rest.map(r=>r.bot);
+    CASE1._lastRzT=case1Now(); CASE1.rzDeadline=case1Now()+CASE_1_CONFIG.rendezvous.timeoutRevs*CASE1.target.periodSec()+600;
+    case1SetState('RENDEZVOUS','handoff → '+CASE1.bot.label);
+  } else {
+    CASE1.errors.push('no valid Action Bot remains — operation stopped, CCS notified');
+    case1SetState('ABORTED','no bot remains');
+  }
+}
+setInterval(case1Tick, 500);
+document.getElementById('btnStartCase1')?.addEventListener('click', case1Start);
+document.getElementById('btnAbortCase1')?.addEventListener('click', ()=>case1Abort('operator abort'));
+document.getElementById('btnSetCase1Target')?.addEventListener('click', ()=>{
+  const dd=document.getElementById('case1TargetSelect');
+  if(dd&&dd.value) case1SetTarget(dd.value);
+  else try{ fleetNotice('Pick a debris in the list first'); }catch(_){}
+});
+window.IRIS.case1={ start:case1Start, abort:case1Abort, validate:case1ValidateFleet, setTarget:case1SetTarget, get state(){ return CASE1.state; }, data:CASE1, config:CASE_1_CONFIG, vis:case1Vis, detecting:case1DetectingBots };
+window.IRIS.focusCase1Target=function(){ try{ if(CASE1.target&&sats.indexOf(CASE1.target)>=0){ focusSat(CASE1.target); return true; } }catch(_){} return false; };
+window.IRIS.snapTo=function(ref, dist){
+  // close-up inspection framing (observability): camera just off the object, looking at it
+  try{
+    const s=(typeof ref==='string')?sats.find(x=>x.label===ref||x.id===ref):(ref||CASE1.target);
+    const sat=(s&&s.isBot)?s.parent:s;
+    if(!sat||!sat.group||sats.indexOf(sat)<0) return false;
+    const p=sat.group.position.clone();
+    const dir=p.clone().normalize();
+    const d=(dist==null?0.38:dist);
+    camera.position.copy(p).addScaledVector(dir, d*0.55).add(new THREE.Vector3(0,d*0.35,0));
+    controls.target.copy(p);
+    controls.update();
+    return true;
+  }catch(_){ return false; }
+};
+try{ case1RefreshTargetOptions(); }catch(_){}
+window.IRIS.confirmDisposal=function(bot){
+  try{
+    const s=(typeof bot==='string')?sats.find(x=>x.label===bot):bot;
+    if(!s||sats.indexOf(s)<0) return false;
+    if(!s.needsDisposal){ try{ fleetNotice('CCS — <b>'+(s.label||'bot')+'</b> not pending disposal'); }catch(_){} return false; }
+    const t=case1Now();
+    try{ s.maneuver(-0.12, 0, 0, t); }catch(_){}
+    try{ fleetNotice('CCS CONFIRMED — <b>'+s.label+'</b> safe disposal burn executed'); }catch(_){}
+    case1Log('disposal confirmed: '+s.label);
+    s.needsDisposal=false; s.case1Unavailable=true;
+    return true;
+  }catch(_){ return false; }
+};
 document.getElementById('btnToggleShells').addEventListener('click', e=>{ shellsGroup.visible=!shellsGroup.visible; e.currentTarget.textContent=shellsGroup.visible?'SHELLS ON':'SHELLS OFF'; });
 // Orbits show/hide — single source of truth, top bar + Details button stay in sync, O key works too. Hides orbit ellipses + trails.
 function setOrbitsVisible(v){
