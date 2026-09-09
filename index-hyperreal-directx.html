@@ -3419,9 +3419,9 @@ const CASE_1_CONFIG={
   precision:{ min:0.9 },
   select:{ maxRelVelKmS:4.5 },
   rendezvous:{ maxDistKm:5, maxRelVelKmS:0.08, phaseRateDegPerSimSec:0.02, fuelPerDegKmS:0.002, timeoutRevs:2 },
-  // TRAILING STANDOFF: each bot flies its OWN offset orbit ~50km ABOVE the debris
-  // (vertical shell separation — clearly distinct orbits, never overlapping) plus a
-  // small ahead phase. Same period class + gentle phase HOLD (below), so the gap is
+  // TRAILING STANDOFF: each bot flies its OWN offset orbit ~50km ABOVE / ~50km BELOW
+  // the debris (alternating shells — bots never share a shell, never overlapping) plus
+  // a small ahead phase. Same period class + gentle phase HOLD (below), so the gap is
   // stable (no fast drift, no same-orbit chase). Release corridor 15–110km covers
   // the 50–100km held band. The bot NEVER leaves this orbit to hit the debris.
   standoff:{ minKm:15, maxKm:110, maxRelVelKmS:0.6, holdRateDegPerSimSec:0.005 },
@@ -4139,14 +4139,16 @@ function case1NormalizeArrange(){
     s.precision=Math.max(0.8, C.action.precisionBase-i*C.action.precisionStep);
     s.case1Unavailable=false; s.needsDisposal=false;
     try{ s.envLifetimeYr=lifetimeYears(C.action.alt, s.B); }catch(_){ s.envLifetimeYr=5; }
-    // TRAILING OFFSET ORBITS: each bot gets its OWN orbit — a full shell ~50km ABOVE
-    // the debris (vertical separation, never overlapping) plus slight plane tilt and
-    // trailing phase. Bots spread along-track so neighbours stay ~24km+ apart (no
-    // conjunctions). The phase HOLD freezes each slot, so the 50–100km held band
-    // persists to release. Only the propeller leaves — downward across the path.
-    case1SetElements(s, C.action.alt+(C.action.altOffsetKm||6), C.action.e,
+    // TRAILING OFFSET ORBITS: bot0 exactly +50km ABOVE debris, bot1 exactly -50km
+    // BELOW debris (never overlapping, never sharing a shell). Extras alternate
+    // further out (+75/-75…) with distinct planes so no two bots ever overlap.
+    // The phase HOLD freezes each slot, so the 50–100km held band persists to release.
+    // Only the propeller leaves — downward across the path.
+    const _off=(C.action.altOffsetKm||50)+Math.floor(i/2)*25;
+    const _signedOff=(i%2===0)?_off:-_off;
+    case1SetElements(s, C.debris.alt+_signedOff, C.action.e,
       C.debris.inc+(C.action.incOffsetDeg||0.22),
-      tRaan+(C.action.raanOffsetDeg||0.30), C.debris.argP,
+      tRaan+(C.action.raanOffsetDeg||0.30)+i*0.35, C.debris.argP,
       tM0+(C.action.m0Offset||0.28)+i*(C.action.m0Spacing||0.10));
   });
   const allActives=CASE1.hosts.concat(CASE1.cleanActives);
