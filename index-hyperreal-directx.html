@@ -3435,8 +3435,8 @@ const CASE_1_CONFIG={
   // else) to the predicted meeting point. captureKm/captureRelVelKmS gate ATTACHED.
   prop:{ captureKm:2.5, captureRelVelKmS:1.2, deployDvMaxKmS:0.35, downBiasKmS:0.04, deadlineRev:1,
     tofMinSec:90, graceSec:180, massKg:8, thrustN:500 },
-  burn:{ targetPerigeeKm:115, thrustN:500, pushDurSec:480 },
-  reentry:{ safePerigeeMinKm:100, safePerigeeMaxKm:150, uncertaintyKm:50 },
+  burn:{ targetPerigeeKm:65, thrustN:500, pushDurSec:480 },
+  reentry:{ safePerigeeMinKm:50, safePerigeeMaxKm:150, uncertaintyKm:50 },
   verify:{ deviationKm:5, postBurnRevs:1 }
 };
 const CASE1={
@@ -3588,7 +3588,7 @@ const CASE1_SEQ=[
   {label:'Solve + release propeller', states:['BURN_EXECUTION']},
   {label:'Propeller intercept → attach → push', states:['PROPELLER_FLIGHT']},
   {label:'Post-push verify', states:['POST_BURN_VERIFICATION']},
-  {label:'Re-entry → burn <135km', states:['REENTRY_TRACKING']},
+  {label:'Re-entry · burns <135km → gone <65km', states:['REENTRY_TRACKING']},
   {label:'Burned up · deleted', states:['CASE_1_COMPLETE']},
 ];
 function case1SeqIdx(){
@@ -3630,7 +3630,7 @@ function case1SeqCalc(i){
         return CASE1.burn?('propeller Δv '+CASE1.burn.dv.toFixed(3)+'km/s retrograde → perigee '+CASE1.burn.perigee.toFixed(0)+'km'+_tag):'awaiting intercept — no impulse before attach…'; }
       case 9: { let d='…'; try{ const P=CASE1.predicted; if(P&&tgt){ const t=case1Now(), pp=case1PropECI(P.el,t), ap=tgt.eciKm(t); d=Math.hypot(pp[0]-ap[0],pp[1]-ap[1],pp[2]-ap[2]).toFixed(1)+'km'; } }catch(_){}
         return 'dev '+d+' ≤5km'; }
-      case 10: { const r=CASE1.reentry; return 'alt '+(CASE1.live&&CASE1.live.pos?CASE1.live.alt.toFixed(0):'…')+'km → burn <135km'+(r&&r.perigee!=null?(' · perigee '+r.perigee.toFixed(0)+'km'):''); }
+      case 10: { const r=CASE1.reentry; return 'alt '+(CASE1.live&&CASE1.live.pos?CASE1.live.alt.toFixed(0):'…')+'km → burns <135km · gone <65km'+(r&&r.perigee!=null?(' · perigee '+r.perigee.toFixed(0)+'km'):''); }
       case 11: { const r=CASE1.reentry; return r&&r.burned?('burned @ '+r.lat.toFixed(1)+'°/'+r.lon.toFixed(1)+'° alt '+r.alt.toFixed(0)+'km · deleted'):''; }
     }
   }catch(_){}
@@ -3900,7 +3900,9 @@ function case1VisualFrame(dt){
         const wp=case1EciToScene(PF.eci);
         PF.vis.group.visible=true;
         PF.vis.group.position.copy(wp);
-        try{ PF.vis.body.rotation.z+=(dt||0.016)*4; }catch(_){}
+        try{ if(PF.vis.rotor) PF.vis.rotor.rotation.z+=(dt||0.016)*22; else PF.vis.body.rotation.z+=(dt||0.016)*4; }catch(_){}
+        try{ if(PF.vis.halo){ const hs=0.085+pulse*0.025; PF.vis.halo.scale.set(hs,hs,1); } }catch(_){}
+        try{ if(PF.vis.glow){ const gs=0.05+pulse*0.012; PF.vis.glow.scale.set(gs,gs,1); } }catch(_){}
         try{
           const hot=(PF.state==='PUSHING');
           PF.vis.ring.visible=true; PF.vis.ring.position.copy(wp);
@@ -4026,10 +4028,10 @@ function case1VisualFrame(dt){
         _burnAlt=Math.hypot(_ec[0],_ec[1],_ec[2])-KM_PER_UNIT;
       }
     }catch(_){ _burnAlt=null; }
-    // LATE/LOW fire only: glow starts once the pushed debris truly dives close to
-    // Earth (<150km) and peaks deep (<135km, same as burn-up) — never early/high.
-    const _inAtmo=(_burnAlt!=null&&_burnAlt<150);
-    const _intense=(_burnAlt!=null&&_burnAlt<135);
+    // LATE/LOW fire only: glow starts once the pushed debris dives below 135km
+    // and peaks deep toward deletion (~65km) — never early/high.
+    const _inAtmo=(_burnAlt!=null&&_burnAlt<135);
+    const _intense=(_burnAlt!=null&&_burnAlt<100);
     if(_inAtmo&&tgt&&sats.indexOf(tgt)>=0){
       if(!case1Vis.plume.length){
         const core=case1MakeGlow('rgba(255,250,220,1)',0.10), outer=case1MakeGlow('rgba(251,146,60,0.85)',0.24);
@@ -4039,7 +4041,7 @@ function case1VisualFrame(dt){
         case1Vis.exhaust.renderOrder=31; case1Vis.exhaust.frustumCulled=false; scene.add(case1Vis.exhaust);
       }
       const p=case1WorldOf(tgt);
-      const depthF=THREE.MathUtils.clamp((150-_burnAlt)/40,0,1); // 0 @150km → 1 @110km (deep dip only)
+      const depthF=THREE.MathUtils.clamp((135-_burnAlt)/70,0,1); // 0 @135km → 1 @65km (burn corridor to deletion)
       const _bothBurn=(CASE1.attached&&CASE1.prop);
       const fl=(1+0.22*Math.sin(now/23)+0.10*Math.sin(now/13))*(0.7+depthF*1.6)*(_bothBurn?1.25:1.0);
       case1Vis.plume.forEach((s,i)=>{ s.visible=true; s.position.copy(p); const sc=(i?0.24:0.10)*fl*(_intense?1.35:1.0); s.scale.set(sc,sc,1); });
@@ -4514,20 +4516,54 @@ function case1EciToScene(eci){
 function case1SpawnPropellerMesh(state){
   const SZ=R_EARTH*0.70;
   const group=new THREE.Group();
-  const body=new THREE.Mesh(
-    new THREE.ConeGeometry(0.009*SZ,0.030*SZ,10),
-    new THREE.MeshStandardMaterial({color:0xfb923c, emissive:0xea580c, emissiveIntensity:2.0, roughness:0.35, metalness:0.6})
-  );
-  body.rotation.x=Math.PI/2;
+  // shared hot-orange material for hub+blades+nose so the existing heat-tint
+  // (vis.body.material.emissive) tints the whole propeller at once
+  const propMat=new THREE.MeshStandardMaterial({color:0xffb066, emissive:0xea580c, emissiveIntensity:2.6, roughness:0.3, metalness:0.55});
+  const darkMat=new THREE.MeshStandardMaterial({color:0x1a2029, roughness:0.45, metalness:0.8});
+  // central hub — small (kept as vis.body for compat with spin/heat-tint code)
+  const body=new THREE.Mesh(new THREE.SphereGeometry(0.0055*SZ,18,14), propMat);
+  body.name='propHub';
   group.add(body);
-  const glow=case1MakeGlow('rgba(251,146,60,0.95)',0.14); group.add(glow);
+  const shaft=new THREE.Mesh(new THREE.CylinderGeometry(0.0022*SZ,0.0022*SZ,0.016*SZ,10), darkMat);
+  shaft.rotation.x=Math.PI/2;
+  group.add(shaft);
+  const nose=new THREE.Mesh(new THREE.ConeGeometry(0.0028*SZ,0.006*SZ,12), propMat);
+  nose.rotation.x=Math.PI/2; nose.position.z=0.011*SZ;
+  group.add(nose);
+  // rotor — 3 small blades, spins fast (reads as a propeller, stays small)
+  const rotor=new THREE.Group(); rotor.name='propRotor'; rotor.position.z=0.002*SZ;
+  const bladeGeo=new THREE.BoxGeometry(0.0032*SZ,0.022*SZ,0.0011*SZ);
+  const tipGeo=new THREE.SphereGeometry(0.0016*SZ,10,8);
+  const tipMat=new THREE.MeshBasicMaterial({color:0xffe08a});
+  for(let i=0;i<3;i++){
+    const pivot=new THREE.Group();
+    const blade=new THREE.Mesh(bladeGeo, propMat);
+    blade.position.y=0.0145*SZ;
+    blade.rotation.y=0.45; // pitched so it reads as a propeller blade
+    pivot.add(blade);
+    const tip=new THREE.Mesh(tipGeo, tipMat); // bright tip = highlight marker
+    tip.position.y=0.0255*SZ;
+    pivot.add(tip);
+    pivot.rotation.z=i*Math.PI*2/3;
+    rotor.add(pivot);
+  }
+  // faint rotor-disc hint so the spin reads at distance
+  const disc=new THREE.Mesh(
+    new THREE.RingGeometry(0.006*SZ,0.026*SZ,32),
+    new THREE.MeshBasicMaterial({color:0xfb923c, transparent:true, opacity:0.18, side:THREE.DoubleSide, depthWrite:false})
+  );
+  rotor.add(disc);
+  group.add(rotor);
+  // highlight: tight core glow (small so the blades stay visible) + wider halo pulse
+  const glow=case1MakeGlow('rgba(255,220,150,0.95)',0.055); group.add(glow);
+  const halo=case1MakeGlow('rgba(251,146,60,0.55)',0.10); halo.name='propHalo'; group.add(halo);
   const label=case1MakeLabel(state==='ATTACHED'?'PROPELLER ATTACHED':(state==='PUSHING'||state==='BURN'?'BURN ACTIVE':'PROPELLER'),'#fb923c'); label.position.set(0,0.09,0); group.add(label);
   const ring=case1MakeRing('#fb923c'); ring.scale.set(0.10,0.10,1); scene.add(ring);
   scene.add(group);
   const tg=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]);
   const trail=new THREE.Line(tg,new THREE.LineBasicMaterial({color:0xfb923c,transparent:true,opacity:0.85,depthTest:false}));
   trail.renderOrder=29; trail.frustumCulled=false; scene.add(trail);
-  return {group, body, glow, label, ring, trail, pts:[]};
+  return {group, body, glow, halo, rotor, propMat, tipMat, label, ring, trail, pts:[]};
 }
 function case1SetPropLabel(P, text){
   try{
@@ -4736,9 +4772,9 @@ function case1ProgressPush(t){
   }catch(_){ return false; }
 }
 // ATMOSPHERIC BURN-UP: targeted debris burns in thick air via drag/friction, then vanishes (deleted).
-// Only after the downward push (CASE1.burn exists). Threshold 135km = deep-atmosphere
-// ceiling so the debris must coast DOWN close to Earth first — no early burn high up.
-// With target perigee ~115km this triggers only on the low dip near perigee.
+// Burning starts below 135km (visual fire); deletion happens deep at ~65km (60–70km band).
+// Only after the downward push (CASE1.burn exists). With target perigee ~65km this
+// triggers only on the low dip near perigee.
 // Returns true if burn-up executed (caller must break — state is now CASE_1_COMPLETE).
 function case1CheckBurnup(deb, t){
   try{
@@ -4746,7 +4782,7 @@ function case1CheckBurnup(deb, t){
     let ec=null;
     try{ ec=deb.eciKm(t); }catch(_){ return false; }
     const altInst=Math.hypot(ec[0],ec[1],ec[2])-KM_PER_UNIT;
-    if(!(altInst<135)) return false;
+    if(!(altInst<65)) return false;
     let bLat=0, bLon=0;
     try{ const g=eciToGeodetic(ec, t); bLat=g.lat; bLon=g.lon; }catch(_){}
     const per=deb.a*(1-deb.e)-KM_PER_UNIT;
@@ -5041,21 +5077,21 @@ function case1Tick(){
       }catch(_){}
       const ok=per>=CASE_1_CONFIG.reentry.safePerigeeMinKm&&per<=CASE_1_CONFIG.reentry.safePerigeeMaxKm;
       if(!ok){
-        CASE1.errors.push('reentry band unsafe: perigee '+per.toFixed(0)+'km (want 100–150)');
+        CASE1.errors.push('reentry band unsafe: perigee '+per.toFixed(0)+'km (want 50–150)');
         try{ fleetNotice('CCS FLAG — <b>unsafe reentry band</b> '+per.toFixed(0)+'km'); }catch(_){}
         case1SetState('ABORTED','unsafe reentry footprint');
         break;
       }
       // wait for actual atmospheric entry: debris coasts on its new Earth-leaning
-      // trajectory until deep air (<135km) burns it via drag/friction (deleted in
-      // case1CheckBurnup). It must dip CLOSE to Earth first — no early/high burn.
+      // trajectory until it burns below 135km via drag/friction, then is deleted
+      // near ~65km in case1CheckBurnup. It must dip CLOSE to Earth first — no early/high burn.
       // Do NOT complete while still high — burn happens deep in the atmosphere, not at push point.
       if(case1CheckBurnup(deb, t)) break;
       let curAlt=null;
       try{ const ec0=deb.eciKm(t); curAlt=Math.hypot(ec0[0],ec0[1],ec0[2])-KM_PER_UNIT; }catch(_){}
       CASE1.reentry={ perigee:per, lat, lon, alt:curAlt };
-      try{ const _bl=(CASE1.bot&&sats.indexOf(CASE1.bot)>=0)?' · bot <b>'+CASE1.bot.label+'</b> safe on offset orbit':''; fleetNotice('REENTRY TRACKING — <b>'+deb.label+'</b>+PROPELLER combined perigee '+per.toFixed(0)+'km · alt '+(curAlt!=null?curAlt.toFixed(0):'—')+'km → joint burn below 135km'+_bl); }catch(_){}
-      case1Log('reentry tracking: '+deb.label+'+propeller combined alt '+(curAlt!=null?curAlt.toFixed(1):'—')+'km, coasting closer to Earth, waiting for <135km joint burn-up');
+      try{ const _bl=(CASE1.bot&&sats.indexOf(CASE1.bot)>=0)?' · bot <b>'+CASE1.bot.label+'</b> safe on offset orbit':''; fleetNotice('REENTRY TRACKING — <b>'+deb.label+'</b>+PROPELLER combined perigee '+per.toFixed(0)+'km · alt '+(curAlt!=null?curAlt.toFixed(0):'—')+'km → burns <135km · deleted <65km'+_bl); }catch(_){}
+      case1Log('reentry tracking: '+deb.label+'+propeller combined alt '+(curAlt!=null?curAlt.toFixed(1):'—')+'km, burning below 135km, delete below 65km');
       break;
     }
     default: break;
