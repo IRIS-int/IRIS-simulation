@@ -3464,11 +3464,11 @@ const CASE_1_CONFIG={
   precision:{ min:0.9 },
   select:{ maxRelVelKmS:4.5 },
   rendezvous:{ maxDistKm:5, maxRelVelKmS:0.08, phaseRateDegPerSimSec:0.02, fuelPerDegKmS:0.002, timeoutRevs:2 },
-  // TRAILING STANDOFF: each bot flies its OWN offset orbit ~50km ABOVE / ~50km BELOW
-  // the debris (alternating shells — bots never share a shell, never overlapping) plus
-  // a small ahead phase. Same period class + gentle phase HOLD (below), so the gap is
-  // stable (no fast drift, no same-orbit chase). Release corridor 15–110km covers
-  // the 50–100km held band. The bot NEVER leaves this orbit to hit the debris.
+  // TRAILING STANDOFF: each bot flies its OWN unique orbit — distinct circular
+  // shell (|offset| 20–90km, never shared, never touching) + distinct plane +
+  // distinct phase. Gentle phase HOLD (below) keeps the slot stable (no fast
+  // drift, no same-orbit chase). Release corridor 15–110km covers the 20–90km
+  // shell band. The bot NEVER leaves this orbit to hit the debris.
   standoff:{ minKm:15, maxKm:110, maxRelVelKmS:0.6, holdRateDegPerSimSec:0.005 },
   // PROPELLER (deployment-platform model): the Action Bot NEVER flies at the debris.
   // On command it solves a future-trajectory intercept from actual state vectors
@@ -4186,16 +4186,21 @@ function case1NormalizeArrange(){
     s.precision=Math.max(0.8, C.action.precisionBase-i*C.action.precisionStep);
     s.case1Unavailable=false; s.needsDisposal=false;
     try{ s.envLifetimeYr=lifetimeYears(C.action.alt, s.B); }catch(_){ s.envLifetimeYr=5; }
-    // TRAILING OFFSET ORBITS: distinct shells inside a tight 35–115km band (cycle
-    // + stagger, never the old +275km runaway) AND spread around the FULL orbit —
-    // bots sit (i+0.5)*(360/n) apart in phase so no two ever clump. Selection picks
-    // the nearest one; RENDEZVOUS closes its gap. Only the propeller leaves.
-    const _cycle=[50,-50,65,-65,80,-80,95,-95,35,-35,110,-110];
-    const _signedOff=_cycle[i%_cycle.length]+Math.floor(i/_cycle.length)*5;
+    // UNIQUE ORBITS: 20 distinct CIRCULAR shells (10 below / 10 above debris,
+    // |offset| 20–90km in ~7.8km steps — shells can never touch since e=0 kills
+    // radial wobble, and all stay inside the 15–110km corridor so RENDEZVOUS can
+    // always close) × full-circle RAAN spread × full-orbit phase spread. Same
+    // index drives shell+plane+phase, so phase-near bots are plane-near too
+    // (selectable); the rest stay clearly separate — no side-by-side tracks.
+    // Selection picks the nearest; RENDEZVOUS closes its gap. Only the
+    // propeller leaves — downward across the path.
     const _n=CASE1.actions.length||1;
-    case1SetElements(s, C.debris.alt+_signedOff, C.action.e,
+    const _side=(i%2===0)?1:-1;
+    const _k=Math.floor(i/2);
+    const _signedOff=_side*(20+_k*(70/9));
+    case1SetElements(s, C.debris.alt+_signedOff, 0,
       C.debris.inc+(C.action.incOffsetDeg||0.22),
-      tRaan+(C.action.raanOffsetDeg||0.30)+i*0.35, C.debris.argP,
+      tRaan+i*(360/_n), C.debris.argP,
       tM0+(i+0.5)*(360/_n));
   });
   const allActives=CASE1.hosts.concat(CASE1.cleanActives);
