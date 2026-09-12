@@ -1626,66 +1626,147 @@ function buildActiveDetails(bus,SZ){
 }
 // ACTION BOT — orange interceptor drone: carbon core + 4 ion arms + gimbal cam + mast
 // + EDDY-CURRENT DAMPER + 2× DETACHABLE PODS — all on the NADIR (Earth-facing) deck
-// IBS AGENT — Ion Beam Shepherd (fresh build): foil bus + ion emitter face (+Z,
-// tracks the debris) + docking capture ring + main thruster bell (-Z) +
-// control/coord signal panel + comm dish + compact solar wings + RCS.
+// IBS AGENT — Ion Beam Shepherd, heavy-detail build: foil bus + ion emitter face
+// (+Z, tracks the debris) + docking capture ring + main thruster bell (-Z) +
+// control/coord signal panel + comm dish + solar wings + RCS + full greebles.
+// Sub-2mm fiddly bits live in `micro` (hidden beyond 12u by the LOD loop).
 function buildActionDetails(core,SZ){
   _M.init(SZ);
   const u=SZ;
   const micro=new THREE.Group(); micro.name='micro'; core.add(micro);
-  // --- central bus (foil-wrapped avionics core) + equipment band ---
-  _box(core,0.016*u,0.016*u,0.020*u, 0,0,-0.002*u,_M.goldFoil);
-  _box(core,0.017*u,0.004*u,0.021*u, 0,0.004*u,-0.002*u,_M.copper);
-  // --- ION EMITTER FACE (+Z, toward debris): plate + 5-grid array ---
-  _cyl(core,0.009*u,0.010*u,0.002*u,16, 0,0,0.009*u,_M.dark,Math.PI/2,0);
+  // ================= CENTRAL BUS =================
+  _box(core,0.016*u,0.016*u,0.020*u, 0,0,-0.002*u,_M.goldFoil); // MLI core
+  _box(core,0.017*u,0.004*u,0.021*u, 0,0.004*u,-0.002*u,_M.copper); // equipment band
+  _box(core,0.0172*u,0.0012*u,0.0212*u, 0,-0.004*u,-0.002*u,_M.dark); // lower shear band
+  [[0.0082,0.0082],[-0.0082,0.0082],[0.0082,-0.0082],[-0.0082,-0.0082]].forEach(([lx,ly])=>{
+    _box(core,0.0012*u,0.0165*u,0.0012*u, lx*u,ly*u,-0.002*u,_M.titanium); // corner longerons
+  });
+  _box(core,0.0164*u,0.0005*u,0.0004*u, 0,0.001*u,0.0082*u,_M.dark); // face seams
+  _box(core,0.0164*u,0.0005*u,0.0004*u, 0,-0.003*u,0.0082*u,_M.dark);
+  _box(core,0.006*u,0.008*u,0.0006*u, -0.004*u,0.001*u,0.0083*u,_M.goldFoil); // patch blanket
+  [-1,1].forEach(s=>{ // copper pipe runs + clamp bands (±X flanks)
+    _cyl(core,0.0007*u,0.0007*u,0.018*u,8, s*0.0088*u,0,-0.002*u,_M.copper);
+    [-0.006,0.002].forEach(py=>{
+      const band=new THREE.Mesh(new THREE.TorusGeometry(0.001*u,0.0003*u,6,12),_M.dark);
+      band.position.set(s*0.0088*u,py*u,-0.002*u); band.rotation.x=Math.PI/2; core.add(band);
+    });
+  });
+  _box(core,0.010*u,0.001*u,0.012*u, 0,-0.0086*u,-0.002*u,_M.black); // belly avionics slab
+  _cyl(core,0.0012*u,0.0015*u,0.003*u,10, 0.005*u,0.0095*u,-0.006*u,_M.black,0,0.5); // star tracker (canted)
+  _cyl(core,0.0008*u,0.0008*u,0.001*u,8, -0.005*u,0.0086*u,0.002*u,_M.lensC); // sun sensor
+  _box(core,0.004*u,0.0008*u,0.004*u, 0.002*u,0.0085*u,0.004*u,_M.white); // GPS patch
+  // ================= ION EMITTER FACE (+Z) =================
+  _cyl(core,0.009*u,0.010*u,0.002*u,16, 0,0,0.009*u,_M.dark,Math.PI/2,0); // emitter plate
   const emitM=new THREE.MeshStandardMaterial({color:0x1a1033,emissive:0x8b5cf6,emissiveIntensity:2.4,roughness:0.3,metalness:0.8});
   const emitG=new THREE.TorusGeometry(0.0032*u,0.0007*u,8,22);
+  const emitDotM=new THREE.MeshBasicMaterial({color:0xc4b5fd});
   const emitters=[];
   [[0,0],[-0.005,0],[0.005,0],[0,0.005],[0,-0.005]].forEach(([ex,ey])=>{
+    _cyl(core,0.0038*u,0.0038*u,0.001*u,14, ex*u,ey*u,0.0098*u,_M.black,Math.PI/2,0); // housing cup
     const g=new THREE.Mesh(emitG,emitM.clone());
-    g.position.set(ex*u,ey*u,0.0102*u); core.add(g); emitters.push(g);
+    g.position.set(ex*u,ey*u,0.0104*u); core.add(g); emitters.push(g);
     (core.userData.rings||(core.userData.rings=[])).push(g.material);
+    const dot=new THREE.Mesh(new THREE.CircleGeometry(0.0018*u,14),emitDotM);
+    dot.position.set(ex*u,ey*u,0.01035*u); core.add(dot); // discharge core
   });
-  const gridDot=new THREE.Mesh(new THREE.CircleGeometry(0.0016*u,16),
-    new THREE.MeshBasicMaterial({color:0xc4b5fd}));
-  gridDot.position.set(0,0,0.0103*u); core.add(gridDot);
-  // --- docking capture ring (+Z front rim) + marker ---
   const dock=new THREE.Mesh(new THREE.TorusGeometry(0.011*u,0.0008*u,8,28),_M.titanium);
-  dock.position.set(0,0,0.012*u); core.add(dock);
-  _strobe(core,_M.strobeA,0.011*u,0,0.012*u,0.0011,u,0.9);
-  _glow(core,0x8b5cf6,0,0,0.012*u,0.020,u,0.9);
+  dock.position.set(0,0,0.012*u); core.add(dock); // docking capture ring
+  _strobe(core,_M.strobeA,0.011*u,0,0.012*u,0.0011,u,0.9); // capture marker
+  _glow(core,0x8b5cf6,0,0,0.012*u,0.020,u,0.9); // ion-face halo
   try{ _plate(core,'IBS','#8b5cf6',0.010*u, 0,-0.010*u,0.0092*u,0); }catch(_){}
-  // --- MAIN ROCKET THRUSTER (-Z): throat + bell + engine glow ---
-  _cyl(core,0.003*u,0.003*u,0.004*u,12, 0,0,-0.013*u,_M.copper,Math.PI/2,0);
+  // ================= MAIN ROCKET THRUSTER (-Z) =================
+  _cyl(core,0.004*u,0.004*u,0.002*u,12, 0,0,-0.0125*u,_M.dark,Math.PI/2,0); // thrust mount plate
+  _cyl(core,0.003*u,0.0022*u,0.003*u,12, 0,0,-0.0145*u,_M.copper,Math.PI/2,0); // injector + throat
   const bell=new THREE.Mesh(new THREE.ConeGeometry(0.006*u,0.008*u,16,1,true),_M.dark);
-  bell.position.set(0,0,-0.018*u); bell.rotation.x=Math.PI/2; core.add(bell);
-  _glow(core,0xff8c2e,0,0,-0.023*u,0.016,u,2.2);
-  // --- CONTROL / COORD PANEL: signal-reception panel (+X) + radiator (-X) ---
-  _box(core,0.002*u,0.014*u,0.010*u, 0.010*u,0,-0.002*u,_M.array);
-  _box(core,0.001*u,0.010*u,0.008*u, -0.0095*u,0,-0.002*u,_M.radiator);
-  // --- comm mast + dish + coord-link beacon (internal coordination) ---
+  bell.position.set(0,0,-0.0195*u); bell.rotation.x=Math.PI/2; core.add(bell); // bell, mouth -Z
+  const throatGlow=new THREE.Mesh(new THREE.CircleGeometry(0.0028*u,16),new THREE.MeshBasicMaterial({color:0xffc37a}));
+  throatGlow.position.set(0,0,-0.016*u); throatGlow.rotation.y=Math.PI; core.add(throatGlow);
+  [-1,1].forEach(s=>{ _cyl(core,0.0007*u,0.0007*u,0.005*u,8, s*0.0045*u,-0.004*u,-0.013*u,_M.alu,0.3*s,0); }); // gimbal actuators
+  _glow(core,0xff8c2e,0,0,-0.024*u,0.016,u,2.2); // engine halo
+  // ================= CONTROL / COORD PANEL (+X) + RADIATOR (-X) =================
+  _box(core,0.002*u,0.014*u,0.010*u, 0.010*u,0,-0.002*u,_M.array); // signal-reception panel
+  _box(core,0.0012*u,0.0012*u,0.011*u, 0.0105*u,0.0072*u,-0.002*u,_M.alu); // frame rails
+  _box(core,0.0012*u,0.0012*u,0.011*u, 0.0105*u,-0.0072*u,-0.002*u,_M.alu);
+  _box(core,0.0012*u,0.0156*u,0.0012*u, 0.0105*u,0,-0.0072*u,_M.alu);
+  _box(core,0.0012*u,0.0156*u,0.0012*u, 0.0105*u,0,0.0032*u,_M.alu);
+  _strobe(core,_M.strobeG,0.0112*u,0.005*u,0.001*u,0.0007,u,1.3); // panel status LEDs
+  _strobe(core,_M.strobeR,0.0112*u,0.0034*u,0.001*u,0.0007,u,4.4);
+  _box(core,0.001*u,0.010*u,0.008*u, -0.0095*u,0,-0.002*u,_M.radiator); // radiator
+  _cyl(core,0.0005*u,0.0005*u,0.009*u,6, -0.0102*u,0,-0.004*u,_M.copper); // flow pipes
+  _cyl(core,0.0005*u,0.0005*u,0.009*u,6, -0.0102*u,0,0.000*u,_M.copper);
+  // ================= COMM MAST + DISH + WHIPS =================
   _cyl(core,0.0008*u,0.0008*u,0.012*u,8, -0.006*u,0.012*u,-0.006*u,_M.alu,0,0.3);
   const dish=new THREE.Mesh(new THREE.SphereGeometry(0.004*u,16,10,0,Math.PI*2,0,Math.PI/2.6),_M.dishWhite);
   dish.position.set(-0.006*u,0.018*u,-0.006*u); dish.rotation.x=Math.PI*0.72; core.add(dish);
-  _strobe(core,_M.strobeG,-0.006*u,0.0195*u,-0.006*u,0.0011,u,2.6);
+  const dishRim=new THREE.Mesh(new THREE.TorusGeometry(0.0039*u,0.00035*u,6,24),_M.alu);
+  dishRim.position.copy(dish.position); dishRim.rotation.x=Math.PI*0.22; core.add(dishRim);
+  _cyl(core,0.0004*u,0.0004*u,0.005*u,6, -0.006*u,0.020*u,-0.004*u,_M.alu,0.5,0); // feed arm
+  const horn=new THREE.Mesh(new THREE.ConeGeometry(0.0009*u,0.002*u,10),_M.copper);
+  horn.position.set(-0.006*u,0.0215*u,-0.003*u); horn.rotation.x=-0.5; core.add(horn); // feed horn
+  _box(core,0.003*u,0.002*u,0.003*u, -0.006*u,0.011*u,-0.006*u,_M.dark); // mount bracket
+  _strobe(core,_M.strobeG,-0.006*u,0.0195*u,-0.006*u,0.0011,u,2.6); // coord-link beacon
   try{ _plate(core,'LINK','#22ff66',0.008*u, 0.0112*u,0.002*u,-0.002*u,Math.PI/2); }catch(_){}
-  // --- compact solar wings (±Y) for ion power + spars ---
+  _cyl(core,0.00025*u,0.00025*u,0.014*u,6, 0.006*u,0.015*u,-0.008*u,_M.alu); // whip antennas
+  const bead=new THREE.Mesh(new THREE.SphereGeometry(0.0006*u,8,8),_M.strobeR);
+  bead.position.set(0.006*u,0.022*u,-0.008*u); core.add(bead);
+  _cyl(core,0.00025*u,0.00025*u,0.010*u,6, -0.002*u,0.013*u,0.006*u,_M.alu);
+  // ================= SOLAR WINGS (±Y) =================
   [-1,1].forEach(s=>{
-    _box(core,0.006*u,0.020*u,0.0008*u, 0,s*0.018*u,-0.002*u,_M.solar);
-    _cyl(core,0.001*u,0.001*u,0.008*u,8, 0,s*0.009*u,-0.002*u,_M.alu);
+    _box(core,0.006*u,0.020*u,0.0008*u, 0,s*0.018*u,-0.002*u,_M.solar); // blade
+    _box(core,0.0062*u,0.0006*u,0.001*u, 0,s*0.018*u,-0.0015*u,_M.dark); // cell divider
+    _cyl(core,0.001*u,0.001*u,0.008*u,8, 0,s*0.009*u,-0.002*u,_M.alu); // spar
+    _cyl(core,0.0016*u,0.0016*u,0.003*u,10, 0,s*0.0085*u,-0.002*u,_M.dark); // hinge drum
+    _box(core,0.0064*u,0.001*u,0.001*u, 0,s*0.0275*u,-0.002*u,_M.alu); // tip bar
+    _strobe(core,s>0?_M.strobeG:_M.strobeR,0,s*0.0285*u,-0.002*u,0.0008,u,s>0?2.0:5.0); // wingtip strobes
   });
-  // --- RCS quads + nav strobes ---
+  // ================= RCS QUADS =================
   [[0.009,0.009],[-0.009,0.009],[0.009,-0.009],[-0.009,-0.009]].forEach(([rx,ry])=>{
-    _cyl(core,0.0009*u,0.0009*u,0.002*u,8, rx*u,ry*u,-0.006*u,_M.titanium);
+    _box(core,0.003*u,0.003*u,0.003*u, rx*u,ry*u,-0.004*u,_M.dark); // RCS block
+    _cyl(core,0.0009*u,0.0009*u,0.002*u,8, rx*u,ry*u,-0.006*u,_M.titanium); // axial nozzle
+    _cyl(core,0.0007*u,0.0009*u,0.002*u,8, (rx+Math.sign(rx)*0.002)*u,ry*u,-0.004*u,_M.titanium,0,Math.PI/2); // radial nozzle
   });
-  _strobe(core,_M.strobeR,0,0.009*u,-0.002*u,0.0011,u,4.1);
+  _strobe(core,_M.strobeR,0,0.009*u,-0.002*u,0.0011,u,4.1); // nav strobes
   _strobe(core,_M.strobeA,0,-0.009*u,-0.002*u,0.0011,u,5.3);
-  // --- micro greebles (LOD) + avionics slab ---
-  for(let i=0;i<6;i++){
+  // ================= MICRO (close-zoom only) =================
+  for(let i=0;i<8;i++){ const a=i/8*Math.PI*2; // emitter rim bolts
+    _cyl(micro,0.0005*u,0.0005*u,0.001*u,6, Math.cos(a)*0.0095*u,Math.sin(a)*0.0095*u,0.009*u,_M.alu,Math.PI/2,0);
+  }
+  [[0,0],[-0.005,0],[0.005,0],[0,0.005],[0,-0.005]].forEach(([ex,ey])=>{ // grid alignment pins ×4 per cup
+    [[0.0028,0],[ -0.0028,0],[0,0.0028],[0,-0.0028]].forEach(([px,py])=>{
+      _cyl(micro,0.0003*u,0.0003*u,0.0012*u,6, (ex+px)*u,(ey+py)*u,0.0098*u,_M.titanium,Math.PI/2,0);
+    });
+  });
+  for(let i=0;i<3;i++){ // capture petals + contact sensors
+    const a=i/3*Math.PI*2+Math.PI/6;
+    _box(micro,0.0022*u,0.0012*u,0.002*u, Math.cos(a)*0.011*u,Math.sin(a)*0.011*u,0.012*u,_M.copper);
+    const pad=new THREE.Mesh(new THREE.CircleGeometry(0.0009*u,10),_M.lensC);
+    pad.position.set(Math.cos(a)*0.011*u,Math.sin(a)*0.011*u,0.0131*u); micro.add(pad);
+  }
+  [[-0.017,0.0038],[-0.0195,0.0049],[-0.022,0.0059]].forEach(([bz,br])=>{ // bell stiffener ribs
+    const rib=new THREE.Mesh(new THREE.TorusGeometry(br*u,0.0004*u,6,24),_M.titanium);
+    rib.position.set(0,0,bz*u); micro.add(rib);
+  });
+  [[-0.003,-0.002],[0,-0.002],[0.003,-0.002],[-0.003,0.001],[0.003,0.001]].forEach(([cx,cy])=>{ // avionics connectors
+    _cyl(micro,0.0006*u,0.0006*u,0.0012*u,8, cx*u,-0.0094*u,(-0.002+cy)*u,_M.copper);
+  });
+  [[0.0085,-0.006],[0.0085,0.002],[-0.0085,-0.006],[-0.0085,0.002]].forEach(([sx,sy])=>{ // panel standoffs
+    _box(micro,0.002*u,0.0012*u,0.0012*u, sx*u,sy*u,-0.002*u,_M.alu);
+  });
+  for(let i=0;i<5;i++) _box(micro,0.008*u,0.0006*u,0.0004*u, 0,-0.006*u+i*0.0014*u,-0.0122*u,_M.black); // aft vent slats
+  for(let i=0;i<10;i++){ const a=i/10*Math.PI*2; // aft rim bolt field
+    _cyl(micro,0.0004*u,0.0004*u,0.0008*u,6, Math.cos(a)*0.0075*u,Math.sin(a)*0.0075*u,-0.0122*u,_M.alu,Math.PI/2,0);
+  }
+  for(let i=0;i<4;i++) _box(micro,0.001*u,0.001*u,0.004*u, -0.0088*u,-0.004*u+i*0.0025*u,-0.002*u,_M.copper); // harness run
+  for(let i=0;i<8;i++){ const a=i/8*Math.PI*2; // dish elevation gear teeth
+    _box(micro,0.0006*u,0.0006*u,0.0006*u, -0.006*u+Math.cos(a)*0.0018*u,0.011*u,-0.006*u+Math.sin(a)*0.0018*u,_M.dark);
+  }
+  const sepRing=new THREE.Mesh(new THREE.TorusGeometry(0.004*u,0.0005*u,6,20),_M.alu);
+  sepRing.position.set(0,-0.0088*u,-0.002*u); sepRing.rotation.x=Math.PI/2; micro.add(sepRing); // separation ring
+  _box(micro,0.0174*u,0.0004*u,0.004*u, 0,-0.004*u,0.002*u,_M.goldFoil); // blanket stitch strip
+  for(let i=0;i<6;i++){ // hull greebles
     const m=_box(micro,0.0012*u,0.0012*u,0.003*u, Math.cos(i*1.047)*0.009*u,Math.sin(i*1.047)*0.009*u,-0.006*u+((i%3)-1)*0.004*u,_M.dark);
     m.rotation.z=i*1.047;
   }
-  _box(micro,0.010*u,0.002*u,0.006*u, 0,0,-0.008*u,_M.copper);
   core.userData.ibs={emitters,bell,dish};
   core.userData.micro=micro;
 }
