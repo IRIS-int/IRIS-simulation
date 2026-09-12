@@ -243,11 +243,6 @@ window.addEventListener('DOMContentLoaded', ()=>{
   <div class="panel" id="simCentrePanel" style="position:absolute;left:50%;top:70px;transform:translateX(-50%);padding:10px 16px;text-align:center;z-index:4;display:none;min-width:280px;">
     <div class="kicker" style="margin:0;justify-content:center;">SIMULATION CENTRE · CCS blind</div>
     <button class="btn" id="btnStartSim" style="margin-top:8px;width:100%;">▶ START SIMULATION</button>
-    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:0.65;margin:10px 0 6px;letter-spacing:0.08em;">WHICH DEBRIS TO TARGET & DISPOSE?</div>
-    <select id="debrisTargetSelect" style="width:100%;background:rgba(2,6,23,0.9);border:1px solid rgba(96,165,250,0.2);border-radius:8px;color:#e6eef8;padding:7px 9px;font-family:'JetBrains Mono',monospace;font-size:12px;outline:none;">
-      <option value="">— start sim first —</option>
-    </select>
-    <button class="btn ghost" id="btnTargetDebris" style="margin-top:8px;width:100%;">◎ TARGET DEBRIS</button>
     <div style="border-top:1px solid rgba(96,165,250,0.18);margin:12px 0 10px;"></div>
     <div style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:0.65;letter-spacing:0.08em;">CASE 1 · CONTROLLED SCENARIO (uses your fleet)</div>
     <div style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:0.65;margin:10px 0 6px;letter-spacing:0.08em;">1 · SELECT TARGET DEBRIS (click it, or pick below)</div>
@@ -1836,10 +1831,10 @@ class Sat{
     else this.realSizeM = o.realSizeM || 4.5; // action
     this.realSizeKm = this.realSizeM / 1000;
     // mesh 0.54u = 114.7km real vs 0.002km real → ~57k× (scaled ×30 to match Earth R=30, same screen ratio as before)
-    this.exaggeration = ((0.0126*R_EARTH*KM_PER_UNIT/ALT_EXAG)/this.realSizeKm).toFixed(0);
+    this.exaggeration = ((0.0107*R_EARTH*KM_PER_UNIT/ALT_EXAG)/this.realSizeKm).toFixed(0);
     this.group=new THREE.Group(); this.trail=[]; this.trailMax=90;
     let mesh;
-    const SZ=R_EARTH*0.70; // smaller sats (-30%)
+    const SZ=R_EARTH*0.595; // -15% (was 0.70)
     if(this.type==='debris'){ 
       // jagged breakup shard — dark fatigued metal, hot reentry-tint emissive, non-uniform axes for variety
       const g=new THREE.IcosahedronGeometry(0.013*SZ,0);
@@ -2289,7 +2284,7 @@ function spawnDebris(opts){
     const sat=new Sat({type:'debris', a:f.el.a, e:f.el.e, inc:f.el.inc, raan:f.el.raan, argP:f.el.argP, M0:f.el.M0,
       mass:Math.max(0.05,Math.pow(fragSize,3)*140), spin:0.5+Math.random()*2});
     sat.realSizeM=fragSize; sat.realSizeKm=fragSize/1000;
-    sat.exaggeration=((0.0126*R_EARTH*KM_PER_UNIT/ALT_EXAG)/sat.realSizeKm).toFixed(0);
+    sat.exaggeration=((0.0107*R_EARTH*KM_PER_UNIT/ALT_EXAG)/sat.realSizeKm).toFixed(0);
     sat.label=((opts.name||'DEBRIS')+'-'+(++debrisSeq));
     sat.bots=[];
     try{ sat.group.position.copy(sat.at(window._simT||0)); sat.currentAlt=f.el.a-KM_PER_UNIT; }catch(_){}
@@ -2310,7 +2305,7 @@ function resolveParentSat(ref){
   return actives.length?actives[actives.length-1]:null;
 }
 function defaultBotOffset(kind, i){
-  const SZ=R_EARTH*0.70;
+  const SZ=R_EARTH*0.595;
   const ring=0.055*SZ, y=0.045*SZ;
   const a=(i||0)*2.39996; // golden angle — spreads multiple bots around parent
   if(kind==='sensory') return new THREE.Vector3(Math.cos(a)*ring, y, Math.sin(a)*ring);
@@ -2323,7 +2318,7 @@ function attachBot(parentRef, kind, opts){
   opts=opts||{};
   const parent=resolveParentSat(parentRef);
   if(!parent){ fleetNotice('ADD AN <b>ACTIVE SAT</b> FIRST — THEN ATTACH SENSORY BOTS'); return null; }
-  const SZ=R_EARTH*0.70;
+  const SZ=R_EARTH*0.595;
   const g=new THREE.OctahedronGeometry(0.012*SZ,0);
   const m=new THREE.MeshStandardMaterial({color:0xffffff, map:foilTexture(), emissive:0xf59e0b, emissiveIntensity:0.35, roughness:0.38, metalness:0.75});
   const mesh=new THREE.Mesh(g,m);
@@ -2653,7 +2648,7 @@ function updTel(){
   }
   const camDist = camera.position.length();
   sats.forEach(s=>{
-    const scale = THREE.MathUtils.clamp(0.84 + camDist*0.25, 0.84, 8.4); // smaller sats (-30%)
+    const scale = THREE.MathUtils.clamp(0.714 + camDist*0.2125, 0.714, 7.14); // -15% (was 0.84)
     const sv=s.sizeVec||[1,1,1];
     s.mesh.scale.set(scale*sv[0],scale*sv[1],scale*sv[2]);
     // micro-LOD: full greebles/bolts only when zoomed close — saves GPU far away
@@ -3116,12 +3111,12 @@ document.getElementById('btnAddSensory')?.addEventListener('click', ()=>{
   const b=attachBot(null,'sensory',{});
   if(b) fleetNotice(`ATTACHED <b>${b.id}</b> → <b>${b.parent.label||'ACTIVE'}</b>`);
 });
-document.getElementById('btnClearFleet')?.addEventListener('click', ()=>{ try{ restoreCcsMark(); }catch(_){} try{ clearCcsMappedOrbit(); }catch(_){} try{ if(typeof case1Abort==='function') case1Abort('fleet cleared'); }catch(_){} try{ CASE1.live={pos:null,vel:null,alt:0,t:-1e12,observer:'—'}; }catch(_){} clearFleet(); window._targetDebris=null; window._ccsStore=[]; window._ccsDots=[]; window._ccsInside={}; window._ccsPrevSimT=null; window._ccsLastPass=null; window._ccsDone=false; window._ccsPhase='collect'; try{ document.getElementById('debrisTargetSelect').innerHTML='<option value="">— start sim first —</option>'; }catch(_){} try{ case1RenderValidation(null); }catch(_){} try{ if(typeof case1Render==='function') case1Render(); }catch(_){} fleetNotice('FLEET CLEARED — <b>0 OBJECTS</b>'); });
-// SIMULATION CENTRE — small demo fleet across whole LEO (160–2000km), fully random each run, ≥5km apart.
-// Kept SMALL on purpose: 100+ sats caused O(n²) physics/conjunction overload,
-// per-frame trail realloc + 200+ nameplate textures → lag + overlapping orbits.
+document.getElementById('btnClearFleet')?.addEventListener('click', ()=>{ try{ restoreCcsMark(); }catch(_){} try{ clearCcsMappedOrbit(); }catch(_){} try{ if(typeof case1Abort==='function') case1Abort('fleet cleared'); }catch(_){} try{ CASE1.live={pos:null,vel:null,alt:0,t:-1e12,observer:'—'}; }catch(_){} clearFleet(); window._targetDebris=null; window._ccsStore=[]; window._ccsDots=[]; window._ccsInside={}; window._ccsPrevRel={}; window._ccsPrevSimT=null; window._ccsLastPass=null; window._ccsDone=false; window._ccsPhase='collect'; try{ document.getElementById('debrisTargetSelect').innerHTML='<option value="">— start sim first —</option>'; }catch(_){} try{ case1RenderValidation(null); }catch(_){} try{ if(typeof case1Render==='function') case1Render(); }catch(_){} fleetNotice('FLEET CLEARED — <b>0 OBJECTS</b>'); });
+// SIMULATION CENTRE — demo fleet across whole LEO (160–2000km), fully random each run, ≥5km apart.
+// 40 active + 40 sensory (1 per active) + action + debris. Preallocated trail buffers +
+// bulk DOM updates keep this smooth; 100+ is where O(n²) conjunction + nameplates hurt.
 // Tune counts here (total objects = active + action + active(sensory) + debris).
-const SIM_FLEET={active:12, action:4, debris:5};
+const SIM_FLEET={active:40, action:20, debris:3};
 async function startSimulationDemo(){
   if(window._launching) return;
   window._launching=true;
@@ -3131,7 +3126,7 @@ async function startSimulationDemo(){
   try{ if(btn){ btn.disabled=true; btn.textContent=`LAUNCHING… 0/${TOTAL}`; } }catch(_){}
   try{ restoreCcsMark(); }catch(_){}
   try{ clearCcsMappedOrbit(); }catch(_){}
-  window._targetDebris=null; window._ccsStore=[]; window._ccsDots=[]; window._ccsInside={}; window._ccsPrevSimT=null; window._ccsLastPass=null; window._ccsDone=false; window._ccsPhase='collect';
+  window._targetDebris=null; window._ccsStore=[]; window._ccsDots=[]; window._ccsInside={}; window._ccsPrevRel={}; window._ccsPrevSimT=null; window._ccsLastPass=null; window._ccsDone=false; window._ccsPhase='collect';
   clearFleet();
   fleetNotice(`LAUNCHING fleet… 0/${TOTAL}`);
   const tick=()=>new Promise(r=>requestAnimationFrame(()=>setTimeout(r,0)));
@@ -3242,7 +3237,7 @@ function targetDebrisByLabel(label){
   try{ deselectSat(true); }catch(_){} // never highlight true orbit — we don't know it yet
   window._targetDebris=s;
   window._ccsT0=Date.now(); window._ccsDone=false; window._ccsFinal=null; window._ccsStore=[];
-  window._ccsDots=[]; window._ccsInside={}; window._ccsPrevSimT=(window._simT||0); window._ccsLastPass=null;
+  window._ccsDots=[]; window._ccsInside={}; window._ccsPrevRel={}; window._ccsPrevSimT=(window._simT||0); window._ccsLastPass=null;
   window._ccsPhase='collect'; window._ccsProcessT0=0;
   window._ccsSimT0=(window._simT||0);
   window._ccsPeriod=(2*Math.PI*Math.sqrt(Math.pow(s.a,3)/MU)); // Kepler 3rd law — same a ⇒ same period
@@ -3276,15 +3271,34 @@ function updateCCSPanel(){
   // the exact sim interval elapsed since the last tick), so TIME warp changes only how fast
   // sim orbits elapse — never how many passes are found per orbit.
   if(orbits<2&&window._ccsPhase!=='processing'&&!window._ccsDone){
-    window._ccsDots=window._ccsDots||[]; window._ccsInside=window._ccsInside||{};
+    window._ccsDots=window._ccsDots||[]; window._ccsInside=window._ccsInside||{}; window._ccsPrevRel=window._ccsPrevRel||{};
     if(window._ccsPrevSimT==null) window._ccsPrevSimT=t0;
     const tPrev=Math.min(window._ccsPrevSimT, simT);
     const span=Math.max(0, simT-tPrev);
-    // ≤30 sim-s between samples: even head-on (~15 km/s) moves ≤450 km per step,
-    // so a 900 km-radius bubble crossing always yields entry samples at any warp.
-    const K=Math.min(48,Math.max(1,Math.ceil(span/30)));
+    // Warp-invariant: fixed ≤5 sim-s sub-steps (not 30s). At 15 km/s head-on a step
+    // moves ≤75 km << 1800 km bubble diameter, so a full crossing always yields
+    // inside samples. Cap 1200 covers ~100 min sim jump (background-tab throttle).
+    // Plus a segment–sphere crossing test catches ultra-shallow grazes (<75 km chord)
+    // where both samples land just outside. Keys are bot.id (stable across adds).
+    const K=Math.min(1200,Math.max(1,Math.ceil(span/5)));
+    const BUB=900;
     let newPass=null;
     try{
+      // seed previous relative vectors at tPrev so k=1 segment is valid
+      try{
+        const s0=s.eciKm(tPrev);
+        for(let bi=0;bi<bots.length;bi++){
+          const b0=bots[bi]; if(!b0||!b0.id) continue;
+          if(window._ccsPrevRel[b0.id]===undefined){
+            try{
+              if(!b0.parent||sats.indexOf(b0.parent)<0){ window._ccsInside[b0.id]=false; window._ccsPrevRel[b0.id]=null; continue; }
+              const p0=b0.parent.eciKm(tPrev);
+              window._ccsPrevRel[b0.id]=[p0[0]-s0[0],p0[1]-s0[1],p0[2]-s0[2]];
+              if(window._ccsInside[b0.id]===undefined) window._ccsInside[b0.id]=Math.hypot(window._ccsPrevRel[b0.id][0],window._ccsPrevRel[b0.id][1],window._ccsPrevRel[b0.id][2])<BUB;
+            }catch(_){ window._ccsPrevRel[b0.id]=null; }
+          }
+        }
+      }catch(_){}
       for(let k=1;k<=K;k++){
         const ts=(K===1)?simT:(tPrev+span*k/K);
         let sEci=null; try{ sEci=s.eciKm(ts); }catch(_){ continue; }
@@ -3292,23 +3306,52 @@ function updateCCSPanel(){
         const tsAlt=rMag-R_EARTH_KM;
         let tsV=7.5; try{ tsV=Math.sqrt(Math.max(1e-9,MU*(2/rMag-1/s.a))); }catch(_){}
         for(let bi=0;bi<bots.length;bi++){
-          const b=bots[bi]; if(!b||!b.parent||sats.indexOf(b.parent)<0) { window._ccsInside[bi]=false; continue; }
+          const b=bots[bi]; if(!b||!b.id||!b.parent||sats.indexOf(b.parent)<0) { if(b&&b.id){ window._ccsInside[b.id]=false; window._ccsPrevRel[b.id]=null; } continue; }
           let pEci=null; try{ pEci=b.parent.eciKm(ts); }catch(_){ continue; }
           const dx=pEci[0]-sEci[0], dy=pEci[1]-sEci[1], dz=pEci[2]-sEci[2];
           const dReal=Math.sqrt(dx*dx+dy*dy+dz*dz);
-          const inside=dReal<900;
-          const wasInside=!!window._ccsInside[bi];
-          window._ccsInside[bi]=inside;
-          if(inside&&!wasInside){
+          const inside=dReal<BUB;
+          const wasInside=!!window._ccsInside[b.id];
+          // segment–sphere: did relative path prev->curr cross the bubble even if both ends outside?
+          let crossed=false;
+          try{
+            const pr=window._ccsPrevRel[b.id];
+            if(pr&&!wasInside&&!inside){
+              const rx=dx-pr[0], ry=dy-pr[1], rz=dz-pr[2];
+              const aSeg=rx*rx+ry*ry+rz*rz;
+              if(aSeg>1e-9){
+                let u=-(pr[0]*rx+pr[1]*ry+pr[2]*rz)/aSeg; u=Math.max(0,Math.min(1,u));
+                const cx=pr[0]+rx*u, cy=pr[1]+ry*u, cz=pr[2]+rz*u;
+                crossed=Math.hypot(cx,cy,cz)<BUB;
+              }
+            }
+          }catch(_){}
+          window._ccsInside[b.id]=inside||crossed;
+          // count ENTRY once; segment graze counts with closest-approach distance
+          if((inside&&!wasInside)||crossed){
+            let dStore=dReal;
+            try{
+              if(crossed&&!inside){
+                const pr=window._ccsPrevRel[b.id];
+                const rx=dx-pr[0], ry=dy-pr[1], rz=dz-pr[2];
+                const aSeg=rx*rx+ry*ry+rz*rz;
+                let u=-(pr[0]*rx+pr[1]*ry+pr[2]*rz)/Math.max(1e-9,aSeg); u=Math.max(0,Math.min(1,u));
+                dStore=Math.hypot(pr[0]+rx*u,pr[1]+ry*u,pr[2]+rz*u);
+              }
+            }catch(_){}
             // bubble ENTRY at sim time ts: one pass, no duplicates, no real-time cooldown
-            window._ccsStore.push({bot:bi,alt:tsAlt+3*_gauss(),v:tsV+0.03*_gauss(),
+            window._ccsStore.push({bot:b.id,alt:tsAlt+3*_gauss(),v:tsV+0.03*_gauss(),
               mass:(s.mass||5)*(1+0.05*_gauss()),size:Math.max(0.05,(s.realSizeM||0.5)+0.15*_gauss()),
               spin:Math.max(0,(s.spin||1)+0.2*_gauss()),decay:Math.max(0,((s.decayKmPerSimSec||0)*86400)*(1+0.1*_gauss())),
-              debrisECI:sEci.slice(),swarmECI:pEci.slice(),dReal:dReal,simT:ts});
+              debrisECI:sEci.slice(),swarmECI:pEci.slice(),dReal:dStore,simT:ts});
             window._ccsDots.push(sEci.slice());
-            newPass={bot:bi,debrisECI:sEci.slice(),swarmECI:pEci.slice(),v:tsV,dReal:dReal,simT:ts};
+            newPass={bot:b.id,debrisECI:sEci.slice(),swarmECI:pEci.slice(),v:tsV,dReal:dStore,simT:ts};
             window._ccsLastPass=newPass;
           }
+          window._ccsPrevRel[b.id]=[dx,dy,dz];
+          // leaving bubble resets to outside so next entry counts fresh
+          if(!inside&&!crossed) window._ccsInside[b.id]=false;
+          else if(inside) window._ccsInside[b.id]=true;
         }
       }
     }catch(_){}
@@ -3323,11 +3366,11 @@ function updateCCSPanel(){
     }catch(_){ try{ truthV=s.visVivaAt(simT); }catch(__){} }
     // live coordinate updation: propagate last pass via speed+trajectory (current ECI shown live)
     let propTxt=`live ECI ${debECI.map(v=>v.toFixed(0)).join(', ')} (propagated via speed ${truthV.toFixed(2)}km/s + trajectory)`;
-    let swarmTxt=window._ccsLastPass?`BOT-${window._ccsLastPass.bot} pass d=${window._ccsLastPass.dReal.toFixed(0)}km · dots ${window._ccsDots.length}`:'waiting for first pass…';
+    let swarmTxt=window._ccsLastPass?`${window._ccsLastPass.bot} pass d=${window._ccsLastPass.dReal.toFixed(0)}km · dots ${window._ccsDots.length}`:'waiting for first pass…';
     ['ccsAlt','ccsVel','ccsMass','ccsSize','ccsTumble','ccsDecay','ccsAngMom','ccsPerp','ccsOrbit','ccsAir','ccsOrient'].forEach(id=>set(id,'NULL'));
     set('ccsTraj',propTxt); set('ccsSwarm',swarmTxt);
     set('ccsSensors',`${window._ccsDots.length} passes · ${window._ccsStore.length} packets stored`);
-    if(st) st.innerHTML=`COLLECTING… <b>ORBIT ${orbits.toFixed(2)}/2</b> · null info · ${window._ccsDots.length} passes / ${window._ccsStore.length} stored${newPass?` · <b>PASS bot-${newPass.bot} d=${newPass.dReal.toFixed(0)}km → STORED</b>`:''} · raise TIME ⏱ to fast-forward`;
+    if(st) st.innerHTML=`COLLECTING… <b>ORBIT ${orbits.toFixed(2)}/2</b> · null info · ${window._ccsDots.length} passes / ${window._ccsStore.length} stored${newPass?` · <b>PASS ${newPass.bot} d=${newPass.dReal.toFixed(0)}km → STORED</b>`:''} · raise TIME ⏱ to fast-forward`;
     return;
   }
   // --- phase 2: PROCESSING (first tick after 2 orbits) ---
@@ -3408,9 +3451,11 @@ document.getElementById('btnSimCentre')?.addEventListener('click', ()=>{
 // STRICT: Case 1 never uses eddy-current despin or any EM hardware — high tumble pauses/rejects the op.
 // State is exposed as window.CASE1 so a future sidebar can bind to it (no sidebar created here).
 const CASE_1_CONFIG={
-  counts:{ debrisMin:2, debrisMax:4, sensoryMin:6, sensoryMax:8, actionMin:2, actionMax:4, cleanActiveMin:2 },
+  // Demo fleet is 40 active + 40 sensory + 20 action + 3 debris, so maxima must admit it.
+  // Minima preserve the controlled-scenario floor; extras are used as-is (deterministic sort).
+  counts:{ debrisMin:2, debrisMax:6, sensoryMin:6, sensoryMax:45, actionMin:2, actionMax:24, cleanActiveMin:0 },
   debris:{ mass:40, alt:550, e:0.001, inc:102, raanBase:10, raanStep:25, argP:0, m0Base:0, m0Step:90, size:0.8, tumbleRadS:0.0105 },
-  action:{ mass:150, area:4, alt:550, e:0.001, inc:102, raanBase:10, argP:0, altOffsetKm:50, incOffsetDeg:0.05, raanOffsetDeg:0.08, m0Offset:0.10, m0Spacing:0.20, dvBudgetKmS:0.6, reserveKmS:0.15, precisionBase:0.97, precisionStep:0.01, lifetimeMinYr:1 },
+  action:{ mass:150, area:4, alt:550, e:0.001, inc:102, raanBase:10, argP:0, altOffsetKm:50, incOffsetDeg:0.05, raanOffsetDeg:0.08, m0Offset:0.10, m0Spacing:0.20, dvBudgetKmS:0.6, reserveKmS:0.15, precisionBase:0.97, precisionStep:0.002, lifetimeMinYr:1 },
   active:{ mass:260, area:10, alt:600, e:0.001, inc:53, raanBase:40, raanStep:30, argP:0, m0Step:45 },
   sensory:{ dirNote:'anticlockwise (rides prograde hosts)', detectRangeKm:2500 },
   safety:{ distanceKm:0.01, horizonRevs:3, stepSimSec:30, maxBurnDelays:4 },
@@ -3609,7 +3654,7 @@ function case1SeqCalc(i){
         return 'T≈'+T.toFixed(0)+'s · '+n+' samples'+(CASE1.mapped?(' · a '+kmA(CASE1.mapped.a)+'km e '+CASE1.mapped.e.toFixed(4)+' v '+CASE1.mapped.v.toFixed(2)+'km/s'):''); }
       case 2: return 'decay '+(CASE1.decayKmPerDay?CASE1.decayKmPerDay.toFixed(4):'…')+' km/day';
       case 3: return CASE1.predRev3?('rev-3 a '+kmA(CASE1.predRev3.a)+'km · T '+(CASE1.predRev3.period/60).toFixed(1)+'min'):'propagating…';
-      case 4: return CASE1.bot?(CASE1.bot.label+' · margin '+(CASE1._selMargin!=null?((CASE1._selMargin>=0?'+':'')+CASE1._selMargin.toFixed(3)):'…')+'km/s · d '+(CASE1._selDist!=null?CASE1._selDist.toFixed(0):'…')+'km'):'scoring bots…';
+      case 4: return CASE1.bot?(CASE1.bot.label+' · margin '+(CASE1._selMargin!=null?((CASE1._selMargin>=0?'+':'')+CASE1._selMargin.toFixed(3)):'…')+'km/s · d '+(CASE1._selDist!=null?CASE1._selDist.toFixed(0):'…')+'km'):('scanning '+CASE1.actions.length+' bots'+(CASE1._selAttempts?(' · try '+CASE1._selAttempts+(CASE1._selBestDist!=null?(' · best d '+CASE1._selBestDist.toFixed(0)+'km'):'')):'…'));
       case 5: return (CASE1.bot?CASE1.bot.label:'—')+' offset orbit d '+(CASE1.distKm!=null?CASE1.distKm.toFixed(1):'…')+'km · rel '+(CASE1.relMs!=null?CASE1.relMs.toFixed(0):'…')+'m/s → hold 15–110km (own orbit)';
       case 6: { const tb=tgt?case1Tumble(tgt):null;
         return 'tumble '+(tb!=null?tb.toFixed(4):'…')+' ≤0.05 · sep '+(CASE1._safeMin!=null?CASE1._safeMin.toFixed(2):'…')+'km'+(CASE1._safeDelay?' delay '+CASE1._safeDelay+'/4':''); }
@@ -4141,17 +4186,17 @@ function case1NormalizeArrange(){
     s.precision=Math.max(0.8, C.action.precisionBase-i*C.action.precisionStep);
     s.case1Unavailable=false; s.needsDisposal=false;
     try{ s.envLifetimeYr=lifetimeYears(C.action.alt, s.B); }catch(_){ s.envLifetimeYr=5; }
-    // TRAILING OFFSET ORBITS: bot0 exactly +50km ABOVE debris, bot1 exactly -50km
-    // BELOW debris (never overlapping, never sharing a shell). Extras alternate
-    // further out (+75/-75…) with distinct planes so no two bots ever overlap.
-    // The phase HOLD freezes each slot, so the 50–100km held band persists to release.
-    // Only the propeller leaves — downward across the path.
-    const _off=(C.action.altOffsetKm||50)+Math.floor(i/2)*25;
-    const _signedOff=(i%2===0)?_off:-_off;
+    // TRAILING OFFSET ORBITS: distinct shells inside a tight 35–115km band (cycle
+    // + stagger, never the old +275km runaway) AND spread around the FULL orbit —
+    // bots sit (i+0.5)*(360/n) apart in phase so no two ever clump. Selection picks
+    // the nearest one; RENDEZVOUS closes its gap. Only the propeller leaves.
+    const _cycle=[50,-50,65,-65,80,-80,95,-95,35,-35,110,-110];
+    const _signedOff=_cycle[i%_cycle.length]+Math.floor(i/_cycle.length)*5;
+    const _n=CASE1.actions.length||1;
     case1SetElements(s, C.debris.alt+_signedOff, C.action.e,
       C.debris.inc+(C.action.incOffsetDeg||0.22),
       tRaan+(C.action.raanOffsetDeg||0.30)+i*0.35, C.debris.argP,
-      tM0+(C.action.m0Offset||0.28)+i*(C.action.m0Spacing||0.10));
+      tM0+(i+0.5)*(360/_n));
   });
   const allActives=CASE1.hosts.concat(CASE1.cleanActives);
   allActives.forEach((s,j)=>{
@@ -4164,7 +4209,7 @@ function case1NormalizeArrange(){
   const perParent={};
   CASE1.sensory.forEach((b)=>{
     const p=b.parent, k=(perParent[p.label]||0); perParent[p.label]=k+1;
-    const a=k*2.39996, SZ=R_EARTH*0.70;
+    const a=k*2.39996, SZ=R_EARTH*0.595;
     b.baseOffset=new THREE.Vector3(Math.cos(a)*0.055*SZ, 0.045*SZ, Math.sin(a)*0.055*SZ);
     b.bobPhase=k*1.1; b.mesh.position.copy(b.baseOffset);
   });
@@ -4174,10 +4219,20 @@ function case1NormalizeArrange(){
   try{
     const TAU=2*Math.PI;
     if(CASE1.target&&sats.indexOf(CASE1.target)>=0){
+      const t0=case1Now();
+      const nT=(CASE1.target.n0||Math.sqrt(MU/Math.pow(CASE1.target.a,3)))+(CASE1.target.mDot||0);
       for(const s of CASE1.actions){
         let d=(s.M0-CASE1.target.M0)%TAU;
         if(d>Math.PI) d-=TAU; if(d<-Math.PI) d+=TAU;
         s._holdDelta=d;
+        // mean-anomaly gap at layout (the actual viewable separation) — HOLD freezes
+        // THIS, not the epoch M0 diff, so differential mean motion can't inflate relVel.
+        try{
+          const nS=(s.n0||Math.sqrt(MU/Math.pow(s.a,3)))+(s.mDot||0);
+          let dMt=((s.M0+nS*t0)-(CASE1.target.M0+nT*t0))%TAU;
+          if(dMt>Math.PI) dMt-=TAU; if(dMt<-Math.PI) dMt+=TAU;
+          s._holdDeltaMt=dMt;
+        }catch(_){ s._holdDeltaMt=d; }
       }
     }
     CASE1._lastHoldT=case1Now();
@@ -4205,11 +4260,18 @@ function case1HoldFormation(t){
     if(maxStep<=0) return;
     for(const b of CASE1.actions){
       if(!b||sats.indexOf(b)<0||b.case1Unavailable) continue;
-      if(b._holdDelta==null||!isFinite(b._holdDelta)) continue;
-      let err=((b.M0-deb.M0)-b._holdDelta)%TAU;
+      // Freeze the MEAN-ANOMALY gap (actual separation), not the epoch M0 diff:
+      // M(t)=M0+n*t drifts on different shells, so comparing raw M0s is a no-op
+      // and the old +err sign pushed the wrong way. Correct toward the stored gap.
+      const nB=(b.n0||Math.sqrt(MU/Math.pow(b.a,3)))+(b.mDot||0);
+      const nD=(deb.n0||Math.sqrt(MU/Math.pow(deb.a,3)))+(deb.mDot||0);
+      const des=(b._holdDeltaMt!=null&&isFinite(b._holdDeltaMt))?b._holdDeltaMt:((b._holdDelta!=null&&isFinite(b._holdDelta))?b._holdDelta:0);
+      let cur=((b.M0+nB*t)-(deb.M0+nD*t))%TAU;
+      if(cur>Math.PI) cur-=TAU; if(cur<-Math.PI) cur+=TAU;
+      let err=cur-des;
       if(err>Math.PI) err-=TAU; if(err<-Math.PI) err+=TAU;
       if(!isFinite(err)||Math.abs(err)<1e-9) continue;
-      const step=Math.max(-maxStep, Math.min(maxStep, err*0.2));
+      const step=Math.max(-maxStep, Math.min(maxStep, -err*0.2));
       b.M0=((b.M0+step)%TAU+TAU)%TAU;
       b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(step)/RAD*CASE_1_CONFIG.rendezvous.fuelPerDegKmS;
     }
@@ -4467,7 +4529,15 @@ function case1Start(){
     case1Render();
     return;
   }
-  // strict single target: user must have selected exactly one debris first
+  // single target: auto-pick first debris if user hasn't staged one, so START works out-of-box
+  if(!CASE1.targetSel||v.debris.indexOf(CASE1.targetSel)<0){
+    try{
+      const auto=(v.debris.slice().sort((a,b)=>(a.label||'').localeCompare(b.label||'')))[0]||v.debris[0];
+      if(auto&&typeof case1SetTarget==='function'&&case1SetTarget(auto,false)){
+        case1Log('auto-target: '+auto.label+' (no staged target — picked first debris)');
+      }
+    }catch(_){}
+  }
   if(!CASE1.targetSel||v.debris.indexOf(CASE1.targetSel)<0){
     try{ fleetNotice('CASE 1 BLOCKED — <b>select a target debris first</b> (click it or SET AS CASE-1 TARGET)'); }catch(_){}
     try{ document.getElementById('case1Validation').innerHTML='<span style="color:#fbbf24;">⚠ NO TARGET</span> — click a debris in 3D or pick one above, then SET AS CASE-1 TARGET.'; }catch(_){}
@@ -4486,6 +4556,7 @@ function case1Start(){
   CASE1.burn=null; CASE1.preBurn=null; CASE1.burnUntil=0;
   CASE1.detectingIds=[]; CASE1.relMs=null; CASE1.distKm=null;
   CASE1._selMargin=CASE1._selDist=CASE1._selRel=null; CASE1._safeDelay=CASE1._safeMin=null; CASE1._seqLast=null;
+  CASE1._selDeadline=null; CASE1._selAttempts=0; CASE1._selBestDist=null;
   try{ case1ClearRunVisuals(); }catch(_){} // fresh run visuals (target marker kept)
   case1AssignRoles(v);
   case1SetState('INITIALIZING_CASE_1', CASE1.debris.length+' debris · '+CASE1.actions.length+' action · '+CASE1.sensory.length+' sensory');
@@ -4514,7 +4585,7 @@ function case1EciToScene(eci){
   return new THREE.Vector3(eci[0]*s, eci[2]*s, eci[1]*s);
 }
 function case1SpawnPropellerMesh(state){
-  const SZ=R_EARTH*0.70;
+  const SZ=R_EARTH*0.595;
   const group=new THREE.Group();
   // shared hot-orange material for hub+blades+nose so the existing heat-tint
   // (vis.body.material.emissive) tints the whole propeller at once
@@ -4857,14 +4928,33 @@ function case1Tick(){
     case 'PREDICTING_REVOLUTION_3': {
       const aPred=CASE1.mapped.a+CASE1.decayKmPerDay/86400*CASE1.rev2.period;
       CASE1.predRev3={ a:aPred, e:deb.e, period:periodSecOf(aPred) };
+      // Selection window: phases drift on different shells, so a bot rejected now
+      // can be acceptable minutes later. SELECTING retries until this deadline.
+      CASE1._selDeadline=t+periodSecOf(aPred)*1.5+600;
+      CASE1._selAttempts=0;
       case1SetState('SELECTING_ACTION_BOT','rev-3 a '+(aPred-KM_PER_UNIT).toFixed(1)+'km');
       break;
     }
     case 'SELECTING_ACTION_BOT': {
       const sel=case1SelectBot();
-      const why=sel.all.map(c=>(c.bot.label||'bot')+': '+(c.ok?('OK margin '+c.margin.toFixed(3)+'km/s score '+c.score.toFixed(2)):('REJECT — '+c.reasons.join(', ')))).join(' | ');
-      case1Log('selection: '+why);
+      CASE1._selAttempts=(CASE1._selAttempts||0)+1;
       if(!sel.best){
+        // Retry loop (user request): orbital motion changes geometry every tick with
+        // 20 bots on drifting shells, so keep sampling until the deadline instead of
+        // aborting on the first bad phase. Log throttled to avoid chat spam.
+        const remain=Math.max(0,(CASE1._selDeadline||t)-t);
+        if(t<(CASE1._selDeadline||t)){
+          let bestD=1e18; try{ for(const c of sel.all){ if(c.dist<bestD) bestD=c.dist; } }catch(_){}
+          CASE1._selBestDist=(bestD<1e17?bestD:null);
+          if(CASE1._selAttempts===1||CASE1._selAttempts%20===1){
+            const why=sel.all.slice(0,6).map(c=>(c.bot.label||'bot')+':REJECT '+c.reasons.join('+')).join(' | ');
+            case1Log('selection retry '+CASE1._selAttempts+' — no pass yet (best dist '+(bestD<1e17?bestD.toFixed(0)+'km':'—')+', '+Math.round(remain)+'s window left) — '+why);
+          }
+          try{ case1Render(); }catch(_){}
+          break;
+        }
+        const why=sel.all.map(c=>(c.bot.label||'bot')+': '+(c.ok?('OK margin '+c.margin.toFixed(3)+'km/s score '+c.score.toFixed(2)):('REJECT — '+c.reasons.join(', ')))).join(' | ');
+        case1Log('selection: '+why);
         CASE1.errors.push('No valid Action Bot — '+sel.all.map(c=>c.reasons.join('+')).join('; '));
         try{ fleetNotice('CASE 1 HOLD — <b>no valid Action Bot</b> (energy/direction/filter)'); }catch(_){}
         case1SetState('ABORTED','selection failed — notified CCS');
@@ -4899,7 +4989,7 @@ function case1Tick(){
           const away=(diffDeg>=0?-1:1);
           b.M0=((b.M0+away*step*RAD)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
           b.dvUsedKmS=(b.dvUsedKmS||0)+step*CASE_1_CONFIG.rendezvous.fuelPerDegKmS;
-          try{ const TAU=2*Math.PI; let nd=(b.M0-deb.M0)%TAU; if(nd>Math.PI) nd-=TAU; if(nd<-Math.PI) nd+=TAU; b._holdDelta=nd; }catch(_){}
+          try{ const TAU=2*Math.PI; let nd=(b.M0-deb.M0)%TAU; if(nd>Math.PI) nd-=TAU; if(nd<-Math.PI) nd+=TAU; b._holdDelta=nd; const nB2=(b.n0||Math.sqrt(MU/Math.pow(b.a,3)))+(b.mDot||0), nD2=(deb.n0||Math.sqrt(MU/Math.pow(deb.a,3)))+(deb.mDot||0); let ndMt=((b.M0+nB2*t)-(deb.M0+nD2*t))%TAU; if(ndMt>Math.PI) ndMt-=TAU; if(ndMt<-Math.PI) ndMt+=TAU; b._holdDeltaMt=ndMt; }catch(_){}
         }
         if(!CASE1._backoff){ CASE1._backoff=true; case1Log('collision-avoid backoff — bot holds offset orbit, propeller goes instead (never a hit)'); }
         if(t>(CASE1.rzDeadline||Infinity)){ case1Handoff('offset corridor unreachable d='+dist0.toFixed(1)+'km'); }
@@ -4915,7 +5005,7 @@ function case1Tick(){
         const mv=Math.max(-step, Math.min(step, diffDeg));
         b.M0=((b.M0+mv*RAD)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
         b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(mv)*CASE_1_CONFIG.rendezvous.fuelPerDegKmS;
-        try{ const TAU=2*Math.PI; let nd=(b.M0-deb.M0)%TAU; if(nd>Math.PI) nd-=TAU; if(nd<-Math.PI) nd+=TAU; b._holdDelta=nd; }catch(_){}
+        try{ const TAU=2*Math.PI; let nd=(b.M0-deb.M0)%TAU; if(nd>Math.PI) nd-=TAU; if(nd<-Math.PI) nd+=TAU; b._holdDelta=nd; const nB2=(b.n0||Math.sqrt(MU/Math.pow(b.a,3)))+(b.mDot||0), nD2=(deb.n0||Math.sqrt(MU/Math.pow(deb.a,3)))+(deb.mDot||0); let ndMt=((b.M0+nB2*t)-(deb.M0+nD2*t))%TAU; if(ndMt>Math.PI) ndMt-=TAU; if(ndMt<-Math.PI) ndMt+=TAU; b._holdDeltaMt=ndMt; }catch(_){}
       }
       const dist=case1DistKm(deb, b, t), rel=case1RelVel(deb, b, t);
       if(dist<=SO.maxKm&&rel<=SO.maxRelVelKmS){
