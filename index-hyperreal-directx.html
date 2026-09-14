@@ -4802,6 +4802,26 @@ function case1Tick(){
       }
       const dtS=Math.max(0, t-(CASE1.lastBeamT!=null?CASE1.lastBeamT:t));
       CASE1.lastBeamT=t;
+      // CONTINUOUS TRACK while beaming: never stop/hold still — keep station
+      // in the 15–110km corridor so the bot can't fall behind mid-detumble.
+      // Same rate-limited phase trim as RENDEZVOUS (slot-keep, not a chase).
+      try{
+        const SO=CASE_1_CONFIG.standoff||{minKm:15,maxKm:110};
+        const rate=(CASE_1_CONFIG.rendezvous||{}).phaseRateDegPerSimSec||0.02;
+        if(dtS>0){
+          const d0=case1DistKm(deb,b,t);
+          if(d0>SO.maxKm||d0<SO.minKm){
+            const diffDeg=(((deb.M0-b.M0)/RAD%360+540)%360)-180;
+            const step=rate*dtS;
+            let mv;
+            if(d0<SO.minKm){ const away=(diffDeg>=0?-1:1); mv=away*step; }
+            else { mv=Math.max(-step,Math.min(step,diffDeg)); }
+            b.M0=((b.M0+mv*RAD)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
+            b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(mv)*((CASE_1_CONFIG.rendezvous||{}).fuelPerDegKmS||0.002);
+            try{ const TAU=2*Math.PI; let nd=(b.M0-deb.M0)%TAU; if(nd>Math.PI) nd-=TAU; if(nd<-Math.PI) nd+=TAU; b._holdDelta=nd; const nB2=(b.n0||Math.sqrt(MU/Math.pow(b.a,3)))+(b.mDot||0), nD2=(deb.n0||Math.sqrt(MU/Math.pow(deb.a,3)))+(deb.mDot||0); let ndMt=((b.M0+nB2*t)-(deb.M0+nD2*t))%TAU; if(ndMt>Math.PI) ndMt-=TAU; if(ndMt<-Math.PI) ndMt+=TAU; b._holdDeltaMt=ndMt; }catch(_){}
+          }
+        }
+      }catch(_){}
       if(dtS>0){
         const tb=case1Tumble(deb);
         if(tb>0){
