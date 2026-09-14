@@ -1,0 +1,15 @@
+{
+ "tumble_rad_s": 2.103108161371138,
+ "omega_bleed": 2.103108161371138,
+ "inertia": 568.7213949401017,
+ "ang_momentum": 1196.082607244906,
+ "ion_force_applied_N": 2.6923552922661784,
+ "ion_thrust_avail_N": 0.05,
+ "beam_time_s": 32308.26350719414,
+ "beam_time_sized_s": 600.0,
+ "impulse_Ns": 1615.413175359707,
+ "thruster_dv_km_s": 0.10715491209217731,
+ "thruster_impulse_Ns": 136173.5095494893,
+ "thruster_dur_s": 272.3470190989786,
+ "target_perigee_km": 65.0
+}

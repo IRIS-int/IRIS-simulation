@@ -3458,13 +3458,17 @@ const CASE_1_CONFIG={
   // Demo fleet is 40 active + 40 sensory + 20 action + 3 debris, so maxima must admit it.
   // Minima preserve the controlled-scenario floor; extras are used as-is (deterministic sort).
   counts:{ debrisMin:2, debrisMax:6, sensoryMin:6, sensoryMax:45, actionMin:2, actionMax:24, cleanActiveMin:0 },
-  debris:{ mass:40, alt:550, e:0.001, inc:102, raanBase:10, raanStep:25, argP:0, m0Base:0, m0Step:90, size:0.8, tumbleRadS:0.0105 },
+  debris:{ mass:40, alt:550, e:0.001, inc:102, raanBase:10, raanStep:25, argP:0, m0Base:0, m0Step:90, size:0.8, tumbleRadS:1.65 },
   action:{ mass:150, area:4, alt:550, e:0.001, inc:102, raanBase:10, argP:0, altOffsetKm:50, incOffsetDeg:0.05, raanOffsetDeg:0.08, m0Offset:0.10, m0Spacing:0.20, dvBudgetKmS:0.6, reserveKmS:0.15, precisionBase:0.97, precisionStep:0.002, lifetimeMinYr:1 },
   active:{ mass:260, area:10, alt:600, e:0.001, inc:53, raanBase:40, raanStep:30, argP:0, m0Step:45 },
   sensory:{ dirNote:'anticlockwise (rides prograde hosts)', detectRangeKm:2500 },
   safety:{ distanceKm:0.01, horizonRevs:3, stepSimSec:30, maxBurnDelays:4 },
   live:{ freshnessSimSec:60 },
   tumble:{ maxRadS:0.05 },
+  // IBS DETUMBLE (design): ion-beam force is CALCULATED from mapped tumble speed
+  // (more spin => more force). L=I*omega, torque=F*arm*eta, beam bleeds omega->0,
+  // then docked thruster pushes stable debris to crash/burnup.
+  ibs:{ thrustN:0.05, plumeEta:0.7, targetBeamTimeS:600 },
   precision:{ min:0.9 },
   select:{ maxRelVelKmS:4.5 },
   rendezvous:{ maxDistKm:5, maxRelVelKmS:0.08, phaseRateDegPerSimSec:0.02, fuelPerDegKmS:0.002, timeoutRevs:2 },
@@ -3492,6 +3496,7 @@ const CASE1={
   burn:null, preBurn:null, burnUntil:0, predicted:null, postBurn:{ start:0, period:0 },
   safety:null, handoffCount:0, reentry:null, docked:false, push:null,
   beamT0:null, lastBeamT:null, beamLogT:0, lastDockT:null, dockDeadline:null,
+  detumble:null,
   detectingIds:[], relMs:null, distKm:null
 };
 window.CASE_1_CONFIG=CASE_1_CONFIG; window.CASE1=CASE1;
@@ -3527,6 +3532,25 @@ function case1DistKm(a, b, t){
 }
 function case1Tumble(s){ return (s.tumbleRadS!=null)?s.tumbleRadS:(s.spin||0)*0.1; }
 function case1BotBudget(s){ return Math.max(0,(s.dvBudgetKmS||0)-(s.dvUsedKmS||0)); }
+// NEW: detumble plan sized FROM mapped tumble speed (mapping -> force).
+// Solid-sphere inertia I=2/5*m*r^2, L=I*omega, torque=F*arm*eta.
+// forceN stops the excess spin in targetBeamTimeS: more tumble => more force.
+function case1DebrisInertia(massKg, sizeM){ const r=Math.max(0.05,(sizeM||0.8)/2); return 0.4*(massKg||40)*r*r; }
+function case1DetumblePlan(s){
+  try{
+    const C=CASE_1_CONFIG.ibs||{ thrustN:0.05, plumeEta:0.7, targetBeamTimeS:600 };
+    const stopR=(CASE_1_CONFIG.tumble||{}).maxRadS||0.05;
+    const mass=s.mass||40, sizeM=s.realSizeM||0.8;
+    const tumble=case1Tumble(s);
+    const omega=Math.max(0, tumble); // full spin to bleed to 0 (stop spinning)
+    const I=case1DebrisInertia(mass, sizeM);
+    const L=I*omega, arm=Math.max(0.05, sizeM/2);
+    const torqueAvail=(C.thrustN||0.05)*arm*(C.plumeEta||0.7);
+    const beamTimeS=torqueAvail>0?L/torqueAvail:1e9;
+    const forceN=(arm*(C.plumeEta||0.7)*(C.targetBeamTimeS||600))>0?L/(arm*(C.plumeEta||0.7)*(C.targetBeamTimeS||600)):0;
+    return { tumble, omega, inertia:I, angMom:L, arm, forceN, beamTimeS, beamSizedS:C.targetBeamTimeS||600 };
+  }catch(_){ return null; }
+}
 // Kepler ECI propagation for prediction (same math as Sat.eciKm, J2-linear from epoch t0)
 function case1PropECI(el, t){
   try{
@@ -3592,7 +3616,7 @@ function case1Render(){
     if(CASE1.targetSel&&!CASE1.target) extra+='<br>TARGET <b style="color:#facc15">'+CASE1.targetSel.label+'</b> (staged)';
     if(CASE1.target) extra+='<br>TARGET <b style="color:#facc15">'+CASE1.target.label+'</b> a '+(CASE1.target.a-KM_PER_UNIT).toFixed(1)+'km e '+CASE1.target.e.toFixed(4);
     if(CASE1.bot) extra+=' · IBS <b style="color:#22d3ee">'+CASE1.bot.label+'</b> (ion-beam shepherd)';
-    if(CASE1.state==='SHEPHERD'&&CASE1.target) extra+='<br>IBS BEAM <b style="color:#a78bfa">ON</b> · tumble <b>'+case1Tumble(CASE1.target).toFixed(4)+' rad/s</b> → ≤'+CASE_1_CONFIG.tumble.maxRadS;
+    if(CASE1.state==='SHEPHERD'&&CASE1.target) extra+='<br>IBS BEAM <b style="color:#a78bfa">ON</b> · tumble <b>'+case1Tumble(CASE1.target).toFixed(4)+' rad/s</b> → ≤'+CASE_1_CONFIG.tumble.maxRadS+(CASE1.detumble?(' · F <b>'+(CASE1.detumble.forceN*1000).toFixed(2)+' mN</b> (calc from mapped spin)'): '');
     if(CASE1.state==='DOCKING'&&CASE1.bot) extra+='<br>DOCKING d <b>'+(CASE1.distKm!=null?CASE1.distKm.toFixed(1):'…')+' km</b> · rel '+(CASE1.relMs!=null?CASE1.relMs.toFixed(0):'…')+' m/s → capture ≤'+CASE_1_CONFIG.dock.captureKm+'km';
     if(CASE1.docked) extra+=' · <b style="color:#4ade80">DOCKED</b>';
     if(CASE1.detectingIds.length) extra+='<br>TRACKING: <b style="color:#4ade80">'+CASE1.detectingIds.length+' sensory</b> · '+CASE1.detectingIds.slice(0,3).join(', ')+(CASE1.detectingIds.length>3?'…':'');
@@ -3647,13 +3671,25 @@ function case1SeqCalc(i){
       case 5: return (CASE1.bot?CASE1.bot.label:'—')+' offset orbit d '+(CASE1.distKm!=null?CASE1.distKm.toFixed(1):'…')+'km · rel '+(CASE1.relMs!=null?CASE1.relMs.toFixed(0):'…')+'m/s → hold 15–110km (own orbit)';
       case 6: { const tb=tgt?case1Tumble(tgt):null;
         const bt=(CASE1.beamT0!=null)?Math.max(0,Math.round(case1Now()-CASE1.beamT0))+'s beam':'arming beam…';
-        return 'tumble '+(tb!=null?tb.toFixed(4):'…')+' ≤0.05 · '+bt; }
+        const f=(CASE1.detumble&&CASE1.detumble.forceN!=null)?(' · F '+(CASE1.detumble.forceN*1000).toFixed(2)+'mN calc'):'';
+        // bleed progress: initial mapped spin -> current -> ~0 target
+        let prog='';
+        try{
+          const t0=(CASE1.detumble&&CASE1.detumble.tumble)||tb||1;
+          if(tb!=null&&t0>0) prog=' · bled '+Math.min(99,Math.round(100*Math.max(0,(t0-tb)/t0)))+'%';
+        }catch(_){}
+        const stopR=(CASE_1_CONFIG.tumble||{}).maxRadS||0.05;
+        const stable=(tb!=null&&tb<=stopR);
+        const lock=stable?' · <b>STABLE ~0 → thruster UNLOCKED</b>':' · <b>THRUSTER LOCKED</b>';
+        return 'ion-beam ON · tumble '+(tb!=null?tb.toFixed(4):'…')+' → ≤'+stopR+prog+' · '+bt+f+lock; }
       case 7: return 'sep '+(CASE1._safeMin!=null?CASE1._safeMin.toFixed(2):'…')+'km'+(CASE1._safeDelay?' delay '+CASE1._safeDelay+'/4':'');
       case 8: { const D=CASE_1_CONFIG.dock;
         let eta=''; try{ if(CASE1.dockDeadline!=null) eta=' · T-'+Math.max(0,Math.round(CASE1.dockDeadline-case1Now()))+'s'; }catch(_){}
-        return 'match orbit → capture ≤'+D.captureKm+'km & ≤'+(D.captureRelVelKmS*1000).toFixed(0)+'m/s · d '+(CASE1.distKm!=null?CASE1.distKm.toFixed(1):'…')+'km · rel '+(CASE1.relMs!=null?CASE1.relMs.toFixed(0):'…')+'m/s'+eta+(CASE1.docked?' · <b>DOCKED</b>':''); }
+        const tb8=tgt?case1Tumble(tgt):null;
+        const gate=(tb8!=null&&tb8>(CASE_1_CONFIG.tumble||{}).maxRadS)?' · ⛔ tumbling — back to beam':' · spin ~0 ✓';
+        return 'match orbit → capture ≤'+D.captureKm+'km & ≤'+(D.captureRelVelKmS*1000).toFixed(0)+'m/s · d '+(CASE1.distKm!=null?CASE1.distKm.toFixed(1):'…')+'km · rel '+(CASE1.relMs!=null?CASE1.relMs.toFixed(0):'…')+'m/s'+eta+(CASE1.docked?' · <b>DOCKED</b>':'')+gate; }
       case 9: { let d='…'; try{ const P=CASE1.predicted; if(P&&tgt){ const t=case1Now(), pp=case1PropECI(P.el,t), ap=tgt.eciKm(t); d=Math.hypot(pp[0]-ap[0],pp[1]-ap[1],pp[2]-ap[2]).toFixed(1)+'km'; } }catch(_){}
-        return 'dev '+d+' ≤5km'; }
+        return 'thruster AFTER stable · dev '+d+' ≤5km'; }
       case 10: { const r=CASE1.reentry; return 'alt '+(CASE1.live&&CASE1.live.pos?CASE1.live.alt.toFixed(0):'…')+'km → burns <135km · gone <65km'+(r&&r.perigee!=null?(' · perigee '+r.perigee.toFixed(0)+'km'):''); }
       case 11: { const r=CASE1.reentry; return r&&r.burned?('burned @ '+r.lat.toFixed(1)+'°/'+r.lon.toFixed(1)+'° alt '+r.alt.toFixed(0)+'km · deleted'):''; }
     }
@@ -4328,6 +4364,7 @@ function case1Start(){
   CASE1.burn=null; CASE1.predicted=null; CASE1.postBurn={start:0,period:0};
   CASE1.safety=null; CASE1.reentry=null; CASE1.bot=null; CASE1.backupBots=[]; CASE1.docked=false;
   CASE1.push=null; CASE1.beamT0=null; CASE1.lastBeamT=null; CASE1.beamLogT=0;
+  CASE1.detumble=null;
   CASE1.lastDockT=null; CASE1.dockDeadline=null;
   CASE1._botLostLogged=false; CASE1._backoff=false;
   CASE1.burn=null; CASE1.preBurn=null; CASE1.burnUntil=0;
@@ -4389,6 +4426,18 @@ function case1Undock(t, why){
 }
 function case1Dock(t){
   const deb=CASE1.target, b=CASE1.bot;
+  // HARD GATE: main thruster path (docked push) requires stabilized debris (spin ~= 0).
+  // Ion-beam shepherding must have bled tumble first — never dock a tumbling target.
+  if(case1Tumble(deb)>CASE_1_CONFIG.tumble.maxRadS){
+    case1Log('DOCK REFUSED — tumble '+case1Tumble(deb).toFixed(4)+' rad/s > '+CASE_1_CONFIG.tumble.maxRadS+' — ion beam must finish first (thruster locked)');
+    try{ if(b) b.attitude='ibs-track'; }catch(_){}
+    if(CASE1.beamT0==null) CASE1.beamT0=t;
+    CASE1.lastBeamT=t;
+    if(CASE1.state!=='SHEPHERD') case1SetState('SHEPHERD','dock refused — shepherd spin to ~0 first');
+    return false;
+  }
+  // Stabilized: lock spin to zero for the docked stack (no re-tumble while joined).
+  try{ deb.tumbleRadS=0; deb.spin=0; }catch(_){}
   const est=case1EstimateBurn(deb, CASE_1_CONFIG.burn.targetPerigeeKm);
   try{
     const vv=deb.velKmS(t), vm=Math.hypot(vv[0],vv[1],vv[2]);
@@ -4399,10 +4448,11 @@ function case1Dock(t){
     case1Vis.preburn=new THREE.Line(deb.orbit.geometry.clone(), new THREE.LineBasicMaterial({color:0x94a3b8,transparent:true,opacity:0.35,depthWrite:false}));
     case1Vis.preburn.renderOrder=5; case1Vis.preburn.frustumCulled=false; scene.add(case1Vis.preburn);
   }catch(_){}
-  // DOCKED PUSH: the stack feeds the SAME total retrograde Δv in small fractions
-  // over pushDurSec (low-thrust spiral, visibly gradual) through maneuver(), so the
-  // trajectory always results from changed state. Metered per tick by
-  // case1ProgressDockedPush — BURN ACTIVE spans the window from this sim time.
+  // DOCKED PUSH (thruster stage, only after detumble spin ~= 0): the docked stack
+  // pushes the now-stable debris forward-down to crash — retrograde Δv in small
+  // fractions over pushDurSec (low-thrust spiral, visibly gradual) through
+  // maneuver(), so the trajectory always results from changed state. Metered per
+  // tick by case1ProgressDockedPush — BURN ACTIVE spans the window from this sim time.
   const _dvMag=est.dv;
   const impulse=_dvMag*1000*(deb.mass||40);
   const pushDur=Math.max(60, CASE_1_CONFIG.burn.pushDurSec||480);
@@ -4418,8 +4468,8 @@ function case1Dock(t){
     try{ fleetNotice('CCS ALERT — <b>'+b.label+'</b> below energy reserve · awaiting confirmation (IRIS.confirmDisposal)'); }catch(_){}
     case1Log('EOL watch: '+b.label+' needsDisposal — waiting CCS, not auto-disposing');
   }
-  try{ fleetNotice('◈ IBS DOCKED — <b>'+b.label+'</b> captured <b>'+deb.label+'</b> · <b>BURN ACTIVE</b> thruster push Δv '+est.dv.toFixed(3)+'km/s retrograde over ~'+Math.round(pushDur)+'s sim → perigee '+est.perigee+'km'); }catch(_){}
-  case1Log('DOCKED→PUSHING: '+b.label+' on '+deb.label+' — Δv '+est.dv.toFixed(4)+'km/s retrograde (impulse '+Math.round(impulse)+'N·s over ~'+Math.round(pushDur)+'s sim) from simT '+Math.round(t));
+  try{ fleetNotice('◈ IBS DOCKED — <b>'+b.label+'</b> captured stable <b>'+deb.label+'</b> (spin ~0) · <b>BURN ACTIVE</b> thruster push Δv '+est.dv.toFixed(3)+'km/s forward-to-crash over ~'+Math.round(pushDur)+'s sim → perigee '+est.perigee+'km'); }catch(_){}
+  case1Log('DOCKED→PUSHING: '+b.label+' pushing stable '+deb.label+' forward to crash — Δv '+est.dv.toFixed(4)+'km/s (impulse '+Math.round(impulse)+'N·s over ~'+Math.round(pushDur)+'s sim) from simT '+Math.round(t));
   case1SetState('POST_BURN_VERIFICATION','docked thruster push underway — tracking predicted vs actual');
 }
 // Docked push metering: stack Δv as small retrograde fractions across the burn
@@ -4429,6 +4479,13 @@ function case1ProgressDockedPush(t){
   try{
     const deb=CASE1.target, b=CASE1.bot;
     if(!CASE1.docked||!CASE1.push||!deb||sats.indexOf(deb)<0) return false;
+    // Docked stack is rigid: spin stays locked at ~0 while the thruster fires.
+    // Failsafe — if anything re-spun it, hold the burn until re-stabilized.
+    if(case1Tumble(deb)>CASE_1_CONFIG.tumble.maxRadS){
+      try{ deb.tumbleRadS=Math.max(0, case1Tumble(deb)-0.01); deb.spin=deb.tumbleRadS*8; }catch(_){}
+      if(case1Tumble(deb)>CASE_1_CONFIG.tumble.maxRadS) return true; // hold thrust, no dv this tick
+    }
+    try{ deb.tumbleRadS=0; deb.spin=0; }catch(_){}
     if(b&&sats.indexOf(b)<0){ CASE1.docked=false; return false; }
     const frac=Math.max(0, Math.min(1, (t-CASE1.push.t0)/Math.max(1,CASE1.push.dur)));
     const target=CASE1.push.total*frac, d=target-(CASE1.push.applied||0);
@@ -4620,6 +4677,15 @@ function case1Tick(){
       const dist=case1DistKm(deb, b, t), rel=case1RelVel(deb, b, t);
       if(dist<=SO.maxKm&&rel<=SO.maxRelVelKmS){
         CASE1.beamT0=null; CASE1.lastBeamT=t; CASE1.beamLogT=0;
+        // NEW: size IBS force FROM mapped tumble (mapping already knows spin).
+        // More spin => more calculated force. Stored once, applied below.
+        try{
+          const src=(CASE1.mapped&&CASE1.mapped.tumble!=null)
+            ? { mass:CASE1.mapped.mass||deb.mass, realSizeM:deb.realSizeM, tumbleRadS:CASE1.mapped.tumble }
+            : deb;
+          CASE1.detumble=case1DetumblePlan(src);
+          if(CASE1.detumble) case1Log('detumble plan from mapping: spin '+CASE1.detumble.tumble.toFixed(4)+' rad/s (I='+CASE1.detumble.inertia.toFixed(2)+' L='+CASE1.detumble.angMom.toFixed(3)+') => ion force '+(CASE1.detumble.forceN*1000).toFixed(2)+'mN x ~'+Math.round(CASE1.detumble.beamSizedS)+'s -> spin 0, then thruster push to crash');
+        }catch(_){ CASE1.detumble=null; }
         try{ b.attitude='ibs-track'; }catch(_){}
         case1SetState('SHEPHERD','ion beam on — bleeding '+deb.label+' spin, bot facing debris');
         break;
@@ -4631,25 +4697,40 @@ function case1Tick(){
     }
     case 'SHEPHERD': {
       // ION-BEAM SHEPHERDING: contactless plume bleeds debris spin while the agent
-      // holds standoff facing it (+Z emitter on target). Control panel coordinates
-      // beam/nav/power internally (see link chatter). Then safety gates the dock.
+      // holds standoff facing it (+Z emitter on target). Force is CALCULATED from
+      // mapped tumble (CASE1.detumble): torque=F*arm*eta, dOmega=torque/I*dt.
+      // When spin ~= 0 beam stops, then docked thruster pushes stable debris to crash.
       const b=CASE1.bot;
       if(!b||sats.indexOf(b)<0||b.case1Unavailable){ case1Handoff('bot lost'); break; }
       case1SampleLive();
       try{ b.attitude='ibs-track'; }catch(_){}
-      if(CASE1.beamT0==null) CASE1.beamT0=t;
+      if(CASE1.beamT0==null){
+        CASE1.beamT0=t;
+        if(!CASE1.detumble){ try{ CASE1.detumble=case1DetumblePlan(deb); }catch(_){} }
+      }
       const dtS=Math.max(0, t-(CASE1.lastBeamT!=null?CASE1.lastBeamT:t));
       CASE1.lastBeamT=t;
       if(dtS>0){
         const tb=case1Tumble(deb);
         if(tb>0){
-          const nt=Math.max(0, tb-0.0003*dtS);
+          let nt=tb;
+          try{
+            const P=CASE1.detumble;
+            if(P&&P.inertia>0&&P.arm>0){
+              const eta=(CASE_1_CONFIG.ibs||{}).plumeEta||0.7;
+              const torque=P.forceN*P.arm*eta;
+              nt=Math.max(0, tb-(torque/P.inertia)*dtS);
+            } else {
+              nt=Math.max(0, tb-0.0003*dtS);
+            }
+          }catch(_){ nt=Math.max(0, tb-0.0003*dtS); }
           deb.tumbleRadS=nt; deb.spin=nt*8;
         }
       }
       if(CASE1.beamLogT==null||t-CASE1.beamLogT>150){
         CASE1.beamLogT=t;
-        case1Log('IBS link: beam ON · detumble '+case1Tumble(deb).toFixed(4)+' rad/s · nav locked · panel coordinating');
+        const f=(CASE1.detumble&&CASE1.detumble.forceN!=null)?(' F '+(CASE1.detumble.forceN*1000).toFixed(2)+'mN calc'):'';
+        case1Log('IBS link: beam ON · detumble '+case1Tumble(deb).toFixed(4)+' rad/s'+f+' · nav locked · panel coordinating');
       }
       const tbNow=case1Tumble(deb);
       if(tbNow<=CASE_1_CONFIG.tumble.maxRadS&&(t-CASE1.beamT0)>=90){
@@ -4660,6 +4741,15 @@ function case1Tick(){
       break;
     }
     case 'SAFETY_VALIDATION': {
+      // STRICT GATE: thruster path blocked until ion-beam has bled spin to ~0.
+      // If debris re-tumbled or shepherd was skipped, fall back to SHEPHERD.
+      if(case1Tumble(deb)>CASE_1_CONFIG.tumble.maxRadS){
+        case1Log('safety blocked — tumble '+case1Tumble(deb).toFixed(4)+' rad/s still high, back to ion-beam shepherd');
+        try{ if(CASE1.bot) CASE1.bot.attitude='ibs-track'; }catch(_){}
+        if(CASE1.beamT0==null) CASE1.beamT0=t;
+        case1SetState('SHEPHERD','re-shepherd — spin must reach ~0 before thruster');
+        break;
+      }
       const est=case1EstimateBurn(deb, CASE_1_CONFIG.burn.targetPerigeeKm);
       const jr=j2Rates(est.aNew, est.eNew, deb.inc);
       let ok=false, used=null, delayK=0;
@@ -4692,6 +4782,15 @@ function case1Tick(){
       break;
     }
     case 'DOCKING': {
+      // STRICT GATE: no orbit-match / capture while tumbling. Ion beam first.
+      if(case1Tumble(deb)>CASE_1_CONFIG.tumble.maxRadS){
+        case1Log('dock blocked — tumble '+case1Tumble(deb).toFixed(4)+' rad/s, back to ion-beam shepherd (thruster locked)');
+        try{ if(CASE1.bot) CASE1.bot.attitude='ibs-track'; }catch(_){}
+        if(CASE1.beamT0==null) CASE1.beamT0=t;
+        CASE1.lastBeamT=t;
+        case1SetState('SHEPHERD','dock refused — bleeding spin to ~0 first');
+        break;
+      }
       // IBS DOCKING: match the debris orbit through maneuver() — radial (Hohmann
       // fractions) + plane (sign-hunting dvN) + phase (M0 trim) — all rate-limited
       // and charged to dvUsed. Capture at ≤2.5km & ≤1.2km/s → docked stack.

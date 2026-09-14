@@ -22,6 +22,14 @@ RAD = math.pi / 180.0
 DET_RANGE_KM = 1200.0   # pass = debris within this of a host sat
 COOLDOWN_S = 90.0       # one packet per pass per bot
 
+# --- Ion Beam Shepherd detumble design (Stage 2 input comes from Stage 1 mapping) ---
+ION_THRUST_N = 0.05    # available IBS ion-beam thrust on debris (50 mN class)
+PLUME_ETA = 0.7        # plume coupling efficiency (off-centre impingement)
+TARGET_BEAM_TIME_S = 600.0  # desired detumble duration for force sizing
+TUMBLE_STOP_RAD_S = 0.05    # detumbled threshold (matches sim CASE_1_CONFIG.tumble)
+THRUST_N = 500.0       # docked chemical thruster for disposal push
+TARGET_PERIGEE_KM = 65.0    # crash dive target (burns <135km, gone <65km)
+
 LEO_RHO_TABLE = [
     (100, 5.0e-7), (120, 2.2e-8), (150, 2.0e-9), (160, 1.2e-9),
     (200, 2.5e-10), (250, 6.0e-11), (300, 1.8e-11), (350, 6.0e-12),
@@ -91,6 +99,59 @@ def cross(u, v):
     return (u[1] * v[2] - u[2] * v[1],
             u[2] * v[0] - u[0] * v[2],
             u[0] * v[1] - u[1] * v[0])
+
+
+def debris_inertia(mass_kg, size_m):
+    """Solid-sphere approx: I = 2/5 * m * r^2, r = size/2."""
+    r = max(0.05, size_m / 2.0)
+    return 0.4 * mass_kg * r * r
+
+
+def plan_detumble_and_push(mass_kg, size_m, tumble_rad_s, alt_km,
+                           ion_thrust_n=ION_THRUST_N, eta=PLUME_ETA,
+                           target_time_s=TARGET_BEAM_TIME_S):
+    """NEW: tumbling-spin bleed plan from MAPPED tumble speed.
+
+    Mapping (Stage 1) already measures tumble_speed per pass. This sizes the
+    IBS ion-beam force from that spin: L = I*omega, torque = F*arm*eta.
+      beam_time = L / (ion_thrust * arm * eta)
+      force_req = L / (arm * eta * target_time)  <- force that stops it in target_time
+    After omega -> ~0 the docked thruster pushes the (now stable) debris
+    retrograde so perigee drops to TARGET_PERIGEE_KM and it crashes/burns.
+    Returns a dict with beam + push numbers (design-level, no new physics).
+    """
+    omega = max(0.0, tumble_rad_s)  # full spin to bleed to 0 (stop spinning)
+    inertia = debris_inertia(mass_kg, size_m)
+    ang_mom = inertia * omega
+    arm = max(0.05, size_m / 2.0)  # off-centre plume moment arm
+    torque_avail = ion_thrust_n * arm * eta
+    beam_time_s = ang_mom / torque_avail if torque_avail > 0 else float("inf")
+    force_req = ang_mom / (arm * eta * target_time_s) if target_time_s > 0 else 0.0
+    impulse = force_req * target_time_s
+    # disposal push (vis-viva, retrograde burn at current radius -> target perigee)
+    r = R_EARTH_KM + alt_km
+    r_p = R_EARTH_KM + TARGET_PERIGEE_KM
+    a_new = (r + r_p) / 2.0
+    v_c = math.sqrt(MU / r)
+    v_new = math.sqrt(max(1e-9, MU * (2.0 / r - 1.0 / a_new)))
+    dv = max(0.0, v_c - v_new)
+    push_impulse = dv * 1000.0 * mass_kg
+    push_dur = push_impulse / max(1.0, THRUST_N)
+    return {
+        "tumble_rad_s": tumble_rad_s,
+        "omega_bleed": omega,
+        "inertia": inertia,
+        "ang_momentum": ang_mom,
+        "ion_force_applied_N": force_req,
+        "ion_thrust_avail_N": ion_thrust_n,
+        "beam_time_s": beam_time_s,
+        "beam_time_sized_s": target_time_s,
+        "impulse_Ns": impulse,
+        "thruster_dv_km_s": dv,
+        "thruster_impulse_Ns": push_impulse,
+        "thruster_dur_s": push_dur,
+        "target_perigee_km": TARGET_PERIGEE_KM,
+    }
 
 
 class World:
@@ -234,3 +295,23 @@ if __name__ == "__main__":
         print(f"  tumble          : {sum(p['tumble_speed'] for p in P) / n:.2f} rad/s")
         path = CCS.save()
         print(f"  stored          : {len(P)} -> {path}")
+        # NEW: Stage 2 detumble + push plan, sized FROM the mapped tumble speed.
+        # More spin -> more ion-beam force/time; then thruster pushes stable debris to crash.
+        m_avg = sum(p["mass"] for p in P) / n
+        s_avg = sum(p["size_m"] for p in P) / n
+        w_avg = sum(p["tumble_speed"] for p in P) / n
+        alt_avg = fA - R_EARTH_KM
+        plan = plan_detumble_and_push(m_avg, s_avg, w_avg, alt_avg)
+        print("DETUMBLE PLAN (IBS ion-beam shepherd, from mapped tumble):")
+        print(f"  spin {plan['tumble_rad_s']:.2f} rad/s -> bleed {plan['omega_bleed']:.2f} rad/s "
+              f"(I={plan['inertia']:.2f} kg.m2, L={plan['ang_momentum']:.2f} N.m.s)")
+        print(f"  ion force {plan['ion_force_applied_N'] * 1000.0:.2f} mN for "
+              f"~{plan['beam_time_sized_s']:.0f}s (avail {plan['ion_thrust_avail_N'] * 1000.0:.0f} mN, "
+              f"natural time ~{plan['beam_time_s']:.0f}s) -> spin 0, then STOP beam")
+        print(f"THRUSTER PUSH (docked, stable debris only): dv {plan['thruster_dv_km_s']:.3f} km/s "
+              f"retrograde over ~{plan['thruster_dur_s']:.0f}s -> perigee "
+              f"{plan['target_perigee_km']:.0f}km -> crash/burnup")
+        plan_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "detumble_plan.json")
+        with open(plan_path, "w") as f:
+            json.dump(plan, f, indent=1)
+        print(f"  plan saved      : {plan_path}")
