@@ -2791,27 +2791,7 @@ function animate(){
   t+=dt*timeScale*SIM_WARP;
   window._simT=t;
   sats.forEach(s=>s.upd(t, dt*timeScale));
-  // live conjunction watch — real ECI km distances (scene mapping is anisotropic:
-  // radial ×30 vs transverse compressed, so scene distance ≠ real distance)
-  try{
-    window._conjT=(window._conjT||0)+dt;
-    if(window._conjT>2 && sats.length>1){
-      window._conjT=0;
-      const _eciCache=new Array(sats.length);
-      for(let i=0;i<sats.length;i++){ try{ _eciCache[i]=sats[i].eciKm(t); }catch(_){ _eciCache[i]=null; } }
-      for(let i=0;i<sats.length;i++) for(let j=i+1;j<sats.length;j++){
-        if(!_eciCache[i]||!_eciCache[j]) continue;
-        // combined pair (IBS agent docked to debris) is one object — never a conjunction
-        try{
-          if(typeof CASE1!=='undefined'&&CASE1.docked&&CASE1.bot&&CASE1.target&&
-            ((sats[i]===CASE1.bot&&sats[j]===CASE1.target)||(sats[i]===CASE1.target&&sats[j]===CASE1.bot))) continue;
-        }catch(_){}
-        const dx=_eciCache[i][0]-_eciCache[j][0], dy=_eciCache[i][1]-_eciCache[j][1], dz=_eciCache[i][2]-_eciCache[j][2];
-        const dReal=Math.sqrt(dx*dx+dy*dy+dz*dz);
-        if(dReal<MIN_SEP_KM){ fleetNotice(`⚠ CONJUNCTION <b>${sats[i].label}</b> ↔ <b>${sats[j].label}</b> — ${dReal.toFixed(1)} km &lt; ${MIN_SEP_KM} km`); i=sats.length; break; }
-      }
-    }
-  }catch(_){}
+  // live conjunction watch removed
   // attached bots ride their parent group + gentle hover bob (cheap, runs even when paused except bob freeze)
   try{
     for(const b of bots){
@@ -4046,10 +4026,10 @@ function case1VisualFrame(dt){
         if(case1Vis.pushLine) try{ case1Vis.pushLine.visible=false; }catch(_){}
       }
     }catch(_){}
-    // --- IBS beam + dock connector (bot ↔ target): violet ion beam while
-    // SHEPHERDING, amber while DOCKING, green once DOCKED. The agent faces the
-    // debris (+Z emitter on target) in these states.
-    const linkStates=['RENDEZVOUS','SHEPHERD','SAFETY_VALIDATION','DOCKING'];
+    // --- IBS beam + dock connector (bot ↔ target): violet ion beam ONLY while
+    // SHEPHERDING, amber while DOCKING, green once DOCKED. No beam during
+    // RENDEZVOUS offset hold or SAFETY_VALIDATION (beam off).
+    const linkStates=['SHEPHERD','DOCKING'];
     const beamColor=(CASE1.state==='SHEPHERD')?0xa78bfa:(CASE1.docked?0x4ade80:(CASE1.state==='DOCKING'?0xfbbf24:0x22d3ee));
     if(b&&tgt&&sats.indexOf(b)>=0&&sats.indexOf(tgt)>=0&&(linkStates.indexOf(CASE1.state)>=0||(CASE1.docked&&(CASE1.state==='POST_BURN_VERIFICATION'||CASE1.state==='REENTRY_TRACKING')))){
       if(!case1Vis.link){
