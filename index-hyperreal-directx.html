@@ -2532,11 +2532,11 @@ function setAutoFollow(s, flyTo){
     const b=document.getElementById('btnFollow');
     if(b) b.textContent=s?('◉ FOLLOWING '+(s.label||s.type||'').slice(0,12)):'◎ FOLLOW OFF';
   }catch(_){}
-  // CLOSE follow limits: allow zooming right beside the debris (else minDistance
+  // CLOSE follow limits: allow zooming to ~5km beside the debris (else minDistance
   // ~1.5u parks you hundreds of km off and scroll can't get closer).
-  try{ controls.minDistance=s?0.02:sceneRadius(5); }catch(_){}
-  // FLY BESIDE IT: park ~0.09u off the hull (~20km real, mesh fills the view —
-  // almost beside it), not the 400km overview that focusSat uses.
+  try{ controls.minDistance=s?0.005:sceneRadius(5); }catch(_){}
+  // FLY BESIDE IT: park ~5km off the hull (0.0237u — right beside it, debris
+  // fills the view), not the 400km overview that focusSat uses.
   if(s&&flyTo!==false){
     try{ selectSat(s); }catch(_){}
     try{
@@ -2544,7 +2544,7 @@ function setAutoFollow(s, flyTo){
       const dir=p.clone().normalize();
       const side=new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0,1,0));
       if(side.lengthSq()<1e-6) side.set(1,0,0); else side.normalize();
-      const camPos=p.clone().addScaledVector(dir, 0.075).addScaledVector(side, 0.045).add(new THREE.Vector3(0,0.035,0));
+      const camPos=p.clone().addScaledVector(dir, 0.019).addScaledVector(side, 0.011).add(new THREE.Vector3(0,0.009,0));
       const s0=camera.position.clone(), st0=controls.target.clone();
       const t0=performance.now();
       window._followTween=true;
@@ -2597,8 +2597,8 @@ function updTel(){
     camera.updateProjectionMatrix();
   }
   // keep limits derived — min just above surface, max beyond GEO.
-  // FOLLOW exception: stay at 0.02 so scroll can sit right beside the debris.
-  if(window._autoFollow&&sats.indexOf(window._autoFollow)>=0){ controls.minDistance=0.02; }
+  // FOLLOW exception: stay at 0.005 so scroll can sit 5km beside the debris.
+  if(window._autoFollow&&sats.indexOf(window._autoFollow)>=0){ controls.minDistance=0.005; }
   else controls.minDistance = sceneRadius(5);
   controls.maxDistance = sceneRadius(45000);
   const L=getLayer(alt);
