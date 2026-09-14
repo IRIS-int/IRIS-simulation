@@ -225,7 +225,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
     <div class="logo">
       <div class="logo-mark"><i></i></div>
       <div>
-        <h1>IRIS <span>/ DIRECTX LEO</span></h1>
+        <h1>IRIS <span>/ LEO</span></h1>
         <p>HYPERREAL · DIRECTX 12 / WEBGPU · 160–2000 KM</p>
       </div>
     </div>
@@ -285,7 +285,6 @@ window.addEventListener('DOMContentLoaded', ()=>{
   <div class="enter-notify" id="enterNotify"><span>🛰</span> <span id="enterText">ENTERING <b>LEO</b></span></div>
   <div class="drag-hint" id="dragHint">🖱 DRAG 360° · ←→↑↓ ARROWS rotate · SCROLL zoom · WASD roam · Q/E/C up/down · SHIFT+WASD ⚡INSANE ×25 · F roam · X intercept sat</div>
   <div class="zone-bar" id="zoneBar">
-    <div class="zone-bar-title">◆ ZONES — TELEPORT (VAST ×30)</div>
     <button class="zone-btn" data-zone="outer" style="--c:#a78bfa"><span class="zb-dot"></span><span><b>UPPER LEO</b><small>800–2000 km · 4.77–10.42</small></span><i>⤵</i></button>
     <button class="zone-btn" data-zone="leo" style="--c:#38bdf8"><span class="zb-dot"></span><span><b>LEO CORE</b><small>450–800 km · 3.12–4.77</small></span><i>⤵</i></button>
     <button class="zone-btn" data-zone="vleo" style="--c:#facc15"><span class="zb-dot"></span><span><b>VLEO</b><small>160–450 km · 1.75–3.12</small></span><i>⤵</i></button>
@@ -327,7 +326,6 @@ window.addEventListener('DOMContentLoaded', ()=>{
         <button class="btn ghost" style="flex:1" id="btnAddAction">+ ACTION BOT</button>
         <button class="btn ghost" style="flex:1" id="btnAddSensory">+ SENSORY BOT</button>
       </div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:0.6;margin-top:8px;line-height:1.5">IBS AGENT = ion-beam shepherd (detumble → dock → push) · SENSORY attaches to selected ACTIVE (else newest).<br>DEBRIS = breakup cloud (1–25 tracked tumbling frags).<br>Click a sat to select it · Del removes hovered object.</div>
       <div style="display:flex;gap:8px;margin-top:8px">
         <button class="btn ghost" style="flex:1" id="btnAddDebris">+ DEBRIS</button>
         <button class="btn ghost" style="flex:1;font-size:10px" id="btnClearFleet">CLEAR FLEET</button>
@@ -4781,6 +4779,20 @@ function case1Tick(){
         b.M0=((b.M0+mv*RAD)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
         b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(mv)*CASE_1_CONFIG.rendezvous.fuelPerDegKmS;
         try{ const TAU=2*Math.PI; let nd=(b.M0-deb.M0)%TAU; if(nd>Math.PI) nd-=TAU; if(nd<-Math.PI) nd+=TAU; b._holdDelta=nd; const nB2=(b.n0||Math.sqrt(MU/Math.pow(b.a,3)))+(b.mDot||0), nD2=(deb.n0||Math.sqrt(MU/Math.pow(deb.a,3)))+(deb.mDot||0); let ndMt=((b.M0+nB2*t)-(deb.M0+nD2*t))%TAU; if(ndMt>Math.PI) ndMt-=TAU; if(ndMt<-Math.PI) ndMt+=TAU; b._holdDeltaMt=ndMt; }catch(_){}
+        // PHYSICAL PHASING BURN so telemetry speed actually moves while closing:
+        // behind (diff>0) → retrograde drop = faster orbit; ahead → prograde raise.
+        try{
+          if(Math.abs(diffDeg)>1e-6){
+            const gapKm=Math.max(0,dist0-SO.maxKm);
+            const bgt=case1BotBudget(b);
+            if(bgt>0.05){
+              const dvCap=0.0002*(CASE1.ccsBoost||1)*dtRz;
+              let dvPh=-Math.sign(diffDeg)*Math.min(dvCap,Math.max(1e-6,gapKm*0.000005));
+              dvPh=Math.max(-bgt,Math.min(bgt,dvPh));
+              if(Math.abs(dvPh)>=1e-9){ b.maneuver(dvPh,0,0,t); b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(dvPh); }
+            }
+          }
+        }catch(_){}
       }
       const dist=case1DistKm(deb, b, t), rel=case1RelVel(deb, b, t);
       // MISS DETECTOR: chaser losing ground 3 ticks in a row while outside the
@@ -4848,6 +4860,20 @@ function case1Tick(){
             b.M0=((b.M0+mv*RAD)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
             b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(mv)*((CASE_1_CONFIG.rendezvous||{}).fuelPerDegKmS||0.002);
             try{ const TAU=2*Math.PI; let nd=(b.M0-deb.M0)%TAU; if(nd>Math.PI) nd-=TAU; if(nd<-Math.PI) nd+=TAU; b._holdDelta=nd; const nB2=(b.n0||Math.sqrt(MU/Math.pow(b.a,3)))+(b.mDot||0), nD2=(deb.n0||Math.sqrt(MU/Math.pow(deb.a,3)))+(deb.mDot||0); let ndMt=((b.M0+nB2*t)-(deb.M0+nD2*t))%TAU; if(ndMt>Math.PI) ndMt-=TAU; if(ndMt<-Math.PI) ndMt+=TAU; b._holdDeltaMt=ndMt; }catch(_){}
+            // PHYSICAL PHASING BURN while beaming-and-closing (backoff excluded):
+            // same sign rule as RENDEZVOUS so speed keeps moving, never stalls.
+            try{
+              if(d0>SO.maxKm&&Math.abs(diffDeg)>1e-6){
+                const gapKm=Math.max(0,d0-SO.maxKm);
+                const bgt=case1BotBudget(b);
+                if(bgt>0.05){
+                  const dvCap=0.0002*(CASE1.ccsBoost||1)*dtS;
+                  let dvPh=-Math.sign(diffDeg)*Math.min(dvCap,Math.max(1e-6,gapKm*0.000005));
+                  dvPh=Math.max(-bgt,Math.min(bgt,dvPh));
+                  if(Math.abs(dvPh)>=1e-9){ b.maneuver(dvPh,0,0,t); b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(dvPh); }
+                }
+              }
+            }catch(_){}
           }
         }
       }catch(_){}
@@ -4908,26 +4934,28 @@ function case1Tick(){
       if(tbNow<=CASE_1_CONFIG.tumble.maxRadS&&(t-CASE1.beamT0)>=90){
         case1Log('detumble complete: '+tbNow.toFixed(4)+' rad/s ≤ '+CASE_1_CONFIG.tumble.maxRadS+' — beam off, safety next');
         try{ if(b) b.attitude='prograde'; }catch(_){}
-        // AUTO CATCH-UP: pick up speed to sit slightly faster than the debris.
-        // Behind → small retrograde drop (faster phasing orbit); ahead → small
-        // prograde raise (slower). Plus chase ×2.5 so it closes without stopping.
+        // RELEASE + PROXIMITY HANDOFF: no follow/chase by the shepherd.
+        // Debris is left alone; whichever action bot is CLOSEST now takes
+        // the docking job (nearest valid wins, old bot can keep it).
         try{
-          const diffD=(((deb.M0-b.M0)/RAD%360+540)%360)-180;
-          const budget=case1BotBudget(b);
-          let dv=(diffD>=0?-0.008:0.008);
-          dv=Math.max(-budget,Math.min(budget,dv));
-          if(Math.abs(dv)>=1e-6&&Math.abs(case1DistKm(deb,b,t))>((CASE_1_CONFIG.dock||{}).captureKm||2.5)){
-            b.maneuver(dv,0,0,t); b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(dv);
-            case1Log('CATCH-UP BURN → '+b.label+' Δv '+(dv>=0?'+':'')+dv.toFixed(3)+'km/s (now slightly '+(dv<0?'faster':'slower')+' than debris)');
+          CASE1.ccsBoost=1; CASE1.ccsOrder=null; CASE1.catchETA=null;
+          const sel=case1SelectBot();
+          if(sel.best&&sel.best.bot!==b){
+            const nb=sel.best.bot;
+            try{ if(b) b.attitude='prograde'; }catch(_){}
+            CASE1.bot=nb; CASE1.backupBots=(sel.rest||[]).map(r=>r.bot);
+            try{ CASE1._missTrail=[]; }catch(_){}
+            CASE1._selMargin=sel.best.margin; CASE1._selDist=sel.best.dist; CASE1._selRel=sel.best.rel;
+            case1Log('RELEASED '+b.label+' after bleed-out — ORDERS → closest '+nb.label+' ('+sel.best.dist.toFixed(0)+'km, rel '+(sel.best.rel*1000).toFixed(0)+'m/s) takes docking');
+            try{ fleetNotice('DE-TUMBLED ✓ → <b>'+b.label+'</b> released · closest <b>'+nb.label+'</b> ('+sel.best.dist.toFixed(0)+'km) takes docking'); }catch(_){}
+          } else if(sel.best){
+            CASE1._selMargin=sel.best.margin; CASE1._selDist=sel.best.dist; CASE1._selRel=sel.best.rel;
+            case1Log('RELEASED formation — closest is still '+b.label+' ('+sel.best.dist.toFixed(0)+'km), keeps docking job (no chase)');
+            try{ fleetNotice('DE-TUMBLED ✓ → <b>'+b.label+'</b> released · still closest ('+sel.best.dist.toFixed(0)+'km), takes docking'); }catch(_){}
+          } else {
+            case1Log('RELEASED '+b.label+' after bleed-out — no closer bot valid, keeps docking job (no chase)');
+            try{ fleetNotice('DE-TUMBLED ✓ → <b>'+b.label+'</b> released · no closer bot, keeps docking'); }catch(_){}
           }
-        }catch(_){}
-        try{
-          CASE1.ccsBoost=2.5;
-          CASE1.ccsOrder={ bot:b&&b.label, mode:'auto catch-up after detumble', boost:2.5, t };
-          const e=case1CatchETA();
-          const etxt=e?case1FmtETA(e.etaS):'…';
-          case1Log('CCS AUTO → '+b.label+' CATCH UP ×2.5 · meet in ~'+etxt+' ('+(e?e.dist.toFixed(1):'…')+'km at chase rate)');
-          try{ fleetNotice('DE-TUMBLED ✓ → <b>'+b.label+'</b> speeding up to catch up · meet in ~<b>'+etxt+'</b>'); }catch(_){}
         }catch(_){}
         case1SetState('SAFETY_VALIDATION','tumble '+tbNow.toFixed(4)+' rad/s OK');
       }
