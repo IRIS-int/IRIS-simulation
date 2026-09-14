@@ -86,6 +86,59 @@ class CentralCoordinationCentre {
     const plan = this.planDetumbleAndPush(debris);
     return this.commandDetumble(bot, debris, plan);
   }
+
+  // CCS SPEED ORDERS — change an action bot's speed to catch up / slow down.
+  // dvP in km/s prograde (+ raises orbit, − lowers it / speeds mean motion up).
+  // Uses the live sim (window.IRIS) when connected: direct burn + chase-rate
+  // boost so RENDEZVOUS / SHEPHERD / DOCKING all close faster or slower.
+  resolveBot(botRef) {
+    try {
+      const iris = this.iris || window.IRIS;
+      if (!iris || !iris.sats) return null;
+      if (typeof botRef === 'string') return iris.sats.find(s => s.label === botRef) || null;
+      return botRef || (iris.case1 && iris.case1.data && iris.case1.data.bot) || null;
+    } catch (_) { return null; }
+  }
+  commandSpeed(botRef, dvP, reason) {
+    try {
+      const iris = this.iris || window.IRIS;
+      if (iris && typeof iris.ccsOrderSpeed === 'function') return iris.ccsOrderSpeed(botRef, dvP, reason);
+      // fallback: direct physics burn when sim API not yet wired
+      const b = this.resolveBot(botRef);
+      if (!b || !iris || !iris.physics) return false;
+      const dv = Math.max(-0.2, Math.min(0.2, dvP || 0));
+      if (Math.abs(dv) < 1e-9) return false;
+      b.maneuver(dv, 0, 0, iris.physics.simT());
+      b.dvUsedKmS = (b.dvUsedKmS || 0) + Math.abs(dv);
+      return true;
+    } catch (_) { return false; }
+  }
+  commandCatchUp(botRef) {
+    try {
+      const iris = this.iris || window.IRIS;
+      if (iris && typeof iris.ccsCatchUp === 'function') return iris.ccsCatchUp(botRef);
+      const b = this.resolveBot(botRef);
+      if (b && iris && iris.case1 && iris.case1.data) iris.case1.data.ccsBoost = 3;
+      return !!b;
+    } catch (_) { return false; }
+  }
+  commandSlowDown(botRef) {
+    try {
+      const iris = this.iris || window.IRIS;
+      if (iris && typeof iris.ccsSlow === 'function') return iris.ccsSlow(botRef);
+      const b = this.resolveBot(botRef);
+      if (b && iris && iris.case1 && iris.case1.data) iris.case1.data.ccsBoost = 0.4;
+      return !!b;
+    } catch (_) { return false; }
+  }
+  commandResumeSpeed() {
+    try {
+      const iris = this.iris || window.IRIS;
+      if (iris && typeof iris.ccsResume === 'function') return iris.ccsResume();
+      if (iris && iris.case1 && iris.case1.data) iris.case1.data.ccsBoost = 1;
+      return true;
+    } catch (_) { return false; }
+  }
 }
 
 window.CentralCoordinationCentre = CentralCoordinationCentre;

@@ -295,7 +295,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
   </div>
 
   <div class="panel panel-left" id="panelLeft">
-    <div class="kicker">TELEMETRY — <span style="font-size:9px;letter-spacing:0.08em;opacity:0.55">left-drag rotate · scroll zoom · right-drag pan</span></div>
+    <div class="kicker">TELEMETRY</div>
     <div class="alt-big" id="altBig">— <small>KM ALT</small></div>
     <div class="layer-badge atmo" id="layerBadge">ATMOSPHERE</div>
     <div class="grid2">
@@ -3537,7 +3537,7 @@ const CASE1={
   burn:null, preBurn:null, burnUntil:0, predicted:null, postBurn:{ start:0, period:0 },
   safety:null, handoffCount:0, reentry:null, docked:false, push:null,
   beamT0:null, lastBeamT:null, beamLogT:0, lastDockT:null, dockDeadline:null,
-  detumble:null,
+  detumble:null, ccsBoost:1, ccsOrder:null,
   detectingIds:[], relMs:null, distKm:null
 };
 window.CASE_1_CONFIG=CASE_1_CONFIG; window.CASE1=CASE1;
@@ -4731,7 +4731,7 @@ function case1Tick(){
         // then adopt the pushed-out slot so the formation HOLD keeps the new gap.
         if(dtRz>0){
           const diffDeg=(((deb.M0-b.M0)/RAD%360+540)%360)-180;
-          const step=CASE_1_CONFIG.rendezvous.phaseRateDegPerSimSec*dtRz;
+          const step=CASE_1_CONFIG.rendezvous.phaseRateDegPerSimSec*(CASE1.ccsBoost||1)*dtRz;
           const away=(diffDeg>=0?-1:1);
           b.M0=((b.M0+away*step*RAD)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
           b.dvUsedKmS=(b.dvUsedKmS||0)+step*CASE_1_CONFIG.rendezvous.fuelPerDegKmS;
@@ -4747,7 +4747,7 @@ function case1Tick(){
       // (The formation HOLD already freezes the slot; this only re-acquires it.)
       if(dist0>SO.maxKm&&dtRz>0){
         const diffDeg=(((deb.M0-b.M0)/RAD%360+540)%360)-180; // signed shortest arc, deg
-        const step=CASE_1_CONFIG.rendezvous.phaseRateDegPerSimSec*dtRz;
+        const step=CASE_1_CONFIG.rendezvous.phaseRateDegPerSimSec*(CASE1.ccsBoost||1)*dtRz;
         const mv=Math.max(-step, Math.min(step, diffDeg));
         b.M0=((b.M0+mv*RAD)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
         b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(mv)*CASE_1_CONFIG.rendezvous.fuelPerDegKmS;
@@ -4807,7 +4807,7 @@ function case1Tick(){
       // Same rate-limited phase trim as RENDEZVOUS (slot-keep, not a chase).
       try{
         const SO=CASE_1_CONFIG.standoff||{minKm:15,maxKm:110};
-        const rate=(CASE_1_CONFIG.rendezvous||{}).phaseRateDegPerSimSec||0.02;
+        const rate=((CASE_1_CONFIG.rendezvous||{}).phaseRateDegPerSimSec||0.02)*(CASE1.ccsBoost||1);
         if(dtS>0){
           const d0=case1DistKm(deb,b,t);
           if(d0>SO.maxKm||d0<SO.minKm){
@@ -4820,6 +4820,37 @@ function case1Tick(){
             b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(mv)*((CASE_1_CONFIG.rendezvous||{}).fuelPerDegKmS||0.002);
             try{ const TAU=2*Math.PI; let nd=(b.M0-deb.M0)%TAU; if(nd>Math.PI) nd-=TAU; if(nd<-Math.PI) nd+=TAU; b._holdDelta=nd; const nB2=(b.n0||Math.sqrt(MU/Math.pow(b.a,3)))+(b.mDot||0), nD2=(deb.n0||Math.sqrt(MU/Math.pow(deb.a,3)))+(deb.mDot||0); let ndMt=((b.M0+nB2*t)-(deb.M0+nD2*t))%TAU; if(ndMt>Math.PI) ndMt-=TAU; if(ndMt<-Math.PI) ndMt+=TAU; b._holdDeltaMt=ndMt; }catch(_){}
           }
+        }
+      }catch(_){}
+      // PRE-MATCH while beaming: gently converge orbit (radial+plane) at half
+      // dock rate so shepherding happens on the fly at orbital velocity —
+      // no stop, no speed drop, no fall-behind after bleed-out.
+      try{
+        if(dtS>0){
+          const Dr=(CASE_1_CONFIG.dock||{}).matchRateKmSPerSimSec||0.0001;
+          const rate=Dr*0.5*(CASE1.ccsBoost||1)*dtS;
+          const da=deb.a-b.a;
+          if(Math.abs(da)>0.3){
+            const v=circVel(b.a);
+            const dvNeed=da*v/(2*b.a);
+            const step=Math.max(-rate,Math.min(rate,dvNeed*0.15));
+            if(Math.abs(step)>1e-9){ b.maneuver(step,0,0,t); b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(step); }
+          }
+          try{
+            const ha=case1HVec(b.eciKm(t),b.velKmS(t)), hb=case1HVec(deb.eciKm(t),deb.velKmS(t));
+            const la=Math.hypot(ha[0],ha[1],ha[2])||1, lb=Math.hypot(hb[0],hb[1],hb[2])||1;
+            let c=(ha[0]*hb[0]+ha[1]*hb[1]+ha[2]*hb[2])/(la*lb); c=Math.max(-1,Math.min(1,c));
+            const ang=Math.acos(c);
+            if(ang>4e-4){
+              if(b._planeSign==null) b._planeSign=1;
+              if(t-(b._planeT||0)>60){
+                if(b._planeAngPrev!=null&&ang>=b._planeAngPrev) b._planeSign*=-1;
+                b._planeAngPrev=ang; b._planeT=t;
+              }
+              const mag=Math.min(rate,0.002);
+              b.maneuver(0,0,b._planeSign*mag,t); b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(mag);
+            }
+          }catch(_){}
         }
       }catch(_){}
       if(dtS>0){
@@ -4853,6 +4884,27 @@ function case1Tick(){
       break;
     }
     case 'SAFETY_VALIDATION': {
+      // HOLD THE SLOT through the 1-tick safety calc — else the bot drifts
+      // in the gap between bleed-out and DOCKING and arrives behind.
+      try{
+        const b0=CASE1.bot;
+        if(b0&&sats.indexOf(b0)>=0){
+          const dtH=Math.max(0,t-(CASE1.lastBeamT!=null?CASE1.lastBeamT:t));
+          if(dtH>0){
+            const SO0=CASE_1_CONFIG.standoff||{minKm:15,maxKm:110};
+            const dH=case1DistKm(deb,b0,t);
+            if(dH>SO0.maxKm||dH<SO0.minKm){
+              const diffD=(((deb.M0-b0.M0)/RAD%360+540)%360)-180;
+              const stp=((CASE_1_CONFIG.rendezvous||{}).phaseRateDegPerSimSec||0.02)*(CASE1.ccsBoost||1)*dtH;
+              let mvH;
+              if(dH<SO0.minKm){ const aw=(diffD>=0?-1:1); mvH=aw*stp; }
+              else { mvH=Math.max(-stp,Math.min(stp,diffD)); }
+              b0.M0=((b0.M0+mvH*RAD)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
+              b0.dvUsedKmS=(b0.dvUsedKmS||0)+Math.abs(mvH)*((CASE_1_CONFIG.rendezvous||{}).fuelPerDegKmS||0.002);
+            }
+          }
+        }
+      }catch(_){}
       // STRICT GATE: thruster path blocked until ion-beam has bled spin to ~0.
       // If debris re-tumbled or shepherd was skipped, fall back to SHEPHERD.
       if(case1Tumble(deb)>CASE_1_CONFIG.tumble.maxRadS){
@@ -4922,7 +4974,7 @@ function case1Tick(){
       const dtD=Math.max(0, t-(CASE1.lastDockT!=null?CASE1.lastDockT:t));
       CASE1.lastDockT=t;
       if(dtD>0){
-        const rate=(D.matchRateKmSPerSimSec||0.0001)*dtD;
+        const rate=(D.matchRateKmSPerSimSec||0.0001)*(CASE1.ccsBoost||1)*dtD;
         // radial match
         const da=deb.a-b.a;
         if(Math.abs(da)>0.3){
@@ -4951,7 +5003,7 @@ function case1Tick(){
         const dist0=case1DistKm(deb, b, t);
         if(dist0>D.captureKm){
           const diffDeg=(((deb.M0-b.M0)/RAD%360+540)%360)-180;
-          const step=CASE_1_CONFIG.rendezvous.phaseRateDegPerSimSec*dtD;
+          const step=CASE_1_CONFIG.rendezvous.phaseRateDegPerSimSec*(CASE1.ccsBoost||1)*dtD;
           const mv=Math.max(-step, Math.min(step, diffDeg));
           b.M0=((b.M0+mv*RAD)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
           b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(mv)*CASE_1_CONFIG.rendezvous.fuelPerDegKmS;
@@ -5100,6 +5152,54 @@ document.getElementById('btnSetCase1Target')?.addEventListener('click', ()=>{
   else try{ fleetNotice('Pick a debris in the list first'); }catch(_){}
 });
 window.IRIS.case1={ start:case1Start, abort:case1Abort, validate:case1ValidateFleet, setTarget:case1SetTarget, get state(){ return CASE1.state; }, data:CASE1, config:CASE_1_CONFIG, vis:case1Vis, detecting:case1DetectingBots };
+// CCS speed orders — change the action bot's speed to catch up / slow down.
+// dvP in km/s prograde (+ = raise orbit / slow mean motion, − = lower / speed up).
+// boost scales every chase rate (rendezvous/shepherd/safety/dock) until cleared.
+window.IRIS.ccsOrderSpeed=function(botRef, dvP, reason){
+  try{
+    const b=(typeof botRef==='string')?sats.find(x=>x.label===botRef):(botRef||CASE1.bot);
+    if(!b||sats.indexOf(b)<0){ try{ fleetNotice('CCS ORDER FAILED — bot not found'); }catch(_){} return false; }
+    if(b.type!=='action'){ try{ fleetNotice('CCS ORDER FAILED — <b>'+(b.label||'sat')+'</b> is not an action bot'); }catch(_){} return false; }
+    const dv=Math.max(-0.2,Math.min(0.2,dvP||0));
+    if(Math.abs(dv)<1e-9) return false;
+    const t=case1Now();
+    b.maneuver(dv,0,0,t); b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(dv);
+    CASE1.ccsOrder={ bot:b.label, dvP:dv, t, reason:reason||'manual speed order' };
+    case1Log('CCS ORDER → '+b.label+' Δv '+(dv>=0?'+':'')+dv.toFixed(3)+'km/s prograde ('+(CASE1.ccsOrder.reason||'')+')');
+    try{ fleetNotice('CCS ORDER → <b>'+b.label+'</b> speed '+(dv>=0?'+':'')+dv.toFixed(3)+'km/s'+(reason?' — '+reason:'')); }catch(_){}
+    try{ case1Render(); }catch(_){}
+    return true;
+  }catch(_){ return false; }
+};
+window.IRIS.ccsCatchUp=function(botRef){
+  try{
+    const b=(typeof botRef==='string')?sats.find(x=>x.label===botRef):(botRef||CASE1.bot);
+    CASE1.ccsBoost=3; CASE1.ccsOrder={ bot:b&&b.label, mode:'catch-up', boost:3, t:case1Now() };
+    case1Log('CCS ORDER → '+(b?b.label:'bot')+' CATCH UP ×3 chase rate');
+    try{ fleetNotice('CCS ORDER → <b>'+(b?b.label:'bot')+'</b> CATCH UP — chase ×3'); }catch(_){}
+    try{ case1Render(); }catch(_){}
+    return true;
+  }catch(_){ return false; }
+};
+window.IRIS.ccsSlow=function(botRef){
+  try{
+    const b=(typeof botRef==='string')?sats.find(x=>x.label===botRef):(botRef||CASE1.bot);
+    CASE1.ccsBoost=0.4; CASE1.ccsOrder={ bot:b&&b.label, mode:'slow-down', boost:0.4, t:case1Now() };
+    case1Log('CCS ORDER → '+(b?b.label:'bot')+' SLOW DOWN ×0.4 chase rate');
+    try{ fleetNotice('CCS ORDER → <b>'+(b?b.label:'bot')+'</b> SLOW DOWN — chase ×0.4'); }catch(_){}
+    try{ case1Render(); }catch(_){}
+    return true;
+  }catch(_){ return false; }
+};
+window.IRIS.ccsResume=function(){
+  try{
+    CASE1.ccsBoost=1; CASE1.ccsOrder=null;
+    case1Log('CCS ORDER → resume normal chase ×1');
+    try{ fleetNotice('CCS → chase rate normal ×1'); }catch(_){}
+    try{ case1Render(); }catch(_){}
+    return true;
+  }catch(_){ return false; }
+};
 window.IRIS.focusCase1Target=function(){ try{ if(CASE1.target&&sats.indexOf(CASE1.target)>=0){ focusSat(CASE1.target); return true; } }catch(_){} return false; };
 window.IRIS.snapTo=function(ref, dist){
   // close-up inspection framing (observability): camera just off the object, looking at it
