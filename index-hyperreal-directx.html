@@ -2532,7 +2532,29 @@ function setAutoFollow(s, flyTo){
     const b=document.getElementById('btnFollow');
     if(b) b.textContent=s?('◉ FOLLOWING '+(s.label||s.type||'').slice(0,12)):'◎ FOLLOW OFF';
   }catch(_){}
-  if(s&&flyTo!==false){ try{ focusSat(s); }catch(_){} try{ selectSat(s); }catch(_){} }
+  // CLOSE follow limits: allow zooming right beside the debris (else minDistance
+  // ~1.5u parks you hundreds of km off and scroll can't get closer).
+  try{ controls.minDistance=s?0.02:sceneRadius(5); }catch(_){}
+  // FLY BESIDE IT: park ~0.09u off the hull (~20km real, mesh fills the view —
+  // almost beside it), not the 400km overview that focusSat uses.
+  if(s&&flyTo!==false){
+    try{ selectSat(s); }catch(_){}
+    try{
+      const p=s.group.position.clone();
+      const dir=p.clone().normalize();
+      const side=new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0,1,0));
+      if(side.lengthSq()<1e-6) side.set(1,0,0); else side.normalize();
+      const camPos=p.clone().addScaledVector(dir, 0.075).addScaledVector(side, 0.045).add(new THREE.Vector3(0,0.035,0));
+      const s0=camera.position.clone(), st0=controls.target.clone();
+      const t0=performance.now();
+      window._followTween=true;
+      (function anim(now){
+        const pr=Math.min(1,(now-t0)/1100), e=1-Math.pow(1-pr,3);
+        camera.position.lerpVectors(s0,camPos,e); controls.target.lerpVectors(st0,p,e); controls.update();
+        if(pr<1) requestAnimationFrame(anim); else window._followTween=false;
+      })(performance.now());
+    }catch(_){ try{ focusSat(s); }catch(__){} }
+  }
   return window._autoFollow;
 }
 document.getElementById('btnFollow')?.addEventListener('click', ()=>{
@@ -2574,8 +2596,10 @@ function updTel(){
     camera.far = targetFar;
     camera.updateProjectionMatrix();
   }
-  // keep limits derived — min just above surface, max beyond GEO
-  controls.minDistance = sceneRadius(5);
+  // keep limits derived — min just above surface, max beyond GEO.
+  // FOLLOW exception: stay at 0.02 so scroll can sit right beside the debris.
+  if(window._autoFollow&&sats.indexOf(window._autoFollow)>=0){ controls.minDistance=0.02; }
+  else controls.minDistance = sceneRadius(5);
   controls.maxDistance = sceneRadius(45000);
   const L=getLayer(alt);
   altBig.innerHTML=`${alt.toFixed(alt<100?1:0)} <small>KM ALT</small>`; badge.textContent=L.name; badge.className='layer-badge '+L.cls; if(desc) desc.textContent=L.desc;
@@ -2816,15 +2840,14 @@ function animate(){
   updateFPS(dt);
   updateArrowKeys(dt);
   // AUTO-FOLLOW: stick controls.target to the followed sat (delta-move camera too).
-  // Paused in ROAM mode (fpsMode) so WASD stays free; tween jump ignored.
+  // Paused in ROAM mode (fpsMode) and during the fly-in tween (it owns the camera).
   try{
     const f=window._autoFollow;
     const roam=(typeof fpsMode!=='undefined')&&fpsMode;
-    if(f&&sats.indexOf(f)>=0&&f.group&&!roam){
+    if(f&&sats.indexOf(f)>=0&&f.group&&!roam&&!window._followTween){
       const p=f.group.position;
       const dx=p.x-controls.target.x, dy=p.y-controls.target.y, dz=p.z-controls.target.z;
-      // ignore the one big jump right after focusSat starts (tween handles it)
-      if(Math.hypot(dx,dy,dz)<2.0){ camera.position.x+=dx; camera.position.y+=dy; camera.position.z+=dz; }
+      camera.position.x+=dx; camera.position.y+=dy; camera.position.z+=dz;
       controls.target.copy(p);
     } else if(f&&sats.indexOf(f)<0){ window._autoFollow=null; try{ document.getElementById('btnFollow').textContent='◎ FOLLOW OFF'; }catch(_){} }
   }catch(_){}
