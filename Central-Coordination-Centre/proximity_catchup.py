@@ -328,16 +328,21 @@ def run_disposal(w, bot, bi, t_dock):
     u = unit(st["vel"])
     v_stack = (st["vel"][0] - dv * u[0], st["vel"][1] - dv * u[1], st["vel"][2] - dv * u[2])
     el = rv2coe(st["pos"], v_stack)
-    rp = el["a"] * (1 - el["e"]) - R_EARTH_KM
-    dv_extra = 0.0
-    while rp > 60.0 and dv_extra < 0.05:  # margin so model noise can't strand it
-        dv_extra += 0.005
-        v_stack = (v_stack[0] - 0.005 * u[0], v_stack[1] - 0.005 * u[1], v_stack[2] - 0.005 * u[2])
-        el = rv2coe(st["pos"], v_stack)
+    for _ in range(60):
         if el["a"] <= 0 or el["e"] >= 1.0:
             break
         rp = el["a"] * (1 - el["e"]) - R_EARTH_KM
-    dv += dv_extra
+        if 45.0 <= rp <= 62.0:
+            break
+        step = max(-0.01, min(0.01, (rp - 55.0) * 0.00004))
+        if abs(step) < 1e-6:
+            break
+        v_try = (v_stack[0] - step * u[0], v_stack[1] - step * u[1], v_stack[2] - step * u[2])
+        el_try = rv2coe(st["pos"], v_try)
+        if el_try["a"] <= 0 or el_try["e"] >= 1.0:
+            break
+        v_stack, el = v_try, el_try
+    dv = norm(sub(st["vel"], v_stack))  # honest total retrograde cost
     n = math.sqrt(MU / el["a"] ** 3)
     deb = dict(a=el["a"], e=el["e"], inc=el["inc"], raan=el["raan"],
                argp=el["argp"], M0=(el["M"] - n * t_dock / RAD) % 360.0)
@@ -352,9 +357,20 @@ def run_disposal(w, bot, bi, t_dock):
     bot.update(a=deb["a"], e=deb["e"], inc=deb["inc"], raan=deb["raan"],
                argp=deb["argp"], M0=deb["M0"])  # rode the stack till sep
     us = unit(v_s)
-    impulsive_burn(bot, t_sep, (v_s[0] + 0.035 * us[0], v_s[1] + 0.035 * us[1], v_s[2] + 0.035 * us[2]))
-    print("  UNDOCK t+%.0fs: BOT-%02d raise +0.035km/s -> safe %.0fkm shell — SURVIVES."
-          % (t_sep, bi, bot["a"] - R_EARTH_KM))
+    # raise until the bot's OWN perigee clears 250km — provably safe shell,
+    # never a doomed ride-along.
+    up, rp_b = 0.035, -1e9
+    while True:
+        v_try = (v_s[0] + up * us[0], v_s[1] + up * us[1], v_s[2] + up * us[2])
+        el_b = rv2coe(p_s, v_try)
+        if el_b["a"] > 0 and el_b["e"] < 1.0:
+            rp_b = el_b["a"] * (1 - el_b["e"]) - R_EARTH_KM
+        if rp_b >= 250.0 or up >= 0.5:
+            break
+        up += 0.01
+    impulsive_burn(bot, t_sep, v_try)
+    print("  UNDOCK t+%.0fs: BOT-%02d raise +%.3fkm/s -> perigee %.0fkm / %.0fkm shell — SURVIVES."
+          % (t_sep, bi, up, rp_b, bot["a"] - R_EARTH_KM))
     # debris coasts alone into the atmosphere
     t, burning, step = t_sep, False, 10.0
     t_end, nxt = t_sep + 3 * T, t_sep
@@ -381,34 +397,16 @@ def run_disposal(w, bot, bi, t_dock):
     return False
 
 
-def run(seed=21):
-    random.seed(seed)
-    w = World(seed=seed)
-    t = 0.0
-    print("STAGE 3 PROXIMITY CATCH-UP — bleed -> %.0fs settle -> closest bot burns"
-          " to ~%.1fkm/s -> intercept -> dock -> push" % (SETTLE_S, TARGET_SPEED_KM_S))
-
-    # 1. BLEED — ion beam until spin ~0, then beam OFF (debris left alone).
-    tumble0 = w.spin
-    bleed_s, _ = run_detumble(w, w.mass, w.size_m, tumble0)
-    t += bleed_s
-    st = w.debris_at(t)
-    plan0 = plan_detumble_and_push(w.mass, w.size_m, tumble0, w.a - R_EARTH_KM)
-    print("  BLEED done: spin %.2f -> <=%.2f rad/s in %.0fs (F=%.2fmN). Beam OFF."
-          % (tumble0, TUMBLE_STOP_RAD_S, bleed_s, plan0["ion_force_applied_N"] * 1000.0))
-
-    # 2. SETTLE — ~10 s, nobody follows.
-    t += SETTLE_S
-    print("  SETTLE %.0fs — debris coasts free, no follow." % SETTLE_S)
-
-    # 3. PROXIMITY PICK by ACTUAL transfer cost: plane-burn the best proxy
-    # candidates at their nodes and price each one's best Lambert intercept.
-    # Cheapest in-band (≈9-10 km/s departure) job wins — closest bot that can
-    # actually do the op, not just closest on screen.
+def attempt_once(w, t, used, attempt):
+    """One full try: pick (skip burnt bots) -> plane burn -> Lambert burn ->
+    coast -> intercept. Returns ('docked', bot, bi, t) or ('retry', t_new)."""
+    # 3. PROXIMITY PICK by ACTUAL transfer cost (burnt bots excluded).
     st = w.debris_at(t)
     h_d = unit(cross(st["pos"], st["vel"]))
     scored = []
     for i, h in enumerate(w.hosts):
+        if i in used:
+            continue
         p, v = bot_state(h, t)
         ang = math.acos(max(-1.0, min(1.0, dot(unit(cross(p, v)), h_d))))
         dist = norm(sub(st["pos"], p))
@@ -417,7 +415,9 @@ def run(seed=21):
     scored.sort()
     T_deb0 = debris_period(w)
     options = []
-    for _, i, ang, d_alt, dist in scored[:10]:
+    # cheapest sane geometry wins: in-band fast departures only when the
+    # WHOLE job (plane turn + transfer) stays cheap, else cheapest drift.
+    for _, i, ang, d_alt, dist in scored[:16]:
         cand = dict(w.hosts[i])
         cand["dv_used"] = 0.0
         t_nd = next_plane_node(cand, h_d, t)
@@ -435,19 +435,20 @@ def run(seed=21):
             sp1 = norm(v1)
             in_band = 8.8 <= sp1 <= 10.2
             combined = dv_pl + tot
-            tier = 0 if (in_band and combined <= 7.5) else (1 if combined <= 12.0 else 2)
+            tier = (0 if (in_band and combined <= 5.0)
+                    else (1 if combined <= 7.5 else 2))
             options.append(((tier, off_band, combined, t_b),
                             i, cand, t_nd, dv_pl, ang, d_alt, dist, t_b, t_hit, v1, tot))
     if not options:
-        print("  NO TRANSFER for top candidates — aborting (retarget).")
-        return False
+        print("  [try %d] NO TRANSFER — waiting 10min for geometry, then re-pick." % attempt)
+        return ("retry", t + 600.0)
     options.sort(key=lambda e: e[0])
     (_, bi, bot, t_node, dv_plane, pang, dalt, dist0, t_b, t_hit, v1, tot) = options[0]
     tier_note = "" if options[0][0][0] == 0 else (" (tier-%d fallback)" % options[0][0][0])
     p_b, v_b = bot_state(bot, t)
-    print("  PROXIMITY PICK: BOT-%02d (d=%.0fkm, shell off %.0fkm, plane off %.1f deg;"
+    print("  [try %d] PROXIMITY PICK: BOT-%02d (d=%.0fkm, shell off %.0fkm, plane off %.1f deg;"
           " transfer dv %.2fkm/s%s; bot %.3fkm/s vs debris %.3fkm/s)."
-          % (bi, dist0, dalt, math.degrees(pang), dv_plane + tot, tier_note,
+          % (attempt, bi, dist0, dalt, math.degrees(pang), dv_plane + tot, tier_note,
              norm(v_b), st["speed"]))
     if t_node > t:
         print("  NODE WAIT %s to plane crossing." % fmt_eta(t_node - t))
@@ -455,14 +456,11 @@ def run(seed=21):
     st = w.debris_at(t)
     print("  PLANE BURN: BOT-%02d turned %.1f deg into debris plane (dv %.3fkm/s)."
           % (bi, math.degrees(pang), dv_plane))
-    # (bot dict already carries the planed orbit + spent dv; t_b/t_hit/v1 from
-    # the winning evaluation stand — jump straight to the burn.)
     if t_b > t:
         print("  PHASING WAIT %s for the window (burn at t+%.0fs)." % (fmt_eta(t_b - t), t_b))
         t = t_b
     st = w.debris_at(t)  # refresh: coast ETA must compare same-epoch states
     p_b, v_b = bot_state(bot, t)
-    r_b = norm(p_b)
     sp1 = norm(v1)
     u1 = (v1[0] / sp1, v1[1] / sp1, v1[2] / sp1)
     v0 = norm(v_b)
@@ -478,8 +476,7 @@ def run(seed=21):
               el["a"], el["a"] * (1 + el["e"]) - R_EARTH_KM))
     print("  RE-ORBITED — intercept in ~%s." % fmt_eta(t_hit - t))
 
-    # 5. COAST with live ETA + rel-vel, then BRAKE to rel-vel ZERO (matched)
-    # -> DOCK -> SLOW-DOWN push -> disposal.
+    # 5. COAST with live ETA + rel-vel, then BRAKE to rel-vel ZERO (matched).
     prev_d, prev_t = norm(sub(st["pos"], p_b)), t
     step = max(60.0, (t_hit - t) / 12.0)
     while t < t_hit:
@@ -497,14 +494,49 @@ def run(seed=21):
     p_f, v_f = bot_state(bot, t)
     d = norm(sub(st["pos"], p_f))
     if d > CAPTURE_KM:
-        print("  MISSED WINDOW (d=%.0fkm) — re-scan next rev (no chase)." % d)
-        return False
+        print("  MISSED (d=%.0fkm) — BOT-%02d stood down, HANDOFF to next-best." % (d, bi))
+        used.add(bi)
+        return ("retry", t)
     rel_before = norm(sub(v_f, st["vel"]))
     brake = impulsive_burn(bot, t, st["vel"])  # match debris velocity exactly
     rel_now = norm(sub(bot_state(bot, t)[1], st["vel"]))
     print("  INTERCEPT d=%.1fkm — BRAKE %.3fkm/s (rel-vel %.2f -> %.2f km/s ZERO) — MATCHED." % (d, brake, rel_before, rel_now))
     print("  DOCKED, holding formation. Now SLOWING DOWN for disposal...")
-    return run_disposal(w, bot, bi, t)
+    return ("docked", bot, bi, t)
+
+
+def run(seed=21):
+    random.seed(seed)
+    w = World(seed=seed)
+    t = 0.0
+    print("STAGE 3 PROXIMITY CATCH-UP — bleed -> %.0fs settle -> closest capable bot"
+          " speeds up to catch it -> intercept -> dock -> dispose" % SETTLE_S)
+
+    # 1. BLEED — ion beam until spin ~0, then beam OFF (debris left alone).
+    tumble0 = w.spin
+    bleed_s, _ = run_detumble(w, w.mass, w.size_m, tumble0)
+    t += bleed_s
+    st = w.debris_at(t)
+    plan0 = plan_detumble_and_push(w.mass, w.size_m, tumble0, w.a - R_EARTH_KM)
+    print("  BLEED done: spin %.2f -> <=%.2f rad/s in %.0fs (F=%.2fmN). Beam OFF."
+          % (tumble0, TUMBLE_STOP_RAD_S, bleed_s, plan0["ion_force_applied_N"] * 1000.0))
+
+    # 2. SETTLE — ~10 s, nobody follows.
+    t += SETTLE_S
+    print("  SETTLE %.0fs — debris coasts free, no follow." % SETTLE_S)
+
+    # 3-5. Up to 3 tries: pick -> burn -> intercept. A miss or dead geometry
+    # hands the job to the next-best bot (failed bots stood down) — the run
+    # never dies on one miss.
+    used = set()
+    for attempt in range(1, 4):
+        outcome = attempt_once(w, t, used, attempt)
+        if outcome[0] == "docked":
+            _, bot, bi, t = outcome
+            return run_disposal(w, bot, bi, t)
+        t = outcome[1]
+    print("  3 ATTEMPTS SPENT — standing down (retarget).")
+    return False
 
 
 if __name__ == "__main__":
