@@ -3497,7 +3497,11 @@ const CASE_1_CONFIG={
   // Demo fleet is 40 active + 40 sensory + 20 action + 3 debris, so maxima must admit it.
   // Minima preserve the controlled-scenario floor; extras are used as-is (deterministic sort).
   counts:{ debrisMin:2, debrisMax:6, sensoryMin:6, sensoryMax:45, actionMin:2, actionMax:24, cleanActiveMin:0 },
-  debris:{ mass:40, alt:550, e:0.001, inc:102, raanBase:10, raanStep:25, argP:0, m0Base:0, m0Step:90, size:0.8, tumbleRadS:1.65 },
+  // debris flies CIRCULAR (e=0, same as the bots): with e=0.001 the radius
+  // oscillates ±7km so 3D distance can never stay inside the 2.5km capture
+  // trigger no matter how well phase/plane match — docking would wait for a
+  // lucky window, time out, hand off and fall back to SELECTING stuck.
+  debris:{ mass:40, alt:550, e:0, inc:102, raanBase:10, raanStep:25, argP:0, m0Base:0, m0Step:90, size:0.8, tumbleRadS:1.65 },
   action:{ mass:150, area:4, alt:550, e:0.001, inc:102, raanBase:10, argP:0, altOffsetKm:50, incOffsetDeg:0.05, raanOffsetDeg:0.08, m0Offset:0.10, m0Spacing:0.20, dvBudgetKmS:0.6, reserveKmS:0.15, precisionBase:0.97, precisionStep:0.002, lifetimeMinYr:1 },
   active:{ mass:260, area:10, alt:600, e:0.001, inc:53, raanBase:40, raanStep:30, argP:0, m0Step:45 },
   sensory:{ dirNote:'anticlockwise (rides prograde hosts)', detectRangeKm:2500 },
@@ -3509,7 +3513,12 @@ const CASE_1_CONFIG={
   // then docked thruster pushes stable debris to crash/burnup.
   ibs:{ thrustN:0.05, plumeEta:0.7, targetBeamTimeS:600 },
   precision:{ min:0.9 },
-  select:{ maxRelVelKmS:4.5 },
+  // SELECT REL-VEL GATE is phase-agnostic by design: instantaneous relVel includes
+  // along-track phase separation (90deg co-orbitals show ~10.7km/s) which would
+  // reject every bot in small fleets (2-5 actions → zero valid → stuck on step 5
+  // while debris spins past). Energy/match-cost already filters true plane
+  // mismatches, so this gate stays loose (11km/s admits phasing candidates).
+  select:{ maxRelVelKmS:11 },
   rendezvous:{ maxDistKm:5, maxRelVelKmS:0.08, phaseRateDegPerSimSec:0.02, fuelPerDegKmS:0.002, timeoutRevs:2 },
   // TRAILING STANDOFF: each bot flies its OWN unique orbit — distinct circular
   // shell (|offset| 20–90km, never shared, never touching) + distinct plane +
@@ -3571,6 +3580,34 @@ function case1DistKm(a, b, t){
 }
 function case1Tumble(s){ return (s.tumbleRadS!=null)?s.tumbleRadS:(s.spin||0)*0.1; }
 function case1BotBudget(s){ return Math.max(0,(s.dvBudgetKmS||0)-(s.dvUsedKmS||0)); }
+// Warp-proof control step: case1Tick runs every 500ms real, so one tick can
+// span ~278 sim-s at max TIME warp — sizing burns/trims (and their fuel) on
+// the raw dt would vaporize the whole 0.6 km/s budget in seconds and strand
+// the run with every bot rejected. Clamp control authority per tick; the
+// physics bleed (detumble) still uses the true dt.
+function case1CtrlDt(dt){ const x=Math.max(0,dt||0); return Math.min(x,20); }
+// TRUE along-track angle (deg, signed shortest arc, + = debris ahead of bot).
+// Uses real ECI geometry, NEVER epoch M0 differences: any radial burn on a
+// near-circular orbit flips argP/M by ~180deg (burn point becomes apogee —
+// correct Kepler mechanics, but it corrupts every M0-based proxy while true
+// distance barely changes). Chasing the corrupted proxy teleports phase half
+// an orbit, so the bot gets yanked back, overshoots past, flies away, and the
+// run falls back to SELECTING stuck. This stays exact through all burns.
+function case1AlongDeg(deb, b, t){
+  try{
+    const rd=deb.eciKm(t), rb=b.eciKm(t), vd=deb.velKmS(t);
+    const hx=rd[1]*vd[2]-rd[2]*vd[1], hy=rd[2]*vd[0]-rd[0]*vd[2], hz=rd[0]*vd[1]-rd[1]*vd[0];
+    const lh=Math.hypot(hx,hy,hz)||1, ux=hx/lh, uy=hy/lh, uz=hz/lh;
+    const dD=rd[0]*ux+rd[1]*uy+rd[2]*uz, dB=rb[0]*ux+rb[1]*uy+rb[2]*uz;
+    const pdx=rd[0]-dD*ux, pdy=rd[1]-dD*uy, pdz=rd[2]-dD*uz;
+    const pbx=rb[0]-dB*ux, pby=rb[1]-dB*uy, pbz=rb[2]-dB*uz;
+    const lp=Math.hypot(pdx,pdy,pdz)||1, lq=Math.hypot(pbx,pby,pbz)||1;
+    const cx=pby*pdz-pbz*pdy, cy=pbz*pdx-pbx*pdz, cz=pbx*pdy-pby*pdx;
+    const s=(cx*ux+cy*uy+cz*uz)/(lq*lp);
+    let c=(pbx*pdx+pby*pdy+pbz*pdz)/(lq*lp); c=Math.max(-1,Math.min(1,c));
+    return Math.atan2(s,c)/RAD;
+  }catch(_){ return 0; }
+}
 // CATCH-UP ETA — approx sim-time for the bot to meet the debris at the current
 // chase rate: along-track closing speed = phaseRate*boost converted deg→km.
 function case1CatchETA(){
@@ -3733,7 +3770,13 @@ function case1SeqCalc(i){
         return 'T≈'+T.toFixed(0)+'s · '+n+' samples'+(CASE1.mapped?(' · a '+kmA(CASE1.mapped.a)+'km e '+CASE1.mapped.e.toFixed(4)+' v '+CASE1.mapped.v.toFixed(2)+'km/s'):''); }
       case 2: return 'decay '+(CASE1.decayKmPerDay?CASE1.decayKmPerDay.toFixed(4):'…')+' km/day';
       case 3: return CASE1.predRev3?('rev-3 a '+kmA(CASE1.predRev3.a)+'km · T '+(CASE1.predRev3.period/60).toFixed(1)+'min'):'propagating…';
-      case 4: return CASE1.bot?(CASE1.bot.label+' · margin '+(CASE1._selMargin!=null?((CASE1._selMargin>=0?'+':'')+CASE1._selMargin.toFixed(3)):'…')+'km/s · d '+(CASE1._selDist!=null?CASE1._selDist.toFixed(0):'…')+'km'):('scanning '+CASE1.actions.length+' bots'+(CASE1._selAttempts?(' · try '+CASE1._selAttempts+(CASE1._selBestDist!=null?(' · best d '+CASE1._selBestDist.toFixed(0)+'km'):'')):'…'));
+      case 4: { if(!CASE1.bot) return ('scanning '+CASE1.actions.length+' bots'+(CASE1._selAttempts?(' · try '+CASE1._selAttempts+(CASE1._selBestDist!=null?(' · best d '+CASE1._selBestDist.toFixed(0)+'km'):'')):'…'));
+        let plan='';
+        try{
+          const P=CASE1._selPlan;
+          if(P) plan=' · along '+(P.along>=0?'+':'')+P.along.toFixed(2)+'° ('+P.closeKm.toFixed(0)+'km) · close ~'+case1FmtETA(P.closeTimeS)+' · match r'+P.radial.toFixed(3)+'+p'+P.plane.toFixed(3)+' · deorb '+P.dvDeorbit.toFixed(3)+' → req '+P.required.toFixed(3);
+        }catch(_){}
+        return CASE1.bot.label+' · margin '+((CASE1._selMargin>=0?'+':'')+CASE1._selMargin.toFixed(3))+'km/s · d '+CASE1._selDist.toFixed(0)+'km'+plan; }
       case 5: return (CASE1.bot?CASE1.bot.label:'—')+' offset orbit d '+(CASE1.distKm!=null?CASE1.distKm.toFixed(1):'…')+'km · rel '+(CASE1.relMs!=null?CASE1.relMs.toFixed(0):'…')+'m/s → hold 15–110km (own orbit)';
       case 6: { const tb=tgt?case1Tumble(tgt):null;
         const bt=(CASE1.beamT0!=null)?Math.max(0,Math.round(case1Now()-CASE1.beamT0))+'s beam':'arming beam…';
@@ -3746,7 +3789,7 @@ function case1SeqCalc(i){
         }catch(_){}
         const stopR=(CASE_1_CONFIG.tumble||{}).maxRadS||0.05;
         const stable=(tb!=null&&tb<=stopR);
-        const lock=stable?' · <b>STABLE ~0 → thruster UNLOCKED</b>':' · <b>THRUSTER LOCKED</b>';
+        const lock=stable?' · <b>STABLE ~0 → dock-push UNLOCKED</b>':' · <b>DOCK-PUSH GATED · shepherd thrust ACTIVE</b>';
         return 'ion-beam ON · tumble '+(tb!=null?tb.toFixed(4):'…')+' → ≤'+stopR+prog+' · '+bt+f+lock; }
       case 7: return 'sep '+(CASE1._safeMin!=null?CASE1._safeMin.toFixed(2):'…')+'km'+(CASE1._safeDelay?' delay '+CASE1._safeDelay+'/4':'');
       case 8: { const D=CASE_1_CONFIG.dock;
@@ -4170,12 +4213,17 @@ function case1NormalizeArrange(){
     s.mass=C.debris.mass; s.realSizeM=C.debris.size; s.realSizeKm=C.debris.size/1000;
     s.area=Math.pow(C.debris.size,2); s.B=s.mass/(s.Cd*Math.max(0.001,s.area));
     s.attitude='tumble'; s.tumbleRadS=C.debris.tumbleRadS; s.spin=C.debris.tumbleRadS*8;
+    // everything scattered: random node + random phase per fragment (same
+    // physical band 550km circular @102° so mapping still measures real decay)
     case1SetElements(s, C.debris.alt, C.debris.e, C.debris.inc,
-      C.debris.raanBase+i*C.debris.raanStep, C.debris.argP, C.debris.m0Base+i*C.debris.m0Step);
+      Math.random()*360, C.debris.argP, Math.random()*360);
   });
-  // target's deterministic slot (bots key off it so every target choice yields a valid geometry)
-  const ti=Math.max(0, CASE1.debris.indexOf(CASE1.target));
-  const tRaan=C.debris.raanBase+ti*C.debris.raanStep, tM0=C.debris.m0Base+ti*C.debris.m0Step;
+  // bots key off the TARGET's ACTUAL angles-at-now (post-scatter), not a formula
+  // slot — with random debris the formula slot no longer equals the target's
+  // geometry. Epoch elements + secular rates reconstitute angles at time t.
+  const _tgt=CASE1.target||CASE1.debris[0];
+  const tRaan=(((_tgt.raan+(_tgt.raanDot||0)*t)/RAD)%360+360)%360;
+  const tM0=(((_tgt.M0+((_tgt.n0||0)+(_tgt.mDot||0))*t)/RAD)%360+360)%360;
   CASE1.actions.forEach((s,i)=>{
     s.mass=C.action.mass; s.area=C.action.area; s.B=s.mass/(s.Cd*Math.max(0.001,s.area));
     s.attitude='prograde';
@@ -4183,22 +4231,22 @@ function case1NormalizeArrange(){
     s.precision=Math.max(0.8, C.action.precisionBase-i*C.action.precisionStep);
     s.case1Unavailable=false; s.needsDisposal=false;
     try{ s.envLifetimeYr=lifetimeYears(C.action.alt, s.B); }catch(_){ s.envLifetimeYr=5; }
-    // UNIQUE ORBITS: 20 distinct CIRCULAR shells (10 below / 10 above debris,
-    // |offset| 20–90km in ~7.8km steps — shells can never touch since e=0 kills
-    // radial wobble, and all stay inside the 15–110km corridor so RENDEZVOUS can
-    // always close) × full-circle RAAN spread × full-orbit phase spread. Same
-    // index drives shell+plane+phase, so phase-near bots are plane-near too
-    // (selectable); the rest stay clearly separate — no side-by-side tracks.
-    // Selection picks the nearest; RENDEZVOUS closes its gap. The IBS agent
-    // itself docks — nothing is ever thrown at the debris.
-    const _n=CASE1.actions.length||1;
-    const _side=(i%2===0)?1:-1;
-    const _k=Math.floor(i/2);
-    const _signedOff=_side*(20+_k*(70/9));
+    // RANDOM FLEET, PHYSICAL APPROACH: every action bot gets a random orbit —
+    // random shell (15–100km either side), random phase (full circle), plane
+    // near the target's (RAAN ±1°, same inc family so the plane change stays
+    // inside the 0.6km/s budget — a fully random plane would need up to
+    // ~15km/s to match, physically impossible, so no bot could ever be picked).
+    // After mapping + selection, the winner physically flies to the debris
+    // (rate-limited phase chase + orbit match, all fuel-costed) instead of
+    // starting parked next to it. Nearest valid bot by CURRENT distance wins.
+    const _side=(Math.random()<0.5)?1:-1;
+    const _signedOff=_side*(15+Math.random()*85);
+    const _rRaan=tRaan+(Math.random()*2-1)*1.0;
+    const _rM0=tM0+Math.random()*360;
     case1SetElements(s, C.debris.alt+_signedOff, 0,
-      C.debris.inc+(C.action.incOffsetDeg||0.22),
-      tRaan+i*(360/_n), C.debris.argP,
-      tM0+(i+0.5)*(360/_n));
+      C.debris.inc+(C.action.incOffsetDeg||0.05),
+      _rRaan, C.debris.argP,
+      _rM0);
   });
   const allActives=CASE1.hosts.concat(CASE1.cleanActives);
   allActives.forEach((s,j)=>{
@@ -4235,6 +4283,9 @@ function case1NormalizeArrange(){
           if(dMt>Math.PI) dMt-=TAU; if(dMt<-Math.PI) dMt+=TAU;
           s._holdDeltaMt=dMt;
         }catch(_){ s._holdDeltaMt=d; }
+        // true along-track gap (debris-ahead convention) — the value HOLD
+        // actually freezes; immune to argP/M ~180deg flips from later burns.
+        try{ s._holdTrue=case1AlongDeg(CASE1.target,s,t0); }catch(_){ s._holdTrue=null; }
       }
     }
     CASE1._lastHoldT=case1Now();
@@ -4262,22 +4313,34 @@ function case1HoldFormation(t){
     if(maxStep<=0) return;
     for(const b of CASE1.actions){
       if(!b||sats.indexOf(b)<0||b.case1Unavailable) continue;
-      // the selected IBS agent is exempt while it intentionally reshapes its orbit
-      // (DOCKING match burns) or rides docked — HOLD must not fight it.
-      if(b===CASE1.bot&&(CASE1.state==='DOCKING'||CASE1.docked)) continue;
-      // Freeze the MEAN-ANOMALY gap (actual separation), not the epoch M0 diff:
-      // M(t)=M0+n*t drifts on different shells, so comparing raw M0s is a no-op
-      // and the old +err sign pushed the wrong way. Correct toward the stored gap.
-      const nB=(b.n0||Math.sqrt(MU/Math.pow(b.a,3)))+(b.mDot||0);
-      const nD=(deb.n0||Math.sqrt(MU/Math.pow(deb.a,3)))+(deb.mDot||0);
-      const des=(b._holdDeltaMt!=null&&isFinite(b._holdDeltaMt))?b._holdDeltaMt:((b._holdDelta!=null&&isFinite(b._holdDelta))?b._holdDelta:0);
-      let cur=((b.M0+nB*t)-(deb.M0+nD*t))%TAU;
-      if(cur>Math.PI) cur-=TAU; if(cur<-Math.PI) cur+=TAU;
+      // the selected IBS agent is exempt while it intentionally works the
+      // close formation (SHEPHERD beam-ride, SAFETY freeze, DOCKING match) or
+      // rides docked — HOLD must not fight it or it gets yanked back, then
+      // overshoots past, then hands off back to SELECTING in a loop.
+      if(b===CASE1.bot&&(CASE1.state==='SHEPHERD'||CASE1.state==='SAFETY_VALIDATION'||CASE1.state==='DOCKING'||CASE1.docked)) continue;
+      // Freeze the TRUE along-track gap (actual separation from real geometry).
+      // Epoch-M0 / mean-motion proxies corrupt the moment any radial burn flips
+      // argP/M ~180deg on a near-circular orbit, so HOLD now measures the real
+      // angle and nudges M0 (which moves true position ~1:1) to preserve it.
+      const des=(b._holdTrue!=null&&isFinite(b._holdTrue))?b._holdTrue*RAD:((b._holdDeltaMt!=null&&isFinite(b._holdDeltaMt))?b._holdDeltaMt:((b._holdDelta!=null&&isFinite(b._holdDelta))?b._holdDelta:0));
+      let cur;
+      if(b._holdTrue!=null&&isFinite(b._holdTrue)){ cur=case1AlongDeg(deb,b,t)*RAD; }
+      else{
+        const nB=(b.n0||Math.sqrt(MU/Math.pow(b.a,3)))+(b.mDot||0);
+        const nD=(deb.n0||Math.sqrt(MU/Math.pow(deb.a,3)))+(deb.mDot||0);
+        cur=((b.M0+nB*t)-(deb.M0+nD*t))%TAU;
+        if(cur>Math.PI) cur-=TAU; if(cur<-Math.PI) cur+=TAU;
+      }
       let err=cur-des;
       if(err>Math.PI) err-=TAU; if(err<-Math.PI) err+=TAU;
       if(!isFinite(err)||Math.abs(err)<1e-9) continue;
-      const step=Math.max(-maxStep, Math.min(maxStep, -err*0.2));
+      // sign: true-angle convention (des/cur = debris-ahead-of-bot) runs opposite
+      // to M0 — bot forward (M0+) shrinks the gap, so correct with +err.
+      const step=(b._holdTrue!=null&&isFinite(b._holdTrue))
+        ? Math.max(-maxStep, Math.min(maxStep, err*0.2))
+        : Math.max(-maxStep, Math.min(maxStep, -err*0.2));
       b.M0=((b.M0+step)%TAU+TAU)%TAU;
+      try{ b._holdTrue=case1AlongDeg(deb,b,t); }catch(_){}
       b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(step)/RAD*CASE_1_CONFIG.rendezvous.fuelPerDegKmS;
     }
   }catch(_){}
@@ -4370,9 +4433,19 @@ function case1SelectBot(){
     const rel=case1RelVel(deb, b, t);
     if(rel>C.select.maxRelVelKmS) reasons.push('relVel '+rel.toFixed(2)+'km/s');
     const est=case1EstimateBurn(deb, C.burn.targetPerigeeKm);
-    const dDeg=Math.abs(((b.M0-deb.M0)/RAD%360+540)%360-180); // deterministic phase gap (deg)
+    // PRECISE intercept plan, exact closed-form terms (no estimates):
+    // signed true along-track gap (deg, real geometry) → exact phase fuel +
+    // exact closing time at the configured chase rate; Hohmann radial + exact
+    // h-vector plane angle for the orbit match; vis-viva deorbit dv. The
+    // closest valid bot wins; full plan stored for the feed + execution.
+    const alongS=case1AlongDeg(deb,b,t);
+    const dDeg=Math.abs(alongS); // true along-track gap (deg), never M0-proxy
     const phaseNeed=dDeg;
     const rendezvousCost=phaseNeed*C.rendezvous.fuelPerDegKmS;
+    const kmPerDeg=2*Math.PI*(deb.a||(KM_PER_UNIT+550))/360;
+    const chaseRate=((C.rendezvous||{}).phaseRateDegPerSimSec||0.02)*(CASE1.ccsBoost||1);
+    const closeTimeS=chaseRate>1e-9?(dDeg/chaseRate):1e9;
+    const closeKm=dDeg*kmPerDeg;
     const mc=case1MatchCost(b, deb); // IBS docking: radial + plane match
     const required=0.05+rendezvousCost+mc.total+est.dv+0.04; // terminal + phasing + orbit-match + deorbit push + undock-raise
     const margin=case1BotBudget(b)-required-C.action.reserveKmS;
@@ -4391,10 +4464,13 @@ function case1SelectBot(){
     }catch(_){}
     if(reasons.length){ cands.push({ bot:b, ok:false, reasons, rel, dist, margin }); continue; }
     const score=margin*10-dist*0.001-rel*0.5+(b.precision||0);
-    cands.push({ bot:b, ok:true, reasons:[], rel, dist, margin, required, est, score });
+    const plan={ along:alongS, dDeg, closeTimeS, closeKm, kmPerDeg, radial:mc.radial, plane:mc.plane, dvDeorbit:est.dv, required, margin };
+    cands.push({ bot:b, ok:true, reasons:[], rel, dist, margin, required, est, score, plan });
   }
-  // BEST POSITION WINS: nearest valid bot first, rel-vel then margin as tie-breaks.
+  // CLOSEST VALID WINS: nearest by CURRENT true distance first, rel-vel then
+  // margin as exact tie-breaks. Full plan of the winner is stored for the feed.
   const valid=cands.filter(c=>c.ok).sort((x,y)=> (x.dist-y.dist)||(x.rel-y.rel)||(y.margin-x.margin));
+  try{ CASE1._selPlan=(valid[0]&&valid[0].plan)||null; }catch(_){}
   return { all:cands, best:valid[0]||null, rest:valid.slice(1) };
 }
 function case1Start(){
@@ -4492,6 +4568,7 @@ function case1Undock(t, why){
         let nd=(b.M0-deb.M0)%TAU;
         if(nd>Math.PI) nd-=TAU; if(nd<-Math.PI) nd+=TAU;
         b._holdDelta=nd;
+        try{ b._holdTrue=case1AlongDeg(deb,b,t); }catch(_){}
       }catch(_){}
       CASE1._lastHoldT=t;
       case1Log('undock ('+(why||'done')+'): '+b.label+' raised to '+(b.a-KM_PER_UNIT).toFixed(0)+'km — survives, debris coasts to reentry');
@@ -4737,7 +4814,13 @@ function case1Tick(){
       CASE1.bot._phaseFrom=CASE1.bot.M0;
       try{ CASE1._missTrail=[]; }catch(_){}
       CASE1._lastRzT=t; CASE1.rzDeadline=t+CASE_1_CONFIG.rendezvous.timeoutRevs*deb.periodSec()+600;
-      try{ fleetNotice('CASE 1 ORDERS → <b>'+CASE1.bot.label+'</b> best-positioned · dist '+sel.best.dist.toFixed(0)+'km · rel '+(sel.best.rel*1000).toFixed(0)+'m/s'); }catch(_){}
+      try{
+        const P=sel.best.plan||{};
+        const _pct=(P.closeTimeS!=null&&isFinite(P.closeTimeS))?(' · close '+P.closeKm.toFixed(0)+'km in ~'+case1FmtETA(P.closeTimeS)):'';
+        const _pc=(P.radial!=null)?(' · match r'+P.radial.toFixed(3)+'+p'+P.plane.toFixed(3)+'km/s · deorb '+(P.dvDeorbit||0).toFixed(3)+' → req '+(P.required||0).toFixed(3)):'';
+        fleetNotice('CASE 1 ORDERS → <b>'+CASE1.bot.label+'</b> closest · dist '+sel.best.dist.toFixed(0)+'km · rel '+(sel.best.rel*1000).toFixed(0)+'m/s'+_pct+_pc);
+        case1Log('intercept plan '+CASE1.bot.label+': along '+(P.along!=null?((P.along>=0?'+':'')+P.along.toFixed(3)+'°'):'—')+' · margin +'+sel.best.margin.toFixed(3)+'km/s');
+      }catch(_){}
       case1SetState('RENDEZVOUS', CASE1.bot.label+' → '+deb.label);
       break;
     }
@@ -4752,17 +4835,18 @@ function case1Tick(){
       const SO=CASE_1_CONFIG.standoff;
       const dtRz=Math.max(0, t-(CASE1._lastRzT!=null?CASE1._lastRzT:t));
       CASE1._lastRzT=t;
+      const dtRzC=case1CtrlDt(dtRz); // clamped: fuel + trim per tick, warp-proof
       const dist0=case1DistKm(deb, b, t);
       if(dist0<SO.minKm){
         // COLLISION AVOID: too near — back the phase off, away from the debris,
         // then adopt the pushed-out slot so the formation HOLD keeps the new gap.
         if(dtRz>0){
-          const diffDeg=(((deb.M0-b.M0)/RAD%360+540)%360)-180;
-          const step=CASE_1_CONFIG.rendezvous.phaseRateDegPerSimSec*(CASE1.ccsBoost||1)*dtRz;
+          const diffDeg=case1AlongDeg(deb,b,t); // true geometry, never M0-proxy
+          const step=CASE_1_CONFIG.rendezvous.phaseRateDegPerSimSec*(CASE1.ccsBoost||1)*dtRzC;
           const away=(diffDeg>=0?-1:1);
           b.M0=((b.M0+away*step*RAD)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
           b.dvUsedKmS=(b.dvUsedKmS||0)+step*CASE_1_CONFIG.rendezvous.fuelPerDegKmS;
-          try{ const TAU=2*Math.PI; let nd=(b.M0-deb.M0)%TAU; if(nd>Math.PI) nd-=TAU; if(nd<-Math.PI) nd+=TAU; b._holdDelta=nd; const nB2=(b.n0||Math.sqrt(MU/Math.pow(b.a,3)))+(b.mDot||0), nD2=(deb.n0||Math.sqrt(MU/Math.pow(deb.a,3)))+(deb.mDot||0); let ndMt=((b.M0+nB2*t)-(deb.M0+nD2*t))%TAU; if(ndMt>Math.PI) ndMt-=TAU; if(ndMt<-Math.PI) ndMt+=TAU; b._holdDeltaMt=ndMt; }catch(_){}
+          try{ const TAU=2*Math.PI; let nd=(b.M0-deb.M0)%TAU; if(nd>Math.PI) nd-=TAU; if(nd<-Math.PI) nd+=TAU; b._holdDelta=nd; const nB2=(b.n0||Math.sqrt(MU/Math.pow(b.a,3)))+(b.mDot||0), nD2=(deb.n0||Math.sqrt(MU/Math.pow(deb.a,3)))+(deb.mDot||0); let ndMt=((b.M0+nB2*t)-(deb.M0+nD2*t))%TAU; if(ndMt>Math.PI) ndMt-=TAU; if(ndMt<-Math.PI) ndMt+=TAU; b._holdDeltaMt=ndMt; b._holdTrue=case1AlongDeg(deb,b,t); CASE1._lastHoldT=t; }catch(_){}
         }
         if(!CASE1._backoff){ CASE1._backoff=true; case1Log('collision-avoid backoff — bot holds offset orbit, closes again after (never a hit)'); }
         if(t>(CASE1.rzDeadline||Infinity)){ case1Handoff('offset corridor unreachable d='+dist0.toFixed(1)+'km'); }
@@ -4773,12 +4857,12 @@ function case1Tick(){
       // it so the offset orbit keeps its regular little distance (no chase, no hit).
       // (The formation HOLD already freezes the slot; this only re-acquires it.)
       if(dist0>SO.maxKm&&dtRz>0){
-        const diffDeg=(((deb.M0-b.M0)/RAD%360+540)%360)-180; // signed shortest arc, deg
-        const step=CASE_1_CONFIG.rendezvous.phaseRateDegPerSimSec*(CASE1.ccsBoost||1)*dtRz;
+        const diffDeg=case1AlongDeg(deb,b,t); // true geometry, never M0-proxy
+        const step=CASE_1_CONFIG.rendezvous.phaseRateDegPerSimSec*(CASE1.ccsBoost||1)*dtRzC;
         const mv=Math.max(-step, Math.min(step, diffDeg));
         b.M0=((b.M0+mv*RAD)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
         b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(mv)*CASE_1_CONFIG.rendezvous.fuelPerDegKmS;
-        try{ const TAU=2*Math.PI; let nd=(b.M0-deb.M0)%TAU; if(nd>Math.PI) nd-=TAU; if(nd<-Math.PI) nd+=TAU; b._holdDelta=nd; const nB2=(b.n0||Math.sqrt(MU/Math.pow(b.a,3)))+(b.mDot||0), nD2=(deb.n0||Math.sqrt(MU/Math.pow(deb.a,3)))+(deb.mDot||0); let ndMt=((b.M0+nB2*t)-(deb.M0+nD2*t))%TAU; if(ndMt>Math.PI) ndMt-=TAU; if(ndMt<-Math.PI) ndMt+=TAU; b._holdDeltaMt=ndMt; }catch(_){}
+        try{ const TAU=2*Math.PI; let nd=(b.M0-deb.M0)%TAU; if(nd>Math.PI) nd-=TAU; if(nd<-Math.PI) nd+=TAU; b._holdDelta=nd; const nB2=(b.n0||Math.sqrt(MU/Math.pow(b.a,3)))+(b.mDot||0), nD2=(deb.n0||Math.sqrt(MU/Math.pow(deb.a,3)))+(deb.mDot||0); let ndMt=((b.M0+nB2*t)-(deb.M0+nD2*t))%TAU; if(ndMt>Math.PI) ndMt-=TAU; if(ndMt<-Math.PI) ndMt+=TAU; b._holdDeltaMt=ndMt; b._holdTrue=case1AlongDeg(deb,b,t); CASE1._lastHoldT=t; }catch(_){}
         // PHYSICAL PHASING BURN so telemetry speed actually moves while closing:
         // behind (diff>0) → retrograde drop = faster orbit; ahead → prograde raise.
         try{
@@ -4786,7 +4870,7 @@ function case1Tick(){
             const gapKm=Math.max(0,dist0-SO.maxKm);
             const bgt=case1BotBudget(b);
             if(bgt>0.05){
-              const dvCap=0.0002*(CASE1.ccsBoost||1)*dtRz;
+              const dvCap=0.0002*(CASE1.ccsBoost||1)*dtRzC;
               let dvPh=-Math.sign(diffDeg)*Math.min(dvCap,Math.max(1e-6,gapKm*0.000005));
               dvPh=Math.max(-bgt,Math.min(bgt,dvPh));
               if(Math.abs(dvPh)>=1e-9){ b.maneuver(dvPh,0,0,t); b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(dvPh); }
@@ -4802,7 +4886,7 @@ function case1Tick(){
         CASE1._missTrail=CASE1._missTrail||[];
         CASE1._missTrail.push(dist); if(CASE1._missTrail.length>3) CASE1._missTrail.shift();
         const m=CASE1._missTrail;
-        if(m.length===3&&dist>SO.maxKm&&m[2]>m[1]&&m[1]>m[0]&&(m[2]-m[0])>5){
+        if(m.length===3&&dtRz<=60&&dist>SO.maxKm&&m[2]>m[1]&&m[1]>m[0]&&(m[2]-m[0])>5){
           CASE1._missTrail=[];
           case1Handoff('missed — diverging '+m[0].toFixed(0)+'→'+m[2].toFixed(0)+'km');
           break;
@@ -4843,49 +4927,40 @@ function case1Tick(){
       }
       const dtS=Math.max(0, t-(CASE1.lastBeamT!=null?CASE1.lastBeamT:t));
       CASE1.lastBeamT=t;
-      // CONTINUOUS TRACK while beaming: never stop/hold still — keep station
-      // in the 15–110km corridor so the bot can't fall behind mid-detumble.
-      // Same rate-limited phase trim as RENDEZVOUS (slot-keep, not a chase).
+      const dtSC=case1CtrlDt(dtS); // clamped control step (bleed below uses true dtS)
+      // CLOSE-FORMATION TRACK while beaming: fly the SAME orbit speed as the
+      // debris and hold a 2km lead standoff DURING the beam, so the beam line
+      // stays visible, the moment spin hits ~0 the propeller releases
+      // immediately with no extra chase, no drawback, same parallel slot held.
+      // Station-keeping thrust stays ACTIVE the whole time — never backs away
+      // once close, never stacks to exact overlap either.
       try{
-        const SO=CASE_1_CONFIG.standoff||{minKm:15,maxKm:110};
         const rate=((CASE_1_CONFIG.rendezvous||{}).phaseRateDegPerSimSec||0.02)*(CASE1.ccsBoost||1);
         if(dtS>0){
-          const d0=case1DistKm(deb,b,t);
-          if(d0>SO.maxKm||d0<SO.minKm){
-            const diffDeg=(((deb.M0-b.M0)/RAD%360+540)%360)-180;
-            const step=rate*dtS;
-            let mv;
-            if(d0<SO.minKm){ const away=(diffDeg>=0?-1:1); mv=away*step; }
-            else { mv=Math.max(-step,Math.min(step,diffDeg)); }
+          const diffDeg=case1AlongDeg(deb,b,t); // true geometry, never M0-proxy
+          const err=diffDeg-(-0.017); // hold 2km lead (≈0.017deg), not overlap
+          if(Math.abs(err)>1e-4){
+            const step=rate*dtSC;
+            const mv=Math.max(-step,Math.min(step,err));
             b.M0=((b.M0+mv*RAD)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
             b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(mv)*((CASE_1_CONFIG.rendezvous||{}).fuelPerDegKmS||0.002);
-            try{ const TAU=2*Math.PI; let nd=(b.M0-deb.M0)%TAU; if(nd>Math.PI) nd-=TAU; if(nd<-Math.PI) nd+=TAU; b._holdDelta=nd; const nB2=(b.n0||Math.sqrt(MU/Math.pow(b.a,3)))+(b.mDot||0), nD2=(deb.n0||Math.sqrt(MU/Math.pow(deb.a,3)))+(deb.mDot||0); let ndMt=((b.M0+nB2*t)-(deb.M0+nD2*t))%TAU; if(ndMt>Math.PI) ndMt-=TAU; if(ndMt<-Math.PI) ndMt+=TAU; b._holdDeltaMt=ndMt; }catch(_){}
-            // PHYSICAL PHASING BURN while beaming-and-closing (backoff excluded):
-            // same sign rule as RENDEZVOUS so speed keeps moving, never stalls.
-            try{
-              if(d0>SO.maxKm&&Math.abs(diffDeg)>1e-6){
-                const gapKm=Math.max(0,d0-SO.maxKm);
-                const bgt=case1BotBudget(b);
-                if(bgt>0.05){
-                  const dvCap=0.0002*(CASE1.ccsBoost||1)*dtS;
-                  let dvPh=-Math.sign(diffDeg)*Math.min(dvCap,Math.max(1e-6,gapKm*0.000005));
-                  dvPh=Math.max(-bgt,Math.min(bgt,dvPh));
-                  if(Math.abs(dvPh)>=1e-9){ b.maneuver(dvPh,0,0,t); b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(dvPh); }
-                }
-              }
-            }catch(_){}
+            try{ const TAU=2*Math.PI; let nd=(b.M0-deb.M0)%TAU; if(nd>Math.PI) nd-=TAU; if(nd<-Math.PI) nd+=TAU; b._holdDelta=nd; const nB2=(b.n0||Math.sqrt(MU/Math.pow(b.a,3)))+(b.mDot||0), nD2=(deb.n0||Math.sqrt(MU/Math.pow(deb.a,3)))+(deb.mDot||0); let ndMt=((b.M0+nB2*t)-(deb.M0+nD2*t))%TAU; if(ndMt>Math.PI) ndMt-=TAU; if(ndMt<-Math.PI) ndMt+=TAU; b._holdDeltaMt=ndMt; b._holdTrue=case1AlongDeg(deb,b,t); }catch(_){}
           }
         }
       }catch(_){}
-      // PRE-MATCH while beaming: gently converge orbit (radial+plane) at half
-      // dock rate so shepherding happens on the fly at orbital velocity —
-      // no stop, no speed drop, no fall-behind after bleed-out.
+      // PRE-MATCH while beaming: converge orbit (radial+plane) at FULL dock
+      // rate so the shepherd flies the SAME speed as the debris (formation) —
+      // no stop, no speed drop, no fall-behind after bleed-out. Station-keeping
+      // thrust stays ACTIVE during the whole beam (only the docked push is
+      // gated on stable spin, never the shepherd nav thrust).
       try{
         if(dtS>0){
           const Dr=(CASE_1_CONFIG.dock||{}).matchRateKmSPerSimSec||0.0001;
-          const rate=Dr*0.5*(CASE1.ccsBoost||1)*dtS;
+          const rate=Dr*1.0*(CASE1.ccsBoost||1)*dtSC;
           const da=deb.a-b.a;
-          if(Math.abs(da)>0.3){
+          // tight thresholds: capture needs dist ≤2.5km, so radial ≤0.1km and
+          // plane ≤1e-4 rad (0.7km) — the old 0.3km/4e-4 stopped just short.
+          if(Math.abs(da)>0.1&&case1BotBudget(b)>0.03){
             const v=circVel(b.a);
             const dvNeed=da*v/(2*b.a);
             const step=Math.max(-rate,Math.min(rate,dvNeed*0.15));
@@ -4896,7 +4971,7 @@ function case1Tick(){
             const la=Math.hypot(ha[0],ha[1],ha[2])||1, lb=Math.hypot(hb[0],hb[1],hb[2])||1;
             let c=(ha[0]*hb[0]+ha[1]*hb[1]+ha[2]*hb[2])/(la*lb); c=Math.max(-1,Math.min(1,c));
             const ang=Math.acos(c);
-            if(ang>4e-4){
+            if(ang>1e-4&&case1BotBudget(b)>0.03){
               if(b._planeSign==null) b._planeSign=1;
               if(t-(b._planeT||0)>60){
                 if(b._planeAngPrev!=null&&ang>=b._planeAngPrev) b._planeSign*=-1;
@@ -4932,53 +5007,47 @@ function case1Tick(){
       }
       const tbNow=case1Tumble(deb);
       if(tbNow<=CASE_1_CONFIG.tumble.maxRadS&&(t-CASE1.beamT0)>=90){
-        case1Log('detumble complete: '+tbNow.toFixed(4)+' rad/s ≤ '+CASE_1_CONFIG.tumble.maxRadS+' — beam off, safety next');
+        case1Log('detumble complete: '+tbNow.toFixed(4)+' rad/s ≤ '+CASE_1_CONFIG.tumble.maxRadS+' — beam off, propeller release next');
         try{ if(b) b.attitude='prograde'; }catch(_){}
-        // RELEASE + PROXIMITY HANDOFF: no follow/chase by the shepherd.
-        // Debris is left alone; whichever action bot is CLOSEST now takes
-        // the docking job (nearest valid wins, old bot can keep it).
+        // SAME-BOT THROUGH, IMMEDIATE PROPELLER RELEASE: the shepherd that bled
+        // the spin (same ~8km/s formation) keeps the job — no re-select. If it
+        // is already capture-ready (≤2.5km & ≤1.2km/s) dock + push down at once
+        // so the debris goes straight to burn-up; else 1-tick safety then dock.
         try{
           CASE1.ccsBoost=1; CASE1.ccsOrder=null; CASE1.catchETA=null;
-          const sel=case1SelectBot();
-          if(sel.best&&sel.best.bot!==b){
-            const nb=sel.best.bot;
-            try{ if(b) b.attitude='prograde'; }catch(_){}
-            CASE1.bot=nb; CASE1.backupBots=(sel.rest||[]).map(r=>r.bot);
-            try{ CASE1._missTrail=[]; }catch(_){}
-            CASE1._selMargin=sel.best.margin; CASE1._selDist=sel.best.dist; CASE1._selRel=sel.best.rel;
-            case1Log('RELEASED '+b.label+' after bleed-out — ORDERS → closest '+nb.label+' ('+sel.best.dist.toFixed(0)+'km, rel '+(sel.best.rel*1000).toFixed(0)+'m/s) takes docking');
-            try{ fleetNotice('DE-TUMBLED ✓ → <b>'+b.label+'</b> released · closest <b>'+nb.label+'</b> ('+sel.best.dist.toFixed(0)+'km) takes docking'); }catch(_){}
-          } else if(sel.best){
-            CASE1._selMargin=sel.best.margin; CASE1._selDist=sel.best.dist; CASE1._selRel=sel.best.rel;
-            case1Log('RELEASED formation — closest is still '+b.label+' ('+sel.best.dist.toFixed(0)+'km), keeps docking job (no chase)');
-            try{ fleetNotice('DE-TUMBLED ✓ → <b>'+b.label+'</b> released · still closest ('+sel.best.dist.toFixed(0)+'km), takes docking'); }catch(_){}
-          } else {
-            case1Log('RELEASED '+b.label+' after bleed-out — no closer bot valid, keeps docking job (no chase)');
-            try{ fleetNotice('DE-TUMBLED ✓ → <b>'+b.label+'</b> released · no closer bot, keeps docking'); }catch(_){}
+          try{ CASE1._missTrail=[]; }catch(_){}
+          const _dd=case1DistKm(deb,b,t), _rr=case1RelVel(deb,b,t);
+          const _D=CASE_1_CONFIG.dock||{captureKm:2.5,captureRelVelKmS:1.2};
+          if(_dd<=_D.captureKm&&_rr<=_D.captureRelVelKmS){
+            case1Log('PROPELLER RELEASE → '+b.label+' capture-ready ('+_dd.toFixed(2)+'km) — dock + push down now');
+            try{ fleetNotice('PROPELLER RELEASE → <b>'+b.label+'</b> pushing <b>'+deb.label+'</b> down to burn-up'); }catch(_){}
+            case1Dock(t);
+            break;
           }
+          case1Log('SHEPHERD '+b.label+' keeps job (same speed → propeller release → disposal, no re-select)');
+          try{ fleetNotice('DE-TUMBLED ✓ → <b>'+b.label+'</b> propeller release next (no re-select)'); }catch(_){}
         }catch(_){}
         case1SetState('SAFETY_VALIDATION','tumble '+tbNow.toFixed(4)+' rad/s OK');
       }
       break;
     }
     case 'SAFETY_VALIDATION': {
-      // HOLD THE SLOT through the 1-tick safety calc — else the bot drifts
-      // in the gap between bleed-out and DOCKING and arrives behind.
+      // HOLD 2km lead standoff through the 1-tick safety calc — bot is already
+      // there from the beam, just freeze it. Never back away once close: backing
+      // out breaks the parallel slot and momentum.
       try{
         const b0=CASE1.bot;
         if(b0&&sats.indexOf(b0)>=0){
           const dtH=Math.max(0,t-(CASE1.lastBeamT!=null?CASE1.lastBeamT:t));
+          const dtHC=case1CtrlDt(dtH); // clamped: fuel + trim per tick, warp-proof
           if(dtH>0){
-            const SO0=CASE_1_CONFIG.standoff||{minKm:15,maxKm:110};
-            const dH=case1DistKm(deb,b0,t);
-            if(dH>SO0.maxKm||dH<SO0.minKm){
-              const diffD=(((deb.M0-b0.M0)/RAD%360+540)%360)-180;
-              const stp=((CASE_1_CONFIG.rendezvous||{}).phaseRateDegPerSimSec||0.02)*(CASE1.ccsBoost||1)*dtH;
-              let mvH;
-              if(dH<SO0.minKm){ const aw=(diffD>=0?-1:1); mvH=aw*stp; }
-              else { mvH=Math.max(-stp,Math.min(stp,diffD)); }
+            const errH=case1AlongDeg(deb,b0,t)-(-0.017);
+            if(Math.abs(errH)>1e-4){
+              const stp=((CASE_1_CONFIG.rendezvous||{}).phaseRateDegPerSimSec||0.02)*(CASE1.ccsBoost||1)*dtHC;
+              const mvH=Math.max(-stp,Math.min(stp,errH));
               b0.M0=((b0.M0+mvH*RAD)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
               b0.dvUsedKmS=(b0.dvUsedKmS||0)+Math.abs(mvH)*((CASE_1_CONFIG.rendezvous||{}).fuelPerDegKmS||0.002);
+              try{ const TAU=2*Math.PI; let nd=(b0.M0-deb.M0)%TAU; if(nd>Math.PI) nd-=TAU; if(nd<-Math.PI) nd+=TAU; b0._holdDelta=nd; const nB2=(b0.n0||Math.sqrt(MU/Math.pow(b0.a,3)))+(b0.mDot||0), nD2=(deb.n0||Math.sqrt(MU/Math.pow(deb.a,3)))+(deb.mDot||0); let ndMt=((b0.M0+nB2*t)-(deb.M0+nD2*t))%TAU; if(ndMt>Math.PI) ndMt-=TAU; if(ndMt<-Math.PI) ndMt+=TAU; b0._holdDeltaMt=ndMt; b0._holdTrue=case1AlongDeg(deb,b0,t); CASE1._lastHoldT=t; }catch(_){}
             }
           }
         }
@@ -5051,23 +5120,24 @@ function case1Tick(){
       try{ b.attitude='ibs-track'; }catch(_){}
       const dtD=Math.max(0, t-(CASE1.lastDockT!=null?CASE1.lastDockT:t));
       CASE1.lastDockT=t;
+      const dtDC=case1CtrlDt(dtD); // clamped: fuel + trim per tick, warp-proof
       if(dtD>0){
-        const rate=(D.matchRateKmSPerSimSec||0.0001)*(CASE1.ccsBoost||1)*dtD;
-        // radial match
+        const rate=(D.matchRateKmSPerSimSec||0.0001)*(CASE1.ccsBoost||1)*dtDC;
+        // radial match (tight: capture needs ≤2.5km, so converge to ≤0.1km)
         const da=deb.a-b.a;
-        if(Math.abs(da)>0.3){
+        if(Math.abs(da)>0.1&&case1BotBudget(b)>0.03){
           const v=circVel(b.a);
           const dvNeed=da*v/(2*b.a);
           const step=Math.max(-rate, Math.min(rate, dvNeed*0.15));
           if(Math.abs(step)>1e-9){ b.maneuver(step,0,0,t); b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(step); }
         }
-        // plane match (sign-hunting dvN, re-evaluated every 60 sim-s)
+        // plane match (tight ≤1e-4 rad ≈ 0.7km for 2.5km capture; sign-hunting dvN, re-evaluated every 60 sim-s)
         try{
           const ha=case1HVec(b.eciKm(t),b.velKmS(t)), hb=case1HVec(deb.eciKm(t),deb.velKmS(t));
           const la=Math.hypot(ha[0],ha[1],ha[2])||1, lb=Math.hypot(hb[0],hb[1],hb[2])||1;
           let c=(ha[0]*hb[0]+ha[1]*hb[1]+ha[2]*hb[2])/(la*lb); c=Math.max(-1,Math.min(1,c));
           const ang=Math.acos(c);
-          if(ang>4e-4){
+          if(ang>1e-4&&case1BotBudget(b)>0.03){
             if(b._planeSign==null) b._planeSign=1;
             if(t-(b._planeT||0)>60){
               if(b._planeAngPrev!=null&&ang>=b._planeAngPrev) b._planeSign*=-1;
@@ -5080,22 +5150,23 @@ function case1Tick(){
         // phase trim toward close (rate-limited like rendezvous)
         const dist0=case1DistKm(deb, b, t);
         if(dist0>D.captureKm){
-          const diffDeg=(((deb.M0-b.M0)/RAD%360+540)%360)-180;
-          const step=CASE_1_CONFIG.rendezvous.phaseRateDegPerSimSec*(CASE1.ccsBoost||1)*dtD;
+          const diffDeg=case1AlongDeg(deb,b,t); // true geometry, never M0-proxy
+          const step=CASE_1_CONFIG.rendezvous.phaseRateDegPerSimSec*(CASE1.ccsBoost||1)*dtDC;
           const mv=Math.max(-step, Math.min(step, diffDeg));
           b.M0=((b.M0+mv*RAD)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
           b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(mv)*CASE_1_CONFIG.rendezvous.fuelPerDegKmS;
+          try{ b._holdTrue=case1AlongDeg(deb,b,t); }catch(_){}
         }
       }
       const dist=case1DistKm(deb, b, t), rel=case1RelVel(deb, b, t);
       if(dist<=D.captureKm&&rel<=D.captureRelVelKmS){ try{ CASE1._missTrail=[]; }catch(_){} case1Dock(t); break; }
-      // MISS DETECTOR (dock): closing distance diverging 3 ticks → missed,
-      // orders to best-positioned bot NOW.
+      // MISS DETECTOR (dock): only when truly lost (>20km and diverging).
+      // 2km close-formation jitter must NEVER trigger a handoff/held-back loop.
       try{
         CASE1._missTrail=CASE1._missTrail||[];
         CASE1._missTrail.push(dist); if(CASE1._missTrail.length>3) CASE1._missTrail.shift();
         const m=CASE1._missTrail;
-        if(m.length===3&&m[2]>m[1]&&m[1]>m[0]&&(m[2]-m[0])>1.5&&dist>D.captureKm){
+        if(m.length===3&&dtD<=60&&m[2]>m[1]&&m[1]>m[0]&&(m[2]-m[0])>1.5&&dist>D.captureKm&&dist>20&&m[0]>20){
           CASE1._missTrail=[];
           case1Handoff('missed dock — diverging '+m[0].toFixed(1)+'→'+m[2].toFixed(1)+'km');
           break;
@@ -5238,8 +5309,11 @@ window.IRIS.ccsOrderSpeed=function(botRef, dvP, reason){
     const b=(typeof botRef==='string')?sats.find(x=>x.label===botRef):(botRef||CASE1.bot);
     if(!b||sats.indexOf(b)<0){ try{ fleetNotice('CCS ORDER FAILED — bot not found'); }catch(_){} return false; }
     if(b.type!=='action'){ try{ fleetNotice('CCS ORDER FAILED — <b>'+(b.label||'sat')+'</b> is not an action bot'); }catch(_){} return false; }
-    const dv=Math.max(-0.2,Math.min(0.2,dvP||0));
-    if(Math.abs(dv)<1e-9) return false;
+    const dv0=Math.max(-0.2,Math.min(0.2,dvP||0));
+    if(Math.abs(dv0)<1e-9) return false;
+    const bgt=case1BotBudget(b);
+    if(bgt<1e-9){ try{ fleetNotice('CCS ORDER FAILED — <b>'+b.label+'</b> fuel empty'); }catch(_){} return false; }
+    const dv=Math.max(-bgt,Math.min(bgt,dv0)); // never spend past empty
     const t=case1Now();
     b.maneuver(dv,0,0,t); b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(dv);
     CASE1.ccsOrder={ bot:b.label, dvP:dv, t, reason:reason||'manual speed order' };
