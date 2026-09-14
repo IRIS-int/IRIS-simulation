@@ -236,6 +236,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
       <button class="btn" id="btnFPS" title="Toggle FPS game mode (WASD)">▶ FPS MODE</button>
       <button class="btn" id="btnSimCentre" title="Open Simulation Centre">SIMULATION CENTRE</button>
       <button class="btn ghost" id="btnOrbitsTop" title="Show/hide orbit lines (O)">◉ ORBITS ON</button>
+      <button class="btn ghost" id="btnFollow" title="Auto-follow Case-1 target (flies close + sticks to it)">◎ FOLLOW OFF</button>
       <button class="btn ghost" id="btnReset" title="Reset camera (Esc)">↺ RESET VIEW</button>
     </div>
   </div>
@@ -2519,6 +2520,29 @@ function focusSat(s){
   const t0=performance.now();
   (function anim(now){ const p=Math.min(1,(now-t0)/900), e=1-Math.pow(1-p,3); camera.position.lerpVectors(s0,camPos,e); controls.target.lerpVectors(st0,tgt,e); controls.update(); if(p<1) requestAnimationFrame(anim); })(performance.now());
 }
+// AUTO-FOLLOW: camera flies near the sat, then sticks to it every frame
+// (controls.target locked to sat.group.position, camera translated by the same
+// delta so your orbit offset is preserved — drag still rotates around it).
+window._autoFollow=null;
+function setAutoFollow(s, flyTo){
+  if(s && s.isBot && s.parent) s=s.parent;
+  if(s && (!s.group||sats.indexOf(s)<0)) s=null;
+  window._autoFollow=s||null;
+  try{
+    const b=document.getElementById('btnFollow');
+    if(b) b.textContent=s?('◉ FOLLOWING '+(s.label||s.type||'').slice(0,12)):'◎ FOLLOW OFF';
+  }catch(_){}
+  if(s&&flyTo!==false){ try{ focusSat(s); }catch(_){} try{ selectSat(s); }catch(_){} }
+  return window._autoFollow;
+}
+document.getElementById('btnFollow')?.addEventListener('click', ()=>{
+  if(window._autoFollow){ setAutoFollow(null); try{ fleetNotice('FOLLOW OFF — free camera'); }catch(_){} }
+  else{
+    const tgt=(typeof CASE1!=='undefined'&&(CASE1.target||CASE1.targetSel))||selected||sats.find(s=>s.type==='debris')||null;
+    if(tgt){ setAutoFollow(tgt, true); try{ fleetNotice('FOLLOWING <b>'+(tgt.label||'object')+'</b> — drag rotates, scroll zooms'); }catch(_){} }
+    else try{ fleetNotice('Nothing to follow yet'); }catch(_){}
+  }
+});
 
 // telemetry
 const altBig=document.getElementById('altBig'), badge=document.getElementById('layerBadge'), desc=document.getElementById('layerDesc'); // layerDesc may be absent after layout refactor — guarded below
@@ -2791,6 +2815,19 @@ function animate(){
   if(sunFlare) sunFlare.lookAt(camera.position);
   updateFPS(dt);
   updateArrowKeys(dt);
+  // AUTO-FOLLOW: stick controls.target to the followed sat (delta-move camera too).
+  // Paused in ROAM mode (fpsMode) so WASD stays free; tween jump ignored.
+  try{
+    const f=window._autoFollow;
+    const roam=(typeof fpsMode!=='undefined')&&fpsMode;
+    if(f&&sats.indexOf(f)>=0&&f.group&&!roam){
+      const p=f.group.position;
+      const dx=p.x-controls.target.x, dy=p.y-controls.target.y, dz=p.z-controls.target.z;
+      // ignore the one big jump right after focusSat starts (tween handles it)
+      if(Math.hypot(dx,dy,dz)<2.0){ camera.position.x+=dx; camera.position.y+=dy; camera.position.z+=dz; }
+      controls.target.copy(p);
+    } else if(f&&sats.indexOf(f)<0){ window._autoFollow=null; try{ document.getElementById('btnFollow').textContent='◎ FOLLOW OFF'; }catch(_){} }
+  }catch(_){}
   controls.update(); 
   updTel(); 
   try{ if(typeof case1VisualFrame==='function') case1VisualFrame(dt); }catch(_){}
@@ -2879,6 +2916,7 @@ document.getElementById('btnFPS')?.addEventListener('click', e=>{
 // buttons — derived from KM_PER_UNIT — single reset action (button + Esc)
 function doReset(){
   try{ deselectSat(true); }catch(_){}
+  try{ if(typeof setAutoFollow==='function') setAutoFollow(null, false); }catch(_){}
   window._forcedZone=null; document.querySelectorAll('.zone-btn').forEach(b=>b.classList.remove('active'));
   const s0=camera.position.clone(), st0=controls.target.clone(), e0=new THREE.Vector3(0, sceneRadius(5500)*0.62, sceneRadius(5500)*0.82), et0=new THREE.Vector3(0,0,0), t0=performance.now();
   (function a(now){ const p=Math.min(1,(now-t0)/900), e=1-Math.pow(1-p,3); camera.position.lerpVectors(s0,e0,e); controls.target.lerpVectors(st0,et0,e); controls.update(); if(p<1) requestAnimationFrame(a); })(performance.now());
@@ -4290,7 +4328,9 @@ function case1MatchCost(b, deb){
     return { radial, plane, total:radial+plane };
   }catch(_){ return { radial:0.05, plane:0.5, total:0.55 }; }
 }
-// Action-bot selection: same direction → relVel → fuel/energy → precision → lifetime → safety. Energy over distance.
+// Action-bot selection: POSITION FIRST — same direction → relVel → fuel/energy →
+// precision → lifetime → safety filter, then nearest valid bot by CURRENT
+// distance wins (miss = orders go to best-placed bot right now).
 function case1SelectBot(){
   const C=CASE_1_CONFIG, t=case1Now(), deb=CASE1.target;
   const cands=[];
@@ -4324,7 +4364,8 @@ function case1SelectBot(){
     const score=margin*10-dist*0.001-rel*0.5+(b.precision||0);
     cands.push({ bot:b, ok:true, reasons:[], rel, dist, margin, required, est, score });
   }
-  const valid=cands.filter(c=>c.ok).sort((x,y)=>y.score-x.score);
+  // BEST POSITION WINS: nearest valid bot first, rel-vel then margin as tie-breaks.
+  const valid=cands.filter(c=>c.ok).sort((x,y)=> (x.dist-y.dist)||(x.rel-y.rel)||(y.margin-x.margin));
   return { all:cands, best:valid[0]||null, rest:valid.slice(1) };
 }
 function case1Start(){
@@ -4373,11 +4414,14 @@ function case1Start(){
   CASE1._selDeadline=null; CASE1._selAttempts=0; CASE1._selBestDist=null;
   try{ case1ClearRunVisuals(); }catch(_){} // fresh run visuals (target marker kept)
   case1AssignRoles(v);
+  // AUTO-FOLLOW the activity: fly close to the selected debris and stick to it.
+  try{ if(typeof setAutoFollow==='function'&&CASE1.target) setAutoFollow(CASE1.target, true); }catch(_){}
   case1SetState('INITIALIZING_CASE_1', CASE1.debris.length+' debris · '+CASE1.actions.length+' action · '+CASE1.sensory.length+' sensory');
 }
 function case1Abort(reason){
   if(CASE1.state==='IDLE') return;
   case1SetState('ABORTED', reason||'operator abort');
+  try{ if(typeof setAutoFollow==='function') setAutoFollow(null, false); }catch(_){}
   try{ if(CASE1.bot){ CASE1.bot.attitude='prograde'; } }catch(_){}
   CASE1.bot=null; CASE1.docked=false; CASE1.push=null;
   CASE1._botLostLogged=false; CASE1._backoff=false;
@@ -4535,6 +4579,8 @@ function case1CheckBurnup(deb, t){
     try{ case1ClearRunVisuals(); }catch(_){}
     CASE1.reentry={ perigee:per, lat:bLat, lon:bLon, burned:true, alt:altInst };
     CASE1.docked=false;
+    // Follow the surviving IBS agent after burn-up (debris is gone).
+    try{ if(b&&sats.indexOf(b)>=0&&typeof setAutoFollow==='function') setAutoFollow(b, true); }catch(_){}
     case1SetState('CASE_1_COMPLETE','burned up @ '+bLat.toFixed(1)+'°/'+bLon.toFixed(1)+'° alt '+altInst.toFixed(0)+'km — '+label+' deleted (drag/friction)'+(b&&sats.indexOf(b)>=0?(' · '+b.label+' safe'):''));
     return true;
   }catch(_){ return false; }
@@ -4543,7 +4589,28 @@ function case1Tick(){
   try{ case1Render(); }catch(_){}
   if(CASE1.state==='IDLE'||CASE1.state==='ABORTED'||CASE1.state==='CASE_1_COMPLETE'||CASE1.state==='VALIDATION_FAILED') return;
   const t=case1Now(), deb=CASE1.target;
-  if(!deb||sats.indexOf(deb)<0){ CASE1.errors.push('target debris removed'); case1SetState('ABORTED','target lost'); return; }
+  // AUTO-SHIFT (no ABORTED): if the target vanished, pick the next-best debris
+  // by current position (nearest to the bot, else first by label) and restart
+  // mapping — a lost chance never kills the run.
+  if(!deb||sats.indexOf(deb)<0){
+    const rest=sats.filter(s=>s.type==='debris');
+    if(!rest.length){ CASE1.errors.push('all debris gone'); case1SetState('ABORTED','no debris left'); return; }
+    let nxt=rest.slice().sort((a,b)=>(a.label||'').localeCompare(b.label||''))[0];
+    try{
+      if(CASE1.bot&&sats.indexOf(CASE1.bot)>=0){
+        let bd=1e18;
+        for(const d of rest){ const dd=case1DistKm(d, CASE1.bot, t); if(dd<bd){ bd=dd; nxt=d; } }
+      }
+    }catch(_){}
+    CASE1.target=nxt; CASE1.targetSel=nxt;
+    CASE1.rev1={start:t,period:nxt.periodSec(),samples:[]}; CASE1.rev2={start:0,period:0,samples:[]};
+    CASE1.mapped=null; CASE1.decayKmPerDay=0; CASE1.predRev3=null; CASE1.docked=false; CASE1.push=null; CASE1.burn=null;
+    case1Log('auto-shift: target lost → next-best '+(nxt.label||'debris')+' by position — restarting mapping (no abort)');
+    try{ fleetNotice('CASE 1 AUTO-SHIFT — new target <b>'+(nxt.label||'debris')+'</b> by position'); }catch(_){}
+    try{ if(typeof setAutoFollow==='function') setAutoFollow(nxt, true); }catch(_){}
+    case1SetState('OBSERVING_REVOLUTION_1','auto-shift target '+(nxt.label||''));
+    return;
+  }
   // formation HOLD (runs in every active state incl. holds): freezes the assigned
   // ahead-gaps so drift can never collapse the bot–debris separation mid-mission.
   // Pure station-keeping — never an approach, never a chase.
@@ -4622,16 +4689,25 @@ function case1Tick(){
         }
         const why=sel.all.map(c=>(c.bot.label||'bot')+': '+(c.ok?('OK margin '+c.margin.toFixed(3)+'km/s score '+c.score.toFixed(2)):('REJECT — '+c.reasons.join(', ')))).join(' | ');
         case1Log('selection: '+why);
-        CASE1.errors.push('No valid Action Bot — '+sel.all.map(c=>c.reasons.join('+')).join('; '));
-        try{ fleetNotice('CASE 1 HOLD — <b>no valid Action Bot</b> (energy/direction/filter)'); }catch(_){}
-        case1SetState('ABORTED','selection failed — notified CCS');
+        // NO ABORTED: no pass on this window — extend the window and keep
+        // sampling. Geometry drifts every tick, so the next-best bot by position
+        // will become valid. Only stop if the fleet itself is gone.
+        if(!sats.some(s=>s.type==='action')){
+          CASE1.errors.push('No Action Bot in fleet — add one via Fleet Builder');
+          case1SetState('ABORTED','fleet has no action bot'); break;
+        }
+        CASE1._selDeadline=t+deb.periodSec()*1.5+600; CASE1._selAttempts=0;
+        try{ fleetNotice('CASE 1 RETRY — <b>no pass this window</b>, extending search for next-best bot by position'); }catch(_){}
+        case1Log('selection window extended — retrying for next-best bot by position (no abort)');
+        try{ case1Render(); }catch(_){}
         break;
       }
       CASE1.bot=sel.best.bot; CASE1.backupBots=sel.rest.map(r=>r.bot);
       CASE1._selMargin=sel.best.margin; CASE1._selDist=sel.best.dist; CASE1._selRel=sel.best.rel;
       CASE1.bot._phaseFrom=CASE1.bot.M0;
+      try{ CASE1._missTrail=[]; }catch(_){}
       CASE1._lastRzT=t; CASE1.rzDeadline=t+CASE_1_CONFIG.rendezvous.timeoutRevs*deb.periodSec()+600;
-      try{ fleetNotice('CASE 1 BOT <b>'+CASE1.bot.label+'</b> margin '+sel.best.margin.toFixed(3)+'km/s · dist '+sel.best.dist.toFixed(0)+'km'); }catch(_){}
+      try{ fleetNotice('CASE 1 ORDERS → <b>'+CASE1.bot.label+'</b> best-positioned · dist '+sel.best.dist.toFixed(0)+'km · rel '+(sel.best.rel*1000).toFixed(0)+'m/s'); }catch(_){}
       case1SetState('RENDEZVOUS', CASE1.bot.label+' → '+deb.label);
       break;
     }
@@ -4675,6 +4751,19 @@ function case1Tick(){
         try{ const TAU=2*Math.PI; let nd=(b.M0-deb.M0)%TAU; if(nd>Math.PI) nd-=TAU; if(nd<-Math.PI) nd+=TAU; b._holdDelta=nd; const nB2=(b.n0||Math.sqrt(MU/Math.pow(b.a,3)))+(b.mDot||0), nD2=(deb.n0||Math.sqrt(MU/Math.pow(deb.a,3)))+(deb.mDot||0); let ndMt=((b.M0+nB2*t)-(deb.M0+nD2*t))%TAU; if(ndMt>Math.PI) ndMt-=TAU; if(ndMt<-Math.PI) ndMt+=TAU; b._holdDeltaMt=ndMt; }catch(_){}
       }
       const dist=case1DistKm(deb, b, t), rel=case1RelVel(deb, b, t);
+      // MISS DETECTOR: chaser losing ground 3 ticks in a row while outside the
+      // corridor → missed. Pass orders to best-positioned bot NOW (no waiting
+      // for the timeout).
+      try{
+        CASE1._missTrail=CASE1._missTrail||[];
+        CASE1._missTrail.push(dist); if(CASE1._missTrail.length>3) CASE1._missTrail.shift();
+        const m=CASE1._missTrail;
+        if(m.length===3&&dist>SO.maxKm&&m[2]>m[1]&&m[1]>m[0]&&(m[2]-m[0])>5){
+          CASE1._missTrail=[];
+          case1Handoff('missed — diverging '+m[0].toFixed(0)+'→'+m[2].toFixed(0)+'km');
+          break;
+        }
+      }catch(_){}
       if(dist<=SO.maxKm&&rel<=SO.maxRelVelKmS){
         CASE1.beamT0=null; CASE1.lastBeamT=t; CASE1.beamLogT=0;
         // NEW: size IBS force FROM mapped tumble (mapping already knows spin).
@@ -4781,6 +4870,14 @@ function case1Tick(){
       case1SetState('DOCKING','Δv '+est.dv.toFixed(3)+'km/s'+(delayK?' delay '+delayK+'/4 rev':''));
       break;
     }
+    case 'SAFETY_HOLD': {
+      // HOLD is a wait, not a death: retry validation after one rev (or hold-until).
+      if(t>=(CASE1._holdUntil||0)){
+        case1Log('SAFETY_HOLD released — re-validating descent (auto-retry)');
+        case1SetState('SAFETY_VALIDATION','hold released — retry');
+      }
+      break;
+    }
     case 'DOCKING': {
       // STRICT GATE: no orbit-match / capture while tumbling. Ion beam first.
       if(case1Tumble(deb)>CASE_1_CONFIG.tumble.maxRadS){
@@ -4838,7 +4935,19 @@ function case1Tick(){
         }
       }
       const dist=case1DistKm(deb, b, t), rel=case1RelVel(deb, b, t);
-      if(dist<=D.captureKm&&rel<=D.captureRelVelKmS){ case1Dock(t); break; }
+      if(dist<=D.captureKm&&rel<=D.captureRelVelKmS){ try{ CASE1._missTrail=[]; }catch(_){} case1Dock(t); break; }
+      // MISS DETECTOR (dock): closing distance diverging 3 ticks → missed,
+      // orders to best-positioned bot NOW.
+      try{
+        CASE1._missTrail=CASE1._missTrail||[];
+        CASE1._missTrail.push(dist); if(CASE1._missTrail.length>3) CASE1._missTrail.shift();
+        const m=CASE1._missTrail;
+        if(m.length===3&&m[2]>m[1]&&m[1]>m[0]&&(m[2]-m[0])>1.5&&dist>D.captureKm){
+          CASE1._missTrail=[];
+          case1Handoff('missed dock — diverging '+m[0].toFixed(1)+'→'+m[2].toFixed(1)+'km');
+          break;
+        }
+      }catch(_){}
       if(t>(CASE1.dockDeadline||Infinity)){ case1Handoff('dock timeout d='+dist.toFixed(1)+'km'); }
       break;
     }
@@ -4846,7 +4955,12 @@ function case1Tick(){
     case 'POST_BURN_VERIFICATION': {
       case1SampleLive();
       try{ if(CASE1.docked) case1LockBotToDebris(t); }catch(_){}
-      if(CASE1.docked&&(!CASE1.bot||sats.indexOf(CASE1.bot)<0)){ CASE1.errors.push('deploy bot lost during push'); case1SetState('ABORTED','bot lost during push'); break; }
+      if(CASE1.docked&&(!CASE1.bot||sats.indexOf(CASE1.bot)<0)){
+        // NO ABORTED: bot lost mid-push — hand to next-best bot by position.
+        case1Log('bot lost during push — auto-handoff to next-best (no abort)');
+        CASE1.docked=false; CASE1.push=null;
+        case1Handoff('bot lost during push'); break;
+      }
       // GRADUAL PUSH metering: docked stack feeds its Δv in small retrograde
       // fractions across the burn window — debris spirals down progressively while
       // BURN ACTIVE shows. Undocks (bot survives) once the full Δv is delivered.
@@ -4869,7 +4983,19 @@ function case1Tick(){
       if(t-CASE1.postBurn.start>=CASE1.postBurn.period*CASE_1_CONFIG.verify.postBurnRevs){
         const per=deb.a*(1-deb.e)-KM_PER_UNIT;
         if(per<=CASE_1_CONFIG.reentry.safePerigeeMaxKm) case1SetState('REENTRY_TRACKING','perigee '+per.toFixed(0)+'km');
-        else { CASE1.errors.push('burn did not lower perigee ('+per.toFixed(0)+'km)'); case1SetState('ABORTED','burn ineffective'); }
+        // NO ABORTED: burn under-delivered — re-estimate from current orbit and
+        // push again (next-best window), instead of killing the run.
+        else {
+          const re=case1EstimateBurn(deb, CASE_1_CONFIG.burn.targetPerigeeKm);
+          const imp2=re.dv*1000*(deb.mass||40);
+          const dur2=Math.max(60, CASE_1_CONFIG.burn.pushDurSec||480);
+          CASE1.burn={ dv:re.dv, impulse:imp2, burnSec:dur2, perigee:re.perigee, t, burnT0:t, by:'IBS RETRY PUSH' };
+          CASE1.push={ total:re.dv, applied:0, t0:t, dur:dur2 };
+          CASE1.postBurn={ start:t, period:deb.periodSec() };
+          case1Log('burn under-delivered (perigee '+per.toFixed(0)+'km) — retrying push Δv '+re.dv.toFixed(3)+'km/s (no abort)');
+          try{ fleetNotice('CASE 1 RETRY PUSH — <b>Δv '+re.dv.toFixed(3)+'km/s</b> again (no abort)'); }catch(_){}
+          try{ case1Render(); }catch(_){}
+        }
       }
       break;
     }
@@ -4888,9 +5014,11 @@ function case1Tick(){
       }catch(_){}
       const ok=per>=CASE_1_CONFIG.reentry.safePerigeeMinKm&&per<=CASE_1_CONFIG.reentry.safePerigeeMaxKm;
       if(!ok){
-        CASE1.errors.push('reentry band unsafe: perigee '+per.toFixed(0)+'km (want 50–150)');
-        try{ fleetNotice('CCS FLAG — <b>unsafe reentry band</b> '+per.toFixed(0)+'km'); }catch(_){}
-        case1SetState('ABORTED','unsafe reentry footprint');
+        // NO ABORTED: unsafe footprint this rev — hold and retry next rev.
+        CASE1._holdUntil=t+deb.periodSec();
+        try{ fleetNotice('CASE 1 HOLD — <b>unsafe footprint</b> '+per.toFixed(0)+'km, retry next rev (no abort)'); }catch(_){}
+        case1Log('reentry band unsafe: perigee '+per.toFixed(0)+'km — HOLD, retry next rev (no abort)');
+        case1SetState('SAFETY_HOLD','unsafe footprint — retry next rev');
         break;
       }
       // wait for actual atmospheric entry: debris coasts on its new Earth-leaning
@@ -4913,18 +5041,31 @@ function case1Handoff(reason){  const b=CASE1.bot;
   if(CASE1.docked){ try{ case1Undock(case1Now(),'handoff'); }catch(_){ CASE1.docked=false; } }
   try{ if(b) b.attitude='prograde'; }catch(_){}
   try{ if(b) b.case1Unavailable=true; }catch(_){}
-  case1Log('handoff: '+(b?b.label:'?')+' failed ('+reason+') — re-evaluating');
-  try{ fleetNotice('CASE 1 HANDOFF — <b>'+(b?b.label:'bot')+'</b> unavailable ('+reason+')'); }catch(_){}
+  // MISS → ORDERS PASSED: failed bot is out, kill order instantly re-issued to
+  // the best-positioned valid bot by CURRENT distance (see case1SelectBot).
+  let missD='—';
+  try{ missD=case1DistKm(CASE1.target, b, case1Now()).toFixed(0)+'km'; }catch(_){}
+  case1Log('MISS: '+(b?b.label:'?')+' missed ('+reason+', was '+missD+') — passing extermination orders to best-positioned bot…');
+  try{ fleetNotice('CASE 1 MISS — <b>'+(b?b.label:'bot')+'</b> missed ('+reason+') → <b>passing orders to best-positioned bot</b>'); }catch(_){}
   CASE1.handoffCount++;
   CASE1.push=null;
+  try{ CASE1._missTrail=[]; }catch(_){}
   const sel=case1SelectBot();
   if(sel.best){
     CASE1.bot=sel.best.bot; CASE1.backupBots=sel.rest.map(r=>r.bot);
     CASE1._lastRzT=case1Now(); CASE1.rzDeadline=case1Now()+CASE_1_CONFIG.rendezvous.timeoutRevs*CASE1.target.periodSec()+600;
+    try{ if(typeof setAutoFollow==='function') setAutoFollow(CASE1.target, false); }catch(_){}
+    case1Log('ORDERS → '+(sel.best.bot.label||'bot')+' (best position now: '+sel.best.dist.toFixed(0)+'km, rel '+(sel.best.rel*1000).toFixed(0)+'m/s, margin +'+sel.best.margin.toFixed(3)+'km/s)');
+    try{ fleetNotice('CASE 1 ORDERS → <b>'+(sel.best.bot.label||'bot')+'</b> best-positioned ('+sel.best.dist.toFixed(0)+'km)'); }catch(_){}
     case1SetState('RENDEZVOUS','handoff → '+CASE1.bot.label);
   } else {
-    CASE1.errors.push('no valid Action Bot remains — operation stopped, CCS notified');
-    case1SetState('ABORTED','no bot remains');
+    // NO ABORTED: all bots flagged unavailable — geometry drifts, so give every
+    // bot a second chance and re-run selection by current position.
+    try{ CASE1.actions.forEach(b=>{ b.case1Unavailable=false; }); }catch(_){}
+    CASE1._selDeadline=case1Now()+CASE1.target.periodSec()*1.5+600; CASE1._selAttempts=0;
+    case1Log('handoff: no bot valid right now — all bots re-enabled, re-selecting next-best by position (no abort)');
+    try{ fleetNotice('CASE 1 RE-SELECT — <b>retrying next-best bot</b> by position (no abort)'); }catch(_){}
+    case1SetState('SELECTING_ACTION_BOT','handoff re-select by position');
   }
 }
 setInterval(case1Tick, 500);
