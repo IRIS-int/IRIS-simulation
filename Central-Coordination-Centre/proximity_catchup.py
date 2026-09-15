@@ -28,6 +28,10 @@ SETTLE_S = 10.0            # wait after bleed before anyone moves
 TARGET_SPEED_KM_S = 9.5    # catch-up burn target (~9-10 km/s band)
 CAPTURE_KM = 150.0         # intercept radius -> brake + dock
 DV_BUDGET_KM_S = 6.0       # catch-up fuel budget per bot (plane turn included)
+# OUTER-SIDE DISPOSAL RULE: disposal must latch from OUTSIDE the debris
+# (zenith face) so the push is logically INWARDS (retrograde + inward radial).
+OUTER_MARGIN_KM = 0.5      # bot must sit this far outside debris to attach
+INWARD_RADIAL_FRAC = 0.3   # inward share: dv_radial = frac * dv_retrograde
 
 
 def circ_speed(r_km):
@@ -321,12 +325,42 @@ def find_transfer(bot, w, t0, h_ref):
 
 
 def run_disposal(w, bot, bi, t_dock):
-    """Docked push -> undock (bot survives) -> debris descent -> burnup."""
+    """Docked push -> undock (bot survives) -> debris descent -> burnup.
+    OUTER-SIDE RULE: attach only from outside (bot radius >= debris radius +
+    margin), thruster on the zenith face, push retrograde + INWARD radial."""
+    st = w.debris_at(t_dock)
+    # --- OUTER-SIDE CONDITION (SHELL, not instant radius): an impulsive raise
+    # keeps r(t_dock) continuous but lifts the shell, so instant radius reads
+    # unchanged right after the burn. Compare semi-major axes.
+    p_b, _v_b = bot_state(bot, t_dock)
+    r_b, r_d = norm(p_b), norm(st["pos"])
+    off_inst = r_b - r_d
+    off = bot["a"] - st["a"]
+    if off < OUTER_MARGIN_KM:
+        off_before = off
+        need = (OUTER_MARGIN_KM - off) + 2.0  # 2 km buffer to stay outer
+        v_b = norm(_v_b) or 7.5
+        dv_up = max(0.005, min(0.2, need * v_b / (2.0 * max(1.0, bot["a"]))))
+        u_b = unit(_v_b)
+        impulsive_burn(bot, t_dock, (_v_b[0] + dv_up * u_b[0],
+                                     _v_b[1] + dv_up * u_b[1],
+                                     _v_b[2] + dv_up * u_b[2]))
+        off = bot["a"] - st["a"]
+        print("  OUTER-SIDE CORRECT: BOT-%02d shell %+.1fkm (inst %+.1fkm) inner -> raised +%.3fkm/s "
+              "=> shell +%.1fkm OUTSIDE (disposal from outer side, pushing inwards)."
+              % (bi, off_before, off_inst, dv_up, off))
+    else:
+        print("  OUTER-SIDE OK: BOT-%02d shell +%.1fkm OUTSIDE debris (inst %+.1fkm) "
+              "(zenith-face attach, pushing inwards)." % (bi, off, off_inst))
     st = w.debris_at(t_dock)
     push = plan_detumble_and_push(w.mass, w.size_m, 0.0, st["alt"])
     dv = push["thruster_dv_km_s"]
     u = unit(st["vel"])
-    v_stack = (st["vel"][0] - dv * u[0], st["vel"][1] - dv * u[1], st["vel"][2] - dv * u[2])
+    rhat = unit(st["pos"])  # outward radial; inward push = -rhat
+    dv_in = INWARD_RADIAL_FRAC * dv
+    v_stack = (st["vel"][0] - dv * u[0] - dv_in * rhat[0],
+               st["vel"][1] - dv * u[1] - dv_in * rhat[1],
+               st["vel"][2] - dv * u[2] - dv_in * rhat[2])
     el = rv2coe(st["pos"], v_stack)
     for _ in range(60):
         if el["a"] <= 0 or el["e"] >= 1.0:
@@ -337,20 +371,22 @@ def run_disposal(w, bot, bi, t_dock):
         step = max(-0.01, min(0.01, (rp - 55.0) * 0.00004))
         if abs(step) < 1e-6:
             break
-        v_try = (v_stack[0] - step * u[0], v_stack[1] - step * u[1], v_stack[2] - step * u[2])
+        v_try = (v_stack[0] - step * u[0] - step * INWARD_RADIAL_FRAC * rhat[0],
+                 v_stack[1] - step * u[1] - step * INWARD_RADIAL_FRAC * rhat[1],
+                 v_stack[2] - step * u[2] - step * INWARD_RADIAL_FRAC * rhat[2])
         el_try = rv2coe(st["pos"], v_try)
         if el_try["a"] <= 0 or el_try["e"] >= 1.0:
             break
         v_stack, el = v_try, el_try
-    dv = norm(sub(st["vel"], v_stack))  # honest total retrograde cost
+    dv = norm(sub(st["vel"], v_stack))  # honest total (retrograde + inward) cost
     n = math.sqrt(MU / el["a"] ** 3)
     deb = dict(a=el["a"], e=el["e"], inc=el["inc"], raan=el["raan"],
                argp=el["argp"], M0=(el["M"] - n * t_dock / RAD) % 360.0)
     rp = el["a"] * (1 - el["e"]) - R_EARTH_KM
     ra = el["a"] * (1 + el["e"]) - R_EARTH_KM
     T = 2 * math.pi * math.sqrt(el["a"] ** 3 / MU)
-    print("  SLOW-DOWN + PUSH (docked stack): dv %.3fkm/s retrograde over ~%.0fs -> disposal orbit"
-          " %.0fx%.0fkm, T~%s." % (dv, push["thruster_dur_s"], rp, ra, fmt_eta(T)))
+    print("  SLOW-DOWN + PUSH (docked OUTER face): dv %.3fkm/s retrograde + %.0f%% inward over ~%.0fs -> disposal orbit"
+          " %.0fx%.0fkm, T~%s." % (dv, INWARD_RADIAL_FRAC * 100.0, push["thruster_dur_s"], rp, ra, fmt_eta(T)))
     # metered push, then undock: bot raises to a safe shell and survives
     t_sep = t_dock + min(push["thruster_dur_s"], 600.0)
     p_s, v_s = bot_state(deb, t_sep)

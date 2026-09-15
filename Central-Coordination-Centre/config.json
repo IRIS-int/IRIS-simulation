@@ -2,5 +2,8 @@
   "minSepKm": 5,
   "riskRadiusKm": 12,
   "deorbitPerigeeKm": 100,
-  "maxAssignKm": 2000
+  "maxAssignKm": 2000,
+  "outerMarginKm": 0.5,
+  "inwardRadialFrac": 0.3,
+  "outerSideRequired": true
 }

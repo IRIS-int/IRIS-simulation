@@ -48,18 +48,26 @@ class CentralCoordinationCentre {
     // calculated force that stops it in targetBeamTimeS (scales with spin)
     const forceN = (arm * this.ibs.plumeEta * this.ibs.targetBeamTimeS) > 0
       ? L / (arm * this.ibs.plumeEta * this.ibs.targetBeamTimeS) : 0;
-    // disposal push after spin ~= 0: retrograde drop to target perigee (crash/burnup)
+    // disposal push after spin ~= 0: OUTER-SIDE rule — thruster latches on the
+    // zenith (outer) face and pushes retrograde + INWARD radial so the decay is
+    // logically inwards. dv is retrograde share; dvInward = frac * dv.
     const MU = 398600.4418, RE = 6371.0;
     const r = RE + alt, rP = RE + (this.config.deorbitPerigeeKm || 65);
     const aNew = (r + rP) / 2;
     const vC = Math.sqrt(MU / r);
     const vNew = Math.sqrt(Math.max(1e-9, MU * (2 / r - 1 / aNew)));
     const dv = Math.max(0, vC - vNew);
+    const inwardFrac = (this.config.inwardRadialFrac != null ? this.config.inwardRadialFrac : 0.3);
+    const dvInward = inwardFrac * dv;
     const plan = {
       tumbleRadS: tumble, omegaBleed: omega, inertia: I, angMomentum: L,
       forceN, beamTimeS, beamTimeSizedS: this.ibs.targetBeamTimeS,
       impulseNs: forceN * this.ibs.targetBeamTimeS,
-      dvKmS: dv, perigeeKm: (this.config.deorbitPerigeeKm || 65),
+      dvKmS: dv, dvInwardKmS: dvInward, inwardFrac,
+      dvTotalKmS: Math.hypot(dv, dvInward),
+      perigeeKm: (this.config.deorbitPerigeeKm || 65),
+      outerSideRequired: true, outerMarginKm: (this.config.outerMarginKm || 0.5),
+      attachFace: 'zenith-outer (push inwards)',
     };
     this.detumblePlans.push(plan);
     return plan;

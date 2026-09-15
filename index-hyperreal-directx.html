@@ -3529,7 +3529,11 @@ const CASE_1_CONFIG={
   // THRUSTER LAUNCH: the action bot holds its lead slot and releases thruster
   // thruster that flies to the debris, attaches and pushes it down (bot never docks).
   dock:{ captureKm:2.5, captureRelVelKmS:1.2, matchRateKmSPerSimSec:0.0001, timeoutRevs:2, undockRaiseKmS:0.035, eccTol:0.002, snapKm:12, snapHoldSimSec:240 },
-  burn:{ targetPerigeeKm:65, thrustN:500, pushDurSec:180 },
+  // OUTER-SIDE DISPOSAL RULE: the disposal push must happen from OUTSIDE the
+  // debris (thruster latched on the zenith/anti-Earth face) so the push is
+  // logically INWARDS (retrograde + negative-radial). inwardRadialFrac sets
+  // the inward share of each push fraction: dvR = -frac * dvP.
+  burn:{ targetPerigeeKm:65, thrustN:500, pushDurSec:180, outerSideRequired:true, outerMarginKm:0.5, inwardRadialFrac:0.3 },
   reentry:{ safePerigeeMinKm:50, safePerigeeMaxKm:150, uncertaintyKm:50 },
   verify:{ deviationKm:5, postBurnRevs:1 }
 };
@@ -3576,6 +3580,57 @@ function case1DistKm(a, b, t){
     const ra=a.eciKm(t), rb=b.eciKm(t);
     return Math.hypot(ra[0]-rb[0], ra[1]-rb[1], ra[2]-rb[2]);
   }catch(_){ return 1e9; }
+}
+// OUTER-SIDE GEOMETRY: + = bot/thruster radially OUTSIDE debris (farther from
+// Earth centre). Disposal is only allowed from the outer side, pushing inwards.
+function case1RadialOffsetKm(b, deb, t){
+  try{
+    const rb=b.eciKm(t), rd=deb.eciKm(t);
+    return Math.hypot(rb[0],rb[1],rb[2])-Math.hypot(rd[0],rd[1],rd[2]);
+  }catch(_){ return 0; }
+}
+function case1IsOuterSide(b, deb, t, marginKm){
+  try{
+    const m=(marginKm!=null?marginKm:((CASE_1_CONFIG.burn||{}).outerMarginKm||0.5));
+    // SHELL comparison (semi-major axes): an impulsive raise keeps instantaneous
+    // r(t) continuous but lifts the shell — instant-radius would read unchanged
+    // right after the burn and falsely stay "inner". a-difference is the truth.
+    if(b&&deb&&isFinite(b.a)&&isFinite(deb.a)) return (b.a-deb.a)>=m;
+    return case1RadialOffsetKm(b, deb, t)>=m;
+  }catch(_){ return false; }
+}
+function case1ShellOffsetKm(b, deb){
+  try{ if(b&&deb&&isFinite(b.a)&&isFinite(deb.a)) return b.a-deb.a; }catch(_){}
+  return 0;
+}
+// Enforce outer-side before disposal: if the bot is inside/at the debris shell,
+// raise it prograde until it sits outerMarginKm + 2km buffer outside. Returns true
+// when the geometry is outer-side (already was, or just raised). Fuel-costed.
+function case1EnsureOuterSide(b, deb, t){
+  try{
+    const C=CASE_1_CONFIG.burn||{};
+    if(!C.outerSideRequired) return true;
+    const margin=(C.outerMarginKm!=null?C.outerMarginKm:0.5);
+    let off=case1ShellOffsetKm(b, deb);
+    let offInst=case1RadialOffsetKm(b, deb, t);
+    if(off>=margin) return true;
+    const needKm=(margin-off)+2.0; // buffer so it stays outer through the push
+    let dv=0.02;
+    try{
+      const vv=b.velKmS(t), vm=Math.hypot(vv[0],vv[1],vv[2])||7.5;
+      dv=Math.max(0.005, Math.min(0.2, needKm*vm/(2*Math.max(1,b.a))));
+    }catch(_){}
+    if(case1BotBudget(b)<dv+0.05){
+      case1Log('OUTER-SIDE BLOCKED — '+b.label+' shell '+off.toFixed(1)+'km (inst '+offInst.toFixed(1)+'km) inner but budget short ('+case1BotBudget(b).toFixed(3)+'km/s) — holding for handoff');
+      return false;
+    }
+    b.maneuver(dv, 0, 0, t);
+    b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(dv);
+    off=case1ShellOffsetKm(b, deb);
+    offInst=case1RadialOffsetKm(b, deb, t);
+    case1Log('OUTER-SIDE CORRECT — '+b.label+' was inner, raised +'+dv.toFixed(3)+'km/s → shell +'+off.toFixed(1)+'km OUTSIDE '+deb.label+' (inst '+offInst.toFixed(1)+'km, burn point continuous) — disposal from outer side, pushing inwards');
+    return off>=margin;
+  }catch(_){ return false; }
 }
 function case1Tumble(s){ return (s.tumbleRadS!=null)?s.tumbleRadS:(s.spin||0)*0.1; }
 function case1BotBudget(s){ return Math.max(0,(s.dvBudgetKmS||0)-(s.dvUsedKmS||0)); }
@@ -4762,6 +4817,21 @@ function case1ArmThrusterPush(t){
   }
   // Stabilized: lock spin to zero for the thruster-driven stack (no re-tumble while joined).
   try{ deb.tumbleRadS=0; deb.spin=0; }catch(_){}
+  // OUTER-SIDE CONDITION: disposal must latch from OUTSIDE the debris (zenith
+  // face) so the push is logically INWARDS. Refuse + fix geometry first.
+  try{
+    if((CASE_1_CONFIG.burn||{}).outerSideRequired && b && sats.indexOf(b)>=0){
+      if(!case1IsOuterSide(b, deb, t)){
+        const off0=case1RadialOffsetKm(b, deb, t);
+        case1Log('THRUSTER HOLD — outer-side rule: '+b.label+' offset '+off0.toFixed(1)+'km (inner) — raising to outer side before attach');
+        if(!case1EnsureOuterSide(b, deb, t)){
+          CASE1.launch=null;
+          if(CASE1.state!=='DOCKING') case1SetState('DOCKING','waiting outer-side geometry — bot raising');
+          return false;
+        }
+      }
+    }
+  }catch(_){}
   const est=case1EstimateBurn(deb, CASE_1_CONFIG.burn.targetPerigeeKm);
   try{
     const vv=deb.velKmS(t), vm=Math.hypot(vv[0],vv[1],vv[2]);
@@ -4773,18 +4843,22 @@ function case1ArmThrusterPush(t){
     case1Vis.preburn.renderOrder=5; case1Vis.preburn.frustumCulled=false; scene.add(case1Vis.preburn);
   }catch(_){}
   // THRUSTER PUSH (thruster stage, only after detumble spin ~= 0): the attached unit
-  // drive the now-stable debris forward-down to crash — retrograde Δv in small
-  // fractions over pushDurSec through maneuver(), so the trajectory always
-  // results from changed state. Metered per tick by case1ProgressDockedPush.
+  // sits on the OUTER (zenith) face and drives the now-stable debris down-INWARDS
+  // to crash — retrograde + inward-radial Δv in small fractions over pushDurSec
+  // through maneuver(), so the trajectory always results from changed state.
+  // Metered per tick by case1ProgressDockedPush.
   // The action bot holds its lead slot the whole time and never docks itself.
   const _dvMag=est.dv;
+  const _inFrac=Math.max(0, Math.min(1, (CASE_1_CONFIG.burn||{}).inwardRadialFrac||0));
+  const _offNow=case1ShellOffsetKm(b, deb);
+  const _offInst=case1RadialOffsetKm(b, deb, t);
   const impulse=_dvMag*1000*(deb.mass||40);
   const pushDur=Math.max(60, CASE_1_CONFIG.burn.pushDurSec||180);
-  CASE1.burn={ dv:est.dv, impulse, burnSec:pushDur, perigee:est.perigee, t, burnT0:t, by:'PODS PUSH' };
+  CASE1.burn={ dv:est.dv, impulse, burnSec:pushDur, perigee:est.perigee, t, burnT0:t, by:'PODS PUSH (outer→inward)', inwardFrac:_inFrac, outerOffsetKm:_offNow };
   CASE1.predicted={ el:case1ElOf(deb), t };
   CASE1.postBurn={ start:t, period:deb.periodSec() };
-  CASE1.docked=true; // push stack joined = thruster attached (bot stands off)
-  CASE1.push={ total:_dvMag, applied:0, t0:t, dur:pushDur };
+  CASE1.docked=true; // push stack joined = thruster attached on OUTER face (bot stands off)
+  CASE1.push={ total:_dvMag, applied:0, t0:t, dur:pushDur, inwardFrac:_inFrac, fromOuter:true, outerOffsetKm:_offNow };
   CASE1._slotT=t;
   try{ case1HoldLeadSlot(t); }catch(_){}
   try{ if(b) b.attitude='ibs-track'; }catch(_){}
@@ -4793,17 +4867,27 @@ function case1ArmThrusterPush(t){
     try{ fleetNotice('CCS ALERT — <b>'+b.label+'</b> below energy reserve · awaiting confirmation (IRIS.confirmDisposal)'); }catch(_){}
     case1Log('EOL watch: '+b.label+' needsDisposal — waiting CCS, not auto-disposing');
   }
-  try{ fleetNotice('◈ THRUSTER ATTACHED — locked onto stable <b>'+deb.label+'</b> (spin ~0) · <b>BURN ARMED</b> thruster push Δv '+est.dv.toFixed(3)+'km/s → perigee '+est.perigee+'km · <b>'+b.label+'</b> holding slot'); }catch(_){}
-  case1Log('THRUSTER→ARMED: thruster driving stable '+deb.label+' down — Δv '+est.dv.toFixed(4)+'km/s (impulse ~'+Math.round(impulse)+'N·s over ~'+Math.round(pushDur)+'s sim) from simT '+Math.round(t));
+  try{ fleetNotice('◈ THRUSTER ATTACHED — OUTER SIDE ✓ locked onto <b>'+deb.label+'</b> zenith face (offset +'+_offNow.toFixed(1)+'km) · <b>BURN ARMED</b> push Δv '+est.dv.toFixed(3)+'km/s retrograde + '+Math.round(_inFrac*100)+'% inward → perigee '+est.perigee+'km · <b>'+b.label+'</b> holding slot'); }catch(_){}
+  case1Log('THRUSTER→ARMED (outer→inward): thruster on '+deb.label+' outer face (+'+_offNow.toFixed(1)+'km) — Δv '+est.dv.toFixed(4)+'km/s retrograde + inward x'+_inFrac+' (impulse ~'+Math.round(impulse)+'N·s over ~'+Math.round(pushDur)+'s sim) from simT '+Math.round(t));
   return true;
 }
-// Thruster push metering: the attached unit feeds Δv as small retrograde fractions across
-// the burn window (same maneuver() per fraction, fuel charged to the action
-// bot's tanks). Bot holds clear the whole time. Returns true while pushing.
+// Thruster push metering: the OUTER-face unit feeds Δv as small retrograde +
+// inward-radial fractions across the burn window (same maneuver() per fraction,
+// fuel charged to the action bot's tanks). Outer→inward is the only allowed
+// disposal direction. Bot holds clear the whole time. Returns true while pushing.
 function case1ProgressDockedPush(t){
   try{
     const deb=CASE1.target, b=CASE1.bot;
     if(!CASE1.docked||!CASE1.push||!deb||sats.indexOf(deb)<0) return false;
+    // OUTER-SIDE FAILSAFE: never push from inside — re-raise first, hold thrust.
+    try{
+      if(((CASE_1_CONFIG.burn||{}).outerSideRequired)&&b&&sats.indexOf(b)>=0&&!case1IsOuterSide(b, deb, t)){
+        case1Log('PUSH HOLD — outer-side rule violated (offset '+case1RadialOffsetKm(b, deb, t).toFixed(1)+'km) — re-raising, no dv this tick');
+        case1EnsureOuterSide(b, deb, t);
+        try{ case1HoldLeadSlot(t); }catch(_){}
+        return true;
+      }
+    }catch(_){}
     // Docked stack is rigid: spin stays locked at ~0 while the thruster fires.
     // Failsafe — if anything re-spun it, hold the burn until re-stabilized.
     if(case1Tumble(deb)>CASE_1_CONFIG.tumble.maxRadS){
@@ -4815,9 +4899,11 @@ function case1ProgressDockedPush(t){
     const frac=Math.max(0, Math.min(1, (t-CASE1.push.t0)/Math.max(1,CASE1.push.dur)));
     const target=CASE1.push.total*frac, d=target-(CASE1.push.applied||0);
     if(d>1e-9&&isFinite(d)){
-      deb.maneuver(-d, 0, 0, t);
+      const inFrac=Math.max(0, Math.min(1, (CASE1.push&&CASE1.push.inwardFrac!=null)?CASE1.push.inwardFrac:((CASE_1_CONFIG.burn||{}).inwardRadialFrac||0)));
+      const dR=-inFrac*d; // inward radial share: from outer side, pushing towards Earth
+      deb.maneuver(-d, dR, 0, t);
       CASE1.push.applied=target;
-      if(b&&sats.indexOf(b)>=0) b.dvUsedKmS=(b.dvUsedKmS||0)+d;
+      if(b&&sats.indexOf(b)>=0) b.dvUsedKmS=(b.dvUsedKmS||0)+Math.hypot(d, dR);
     }
     try{ case1HoldLeadSlot(t); }catch(_){}
     if(frac>=1){
@@ -5340,8 +5426,9 @@ function case1Tick(){
           const re=case1EstimateBurn(deb, CASE_1_CONFIG.burn.targetPerigeeKm);
           const imp2=re.dv*1000*(deb.mass||40);
           const dur2=Math.max(60, CASE_1_CONFIG.burn.pushDurSec||180);
-          CASE1.burn={ dv:re.dv, impulse:imp2, burnSec:dur2, perigee:re.perigee, t, burnT0:t, by:'IBS RETRY PUSH' };
-          CASE1.push={ total:re.dv, applied:0, t0:t, dur:dur2 };
+          const reInFrac=Math.max(0, Math.min(1, (CASE_1_CONFIG.burn||{}).inwardRadialFrac||0));
+          CASE1.burn={ dv:re.dv, impulse:imp2, burnSec:dur2, perigee:re.perigee, t, burnT0:t, by:'IBS RETRY PUSH (outer→inward)', inwardFrac:reInFrac };
+          CASE1.push={ total:re.dv, applied:0, t0:t, dur:dur2, inwardFrac:reInFrac, fromOuter:true };
           CASE1.postBurn={ start:t, period:deb.periodSec() };
           case1Log('burn under-delivered (perigee '+per.toFixed(0)+'km) — retrying push Δv '+re.dv.toFixed(3)+'km/s (no abort)');
           try{ fleetNotice('CASE 1 RETRY PUSH — <b>Δv '+re.dv.toFixed(3)+'km/s</b> again (no abort)'); }catch(_){}
