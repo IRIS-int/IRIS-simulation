@@ -3510,7 +3510,7 @@ const CASE_1_CONFIG={
   tumble:{ maxRadS:0.05 },
   // IBS DETUMBLE (design): ion-beam force is CALCULATED from mapped tumble speed
   // (more spin => more force). L=I*omega, torque=F*arm*eta, beam bleeds omega->0,
-  // then docked thruster pushes stable debris to crash/burnup.
+  // then attached pods push stable debris to crash/burnup.
   ibs:{ thrustN:0.05, plumeEta:0.7, targetBeamTimeS:600 },
   precision:{ min:0.9 },
   // SELECT REL-VEL GATE is phase-agnostic by design: instantaneous relVel includes
@@ -3526,11 +3526,10 @@ const CASE_1_CONFIG={
   // drift, no same-orbit chase). Release corridor 15–110km covers the 20–90km
   // shell band. The bot NEVER leaves this orbit to hit the debris.
   standoff:{ minKm:15, maxKm:110, maxRelVelKmS:0.6, holdRateDegPerSimSec:0.005 },
-  // IBS DOCKING: the agent matches the debris orbit (radial + plane + phase, all
-  // through the existing maneuver() engine), captures within 2.5km & 1.2km/s,
-  // then the docked stack performs the de-orbit burn with the main thruster.
-  dock:{ captureKm:2.5, captureRelVelKmS:1.2, matchRateKmSPerSimSec:0.0001, timeoutRevs:2, undockRaiseKmS:0.035 },
-  burn:{ targetPerigeeKm:65, thrustN:500, pushDurSec:480 },
+  // THRUSTER LAUNCH: the action bot holds its lead slot and releases thruster
+  // pods that fly to the debris, attach and push it down (bot never docks).
+  dock:{ captureKm:2.5, captureRelVelKmS:1.2, matchRateKmSPerSimSec:0.0001, timeoutRevs:2, undockRaiseKmS:0.035, eccTol:0.002, snapKm:12, snapHoldSimSec:240 },
+  burn:{ targetPerigeeKm:65, thrustN:500, pushDurSec:180 },
   reentry:{ safePerigeeMinKm:50, safePerigeeMaxKm:150, uncertaintyKm:50 },
   verify:{ deviationKm:5, postBurnRevs:1 }
 };
@@ -3707,10 +3706,10 @@ function case1Render(){
       RENDEZVOUS:'OFFSET HOLD · own orbit, regular gap (bot never hits)',
       SHEPHERD:'ION-BEAM SHEPHERD · detumble facing debris',
       SAFETY_VALIDATION:'READY FOR OPERATION · descent safety',
-      DOCKING:'◈ DOCKING · orbit match + capture',
-      POST_BURN_VERIFICATION:'POST-BURN · predicted vs actual',
+      DOCKING:'◈ THRUSTER LAUNCH · pods fly + attach',
+      POST_BURN_VERIFICATION:'THRUSTER PUSH · pods driving descent',
       REENTRY_TRACKING:'RE-ENTRY TRACKING',
-      CASE_1_COMPLETE:'✓ COMPLETE',
+      CASE_1_COMPLETE:'✓ BURN-UP SUCCESSFUL',
       SAFETY_HOLD:'HOLD · descent unsafe',
       VALIDATION_FAILED:'BLOCKED · fix fleet',
       ABORTED:'ABORTED'
@@ -3720,15 +3719,15 @@ function case1Render(){
     if(CASE1.target) extra+='<br>TARGET <b style="color:#facc15">'+CASE1.target.label+'</b> a '+(CASE1.target.a-KM_PER_UNIT).toFixed(1)+'km e '+CASE1.target.e.toFixed(4);
     if(CASE1.bot) extra+=' · IBS <b style="color:#22d3ee">'+CASE1.bot.label+'</b> (ion-beam shepherd)';
     if(CASE1.state==='SHEPHERD'&&CASE1.target) extra+='<br>IBS BEAM <b style="color:#a78bfa">ON</b> · tumble <b>'+case1Tumble(CASE1.target).toFixed(4)+' rad/s</b> → ≤'+CASE_1_CONFIG.tumble.maxRadS+(CASE1.detumble?(' · F <b>'+(CASE1.detumble.forceN*1000).toFixed(2)+' mN</b> (calc from mapped spin)'): '');
-    if(CASE1.state==='DOCKING'&&CASE1.bot) extra+='<br>DOCKING d <b>'+(CASE1.distKm!=null?CASE1.distKm.toFixed(1):'…')+' km</b> · rel '+(CASE1.relMs!=null?CASE1.relMs.toFixed(0):'…')+' m/s → capture ≤'+CASE_1_CONFIG.dock.captureKm+'km'+(function(){ try{ const e=case1CatchETA(); return e?(' · meet ~<b>'+case1FmtETA(e.etaS)+'</b>'):''; }catch(_){ return ''; } })();
-    if(CASE1.docked) extra+=' · <b style="color:#4ade80">DOCKED</b>';
+    if(CASE1.state==='DOCKING'&&CASE1.bot) extra+='<br>THRUSTER LAUNCH <b>'+(CASE1.launch?(Math.round(100*Math.max(0,Math.min(1,(case1Now()-CASE1.launch.t0)/Math.max(1,CASE1.launch.dur))))+'%'):'…')+'</b> · pods → <b>'+(CASE1.target?CASE1.target.label:'—')+'</b>'+(CASE1.launch&&CASE1.launch.attached?' · <b style="color:#4ade80">ATTACHED</b>':'');
+    if(CASE1.docked) extra+=' · <b style="color:#4ade80">PODS ATTACHED</b>';
     if(CASE1.detectingIds.length) extra+='<br>TRACKING: <b style="color:#4ade80">'+CASE1.detectingIds.length+' sensory</b> · '+CASE1.detectingIds.slice(0,3).join(', ')+(CASE1.detectingIds.length>3?'…':'');
     if(CASE1.state==='RENDEZVOUS'&&CASE1.relMs!=null) extra+='<br>OFFSET ORBIT d <b>'+(CASE1.distKm||0).toFixed(1)+' km</b> · rel '+(CASE1.relMs||0).toFixed(0)+' m/s → hold 15–110km & ≤600m/s (own orbit, bot never hits)';
-    if(CASE1.state==='DOCKING'&&CASE1.bot) extra+='<br>DOCK <b>APPROACH</b> d <b>'+(CASE1.distKm!=null?CASE1.distKm.toFixed(1):'…')+' km</b> · rel '+(CASE1.relMs!=null?CASE1.relMs.toFixed(0):'…')+' m/s → capture ≤'+CASE_1_CONFIG.dock.captureKm+'km & ≤'+(CASE_1_CONFIG.dock.captureRelVelKmS*1000).toFixed(0)+'m/s'+(function(){ try{ const e=case1CatchETA(); return e?(' · meet ~<b>'+case1FmtETA(e.etaS)+'</b>'):''; }catch(_){ return ''; } })();
+    if(CASE1.state==='DOCKING'&&CASE1.bot) extra+='<br>PODS <b>IN FLIGHT</b> → <b>'+(CASE1.target?CASE1.target.label:'—')+'</b> · bot <b>'+CASE1.bot.label+'</b> holding slot';
     if(CASE1.decayKmPerDay) extra+='<br>DECAY <b>'+CASE1.decayKmPerDay.toFixed(4)+' km/day</b>';
     if(CASE1.live.pos) extra+='<br>LIVE '+(fresh?'fresh':'<b style="color:#f87171">STALE</b>')+' · '+(L.alt||0).toFixed(1)+'km · obs '+L.observer;
     if(CASE1.burn){ let _pp=''; try{ if(CASE1.push&&CASE1.push.total>0) _pp=' '+Math.min(99,Math.round(100*(CASE1.push.applied||0)/CASE1.push.total))+'%'; }catch(_){}
-      extra+='<br>'+(CASE1.docked?'<b style="color:#4ade80">BURN ACTIVE</b> IBS docked push'+_pp+' · ':'IBS PUSH · ')+'Δv <b>'+CASE1.burn.dv.toFixed(3)+'km/s</b> retrograde → perigee '+CASE1.burn.perigee.toFixed(0)+'km'; }
+      extra+='<br>'+(CASE1.docked?'<b style="color:#4ade80">BURN ACTIVE</b> IBS pods push'+_pp+' · ':'IBS PUSH · ')+'Δv <b>'+CASE1.burn.dv.toFixed(3)+'km/s</b> retrograde → perigee '+CASE1.burn.perigee.toFixed(0)+'km'; }
     if(CASE1.preBurn&&CASE1.burn) extra+='<br>ORBIT a '+CASE1.preBurn.a.toFixed(1)+'→<b>'+CASE1.target.a.toFixed(1)+'km</b> · e '+CASE1.preBurn.e.toFixed(4)+'→<b>'+CASE1.target.e.toFixed(4)+'</b>';
     if(CASE1.reentry) extra+='<br>'+(CASE1.reentry.burned?'🔥 BURNED UP ':'REENTRY ')+CASE1.reentry.lat.toFixed(1)+'°/'+CASE1.reentry.lon.toFixed(1)+'° ±'+CASE_1_CONFIG.reentry.uncertaintyKm+'km'+(CASE1.reentry.burned?' · deleted':'');
     el.innerHTML='STATE <b>'+CASE1.state+'</b>'+extra+(CASE1.errors.length?'<br><span style="color:#f87171">'+CASE1.errors[CASE1.errors.length-1]+'</span>':'');
@@ -3747,10 +3746,10 @@ const CASE1_SEQ=[
   {label:'Offset hold (own orbit)', states:['RENDEZVOUS']},
   {label:'Ion-beam shepherd · detumble', states:['SHEPHERD']},
   {label:'Safety validation', states:['SAFETY_VALIDATION','SAFETY_HOLD']},
-  {label:'Dock: match orbit + capture', states:['DOCKING']},
-  {label:'Docked push → verify', states:['POST_BURN_VERIFICATION']},
+  {label:'Thruster launch · pods fly + attach', states:['DOCKING']},
+  {label:'Thruster push → verify', states:['POST_BURN_VERIFICATION']},
   {label:'Re-entry · burns <135km → gone <65km', states:['REENTRY_TRACKING']},
-  {label:'Burned up · deleted', states:['CASE_1_COMPLETE']},
+  {label:'Burn up successful', states:['CASE_1_COMPLETE']},
 ];
 function case1SeqIdx(){
   const s=CASE1.state;
@@ -3792,14 +3791,14 @@ function case1SeqCalc(i){
         const lock=stable?' · <b>STABLE ~0 → dock-push UNLOCKED</b>':' · <b>DOCK-PUSH GATED · shepherd thrust ACTIVE</b>';
         return 'ion-beam ON · tumble '+(tb!=null?tb.toFixed(4):'…')+' → ≤'+stopR+prog+' · '+bt+f+lock; }
       case 7: return 'sep '+(CASE1._safeMin!=null?CASE1._safeMin.toFixed(2):'…')+'km'+(CASE1._safeDelay?' delay '+CASE1._safeDelay+'/4':'');
-      case 8: { const D=CASE_1_CONFIG.dock;
-        let eta=''; try{ if(CASE1.dockDeadline!=null) eta=' · T-'+Math.max(0,Math.round(CASE1.dockDeadline-case1Now()))+'s'; }catch(_){}
-        let meet=''; try{ const e=case1CatchETA(); if(e) meet=' · meet ~'+case1FmtETA(e.etaS); }catch(_){}
+      case 8: { const L8=CASE1.launch;
+        let pct='…'; try{ if(L8) pct=Math.round(100*Math.max(0,Math.min(1,(case1Now()-L8.t0)/Math.max(1,L8.dur))))+'%'; }catch(_){}
+        const at=(L8&&L8.attached)?' · <b>ATTACHED ✓</b>':' · in flight';
         const tb8=tgt?case1Tumble(tgt):null;
         const gate=(tb8!=null&&tb8>(CASE_1_CONFIG.tumble||{}).maxRadS)?' · ⛔ tumbling — back to beam':' · spin ~0 ✓';
-        return 'match orbit → capture ≤'+D.captureKm+'km & ≤'+(D.captureRelVelKmS*1000).toFixed(0)+'m/s · d '+(CASE1.distKm!=null?CASE1.distKm.toFixed(1):'…')+'km · rel '+(CASE1.relMs!=null?CASE1.relMs.toFixed(0):'…')+'m/s'+eta+meet+(CASE1.docked?' · <b>DOCKED</b>':'')+gate; }
+        return 'pods '+((L8&&L8.n)||3)+'× released → '+((tgt&&tgt.label)||'debris')+' · transit '+pct+at+gate; }
       case 9: { let d='…'; try{ const P=CASE1.predicted; if(P&&tgt){ const t=case1Now(), pp=case1PropECI(P.el,t), ap=tgt.eciKm(t); d=Math.hypot(pp[0]-ap[0],pp[1]-ap[1],pp[2]-ap[2]).toFixed(1)+'km'; } }catch(_){}
-        return 'thruster AFTER stable · dev '+d+' ≤5km'; }
+        return 'pods pushing AFTER stable · dev '+d+' ≤5km'; }
       case 10: { const r=CASE1.reentry; return 'alt '+(CASE1.live&&CASE1.live.pos?CASE1.live.alt.toFixed(0):'…')+'km → burns <135km · gone <65km'+(r&&r.perigee!=null?(' · perigee '+r.perigee.toFixed(0)+'km'):''); }
       case 11: { const r=CASE1.reentry; return r&&r.burned?('burned @ '+r.lat.toFixed(1)+'°/'+r.lon.toFixed(1)+'° alt '+r.alt.toFixed(0)+'km · deleted'):''; }
     }
@@ -3843,7 +3842,7 @@ try{ document.getElementById('case1SeqHead')?.addEventListener('click', ()=>case
 try{ case1SeqRender(); }catch(_){}
 // ---------- CASE 1 VISUAL STATE (all indicators driven by CASE1 state + live physics) ----------
 // No new physics here: sprites/beams/plume only mirror sats/bots positions and CASE1.state.
-const case1Vis={ tgtRing:null, tgtLabel:null, botRing:null, botLabel:null, beams:{}, link:null, plume:[], exhaust:null, preburn:null, tgtOrbitOrig:null, botOrbitOrig:null, propPath:null, interceptMark:null, pushFx:null, pushLine:null };
+const case1Vis={ tgtRing:null, tgtLabel:null, botRing:null, botLabel:null, beams:{}, link:null, plume:[], exhaust:null, preburn:null, tgtOrbitOrig:null, botOrbitOrig:null, propPath:null, interceptMark:null, pushFx:null, pushLine:null, pods:[] };
 function case1CanvasTex(draw, w, h){
   const c=document.createElement('canvas'); c.width=w||256; c.height=h||64;
   draw(c.getContext('2d'), c.width, c.height);
@@ -3949,6 +3948,7 @@ function case1ClearRunVisuals(){
   case1DisposeObj(case1Vis.interceptMark); case1Vis.interceptMark=null;
   case1DisposeObj(case1Vis.pushFx); case1Vis.pushFx=null;
   case1DisposeObj(case1Vis.pushLine); case1Vis.pushLine=null;
+  try{ case1DisposePods(); }catch(_){}
   case1ClearBotVisuals();
   try{ CASE1.detectingIds=[]; CASE1.relMs=null; CASE1.distKm=null; }catch(_){}
 }
@@ -3978,6 +3978,61 @@ function case1BeamFor(id){
     l.renderOrder=28; l.frustumCulled=false; scene.add(l); case1Vis.beams[id]=l;
   }
   return l;
+}
+// THRUSTER PODS — visual-only propellers released by the action bot. Driven by
+// CASE1.launch {t0,dur,n,attached}: fly bot→debris on a smooth arc, then stick
+// to the debris skin and ride it down (expendable — burn up with it). Physics
+// (the actual push) stays in the tick state machine; this only mirrors it.
+const CASE1_POD_OFF=[[0.030,0.012,0],[-0.026,0.016,0.012],[0.004,-0.030,0.016]];
+function case1EnsurePods(n){
+  try{
+    n=Math.max(1, Math.min(5, n||3));
+    while(case1Vis.pods.length<n){
+      const g=new THREE.OctahedronGeometry(0.011,0);
+      const m=new THREE.MeshBasicMaterial({color:0x4ade80, transparent:true, opacity:0.95, depthTest:false});
+      const s=new THREE.Mesh(g,m); s.renderOrder=31; s.frustumCulled=false;
+      const glow=case1MakeGlow('rgba(74,222,128,0.9)',0.05);
+      s.add(glow);
+      scene.add(s); case1Vis.pods.push(s);
+    }
+    for(let i=0;i<case1Vis.pods.length;i++){ try{ case1Vis.pods[i].visible=i<n; }catch(_){} }
+  }catch(_){}
+}
+function case1DisposePods(){
+  try{
+    (case1Vis.pods||[]).forEach(case1DisposeObj);
+    case1Vis.pods=[];
+  }catch(_){ case1Vis.pods=[]; }
+}
+function case1PodsFrame(){
+  try{
+    const L=CASE1.launch, b=CASE1.bot;
+    const showStates=['DOCKING','SAFETY_VALIDATION','SAFETY_HOLD','POST_BURN_VERIFICATION','REENTRY_TRACKING'];
+    const tgt=(CASE1.state!=='IDLE'&&CASE1.state!=='ABORTED')?CASE1.target:null;
+    if(!L||!tgt||sats.indexOf(tgt)<0||!b||sats.indexOf(b)<0||showStates.indexOf(CASE1.state)<0){
+      (case1Vis.pods||[]).forEach(s=>{ try{ s.visible=false; }catch(_){} });
+      return;
+    }
+    case1EnsurePods(L.n||3);
+    const f=Math.max(0, Math.min(1, (case1Now()-L.t0)/Math.max(1,L.dur)));
+    const s=(f*f*(3-2*f)); // smoothstep transit
+    const bp=new THREE.Vector3(); try{ b.mesh.getWorldPosition(bp); }catch(_){ bp.copy(b.group.position); }
+    const tp=case1WorldOf(tgt);
+    const up=new THREE.Vector3(tp.x,tp.y,tp.z).normalize(); // away from Earth
+    for(let i=0;i<case1Vis.pods.length;i++){
+      const pod=case1Vis.pods[i]; if(!pod) continue;
+      const off=CASE1_POD_OFF[i%CASE1_POD_OFF.length];
+      if(L.attached||f>=1){
+        pod.position.set(tp.x+off[0], tp.y+off[1], tp.z+off[2]);
+      } else {
+        const ax=tp.x+off[0]-bp.x, ay=tp.y+off[1]-bp.y, az=tp.z+off[2]-bp.z;
+        const bow=Math.sin(Math.PI*s)*0.06; // visible arc, not a straight line
+        pod.position.set(bp.x+ax*s+up.x*bow, bp.y+ay*s+up.y*bow, bp.z+az*s+up.z*bow);
+      }
+      pod.visible=true;
+      try{ pod.rotation.y+=0.05; pod.rotation.x+=0.03; }catch(_){}
+    }
+  }catch(_){}
 }
 // per-frame mirror of state → visuals. Called from animate(); never touches physics state.
 function case1VisualFrame(dt){
@@ -4096,7 +4151,7 @@ function case1VisualFrame(dt){
       }
     }catch(_){}
     // --- IBS beam + dock connector (bot ↔ target): violet ion beam ONLY while
-    // SHEPHERDING, amber while DOCKING, green once DOCKED. No beam during
+    // SHEPHERDING, amber while THRUSTER LAUNCH, green once PODS ATTACHED. No beam during
     // RENDEZVOUS offset hold or SAFETY_VALIDATION (beam off).
     const linkStates=['SHEPHERD','DOCKING'];
     const beamColor=(CASE1.state==='SHEPHERD')?0xa78bfa:(CASE1.docked?0x4ade80:(CASE1.state==='DOCKING'?0xfbbf24:0x22d3ee));
@@ -4116,7 +4171,9 @@ function case1VisualFrame(dt){
       }catch(_){}
       try{ if(b.attitude==='ibs-track'){ const c=case1WorldOf(tgt); b.mesh.lookAt(c); } }catch(_){}
     } else if(case1Vis.link){ try{ case1Vis.link.visible=false; }catch(_){} }
-    // --- NO fire at push point: the docked stack pushes cold ---
+    // --- thruster pods mirror (fly → attach → ride) ---
+    try{ case1PodsFrame(); }catch(_){}
+    // --- NO fire at push point: the pod-driven stack pushes cold ---
     // --- atmospheric reentry fire: drag/friction heating when the TARGETED debris dives
     // into close atmosphere. Only the targeted debris burns, and only in thick air.
     // Plume objects are reused here as the reentry fireball.
@@ -4508,7 +4565,7 @@ function case1Start(){
   CASE1.mapped=null; CASE1.decayKmPerDay=0; CASE1.predRev3=null;
   CASE1.live={pos:null,vel:null,alt:0,t:-1e12,observer:'—'};
   CASE1.burn=null; CASE1.predicted=null; CASE1.postBurn={start:0,period:0};
-  CASE1.safety=null; CASE1.reentry=null; CASE1.bot=null; CASE1.backupBots=[]; CASE1.docked=false;
+  CASE1.safety=null; CASE1.reentry=null; CASE1.bot=null; CASE1.backupBots=[]; CASE1.docked=false; CASE1.launch=null;
   CASE1.push=null; CASE1.beamT0=null; CASE1.lastBeamT=null; CASE1.beamLogT=0;
   CASE1.detumble=null; CASE1.ccsBoost=1; CASE1.ccsOrder=null; CASE1.catchETA=null;
   CASE1.lastDockT=null; CASE1.dockDeadline=null;
@@ -4517,6 +4574,7 @@ function case1Start(){
   CASE1.detectingIds=[]; CASE1.relMs=null; CASE1.distKm=null;
   CASE1._selMargin=CASE1._selDist=CASE1._selRel=null; CASE1._safeDelay=CASE1._safeMin=null; CASE1._seqLast=null;
   CASE1._selDeadline=null; CASE1._selAttempts=0; CASE1._selBestDist=null;
+  CASE1._snapT0=null; CASE1._dockLogT=null; CASE1._pushLogT=null; CASE1._missTrail=[]; CASE1.shepherd=null; CASE1._slotT=null; CASE1._launchLogT=null;
   try{ case1ClearRunVisuals(); }catch(_){} // fresh run visuals (target marker kept)
   case1AssignRoles(v);
   // AUTO-FOLLOW the activity: fly close to the selected debris and stick to it.
@@ -4536,18 +4594,10 @@ function case1Abort(reason){
   try{ const dd=document.getElementById('case1TargetSelect'); if(dd) dd.value=''; }catch(_){}
   try{ case1RefreshTargetOptions(); }catch(_){}
 }
-// IBS DOCKED OPERATIONS — the agent itself docks (no separate projectile).
-// case1LockBotToDebris: docked bot copies debris elements each tick (one stack).
-// case1Undock: separation + raise burn to a safe shell; bot survives, debris coasts.
-function case1LockBotToDebris(t){
-  const b=CASE1.bot, deb=CASE1.target;
-  if(!b||!deb||sats.indexOf(b)<0||sats.indexOf(deb)<0) return;
-  b.a=deb.a; b.e=deb.e; b.inc=deb.inc; b.raan=deb.raan; b.argP=deb.argP; b.M0=deb.M0;
-  b.n0=deb.n0; b.raanDot=deb.raanDot; b.argPDot=deb.argPDot; b.mDot=deb.mDot;
-  b.trail.length=0;
-  try{ b.trailLine.geometry.setDrawRange(0,0); }catch(_){}
-  if(t-(b._lastRebuild||0)>8){ try{ b.rebuildOrbit(t); }catch(_){} }
-}
+// IBS POD OPERATIONS — thruster pods release from the action bot, fly to the
+// debris and attach (the bot itself holds its lead slot and never docks).
+// case1HoldLeadSlot: bot freezes its 2km-lead formation slot (phase trim only).
+// case1Undock: separation + raise burn to a safe shell; bot survives, debris (+pods) coast.
 function case1Undock(t, why){
   const b=CASE1.bot, deb=CASE1.target;
   if(!CASE1.docked) return;
@@ -4575,19 +4625,42 @@ function case1Undock(t, why){
     }
   }catch(_){}
 }
-function case1Dock(t){
+// LEAD-SLOT HOLD — the action bot freezes its 2km-lead formation slot (phase
+// trim only, never an orbit burn). Used while pods fly, while they push, and
+// through safety: the bot holds station and never docks itself.
+function case1HoldLeadSlot(t){
+  try{
+    const b0=CASE1.bot, deb=CASE1.target;
+    if(!b0||!deb||sats.indexOf(b0)<0||sats.indexOf(deb)<0) return;
+    const dtH=Math.max(0,t-(CASE1._slotT!=null?CASE1._slotT:t));
+    CASE1._slotT=t;
+    const dtHC=case1CtrlDt(dtH); // clamped: fuel + trim per tick, warp-proof
+    if(dtH>0){
+      const errH=case1AlongDeg(deb,b0,t)-(-0.017);
+      if(Math.abs(errH)>1e-4){
+        const stp=((CASE_1_CONFIG.rendezvous||{}).phaseRateDegPerSimSec||0.02)*(CASE1.ccsBoost||1)*dtHC;
+        const mvH=Math.max(-stp,Math.min(stp,errH));
+        b0.M0=((b0.M0+mvH*RAD)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
+        b0.dvUsedKmS=(b0.dvUsedKmS||0)+Math.abs(mvH)*((CASE_1_CONFIG.rendezvous||{}).fuelPerDegKmS||0.002);
+        try{ const TAU=2*Math.PI; let nd=(b0.M0-deb.M0)%TAU; if(nd>Math.PI) nd-=TAU; if(nd<-Math.PI) nd+=TAU; b0._holdDelta=nd; const nB2=(b0.n0||Math.sqrt(MU/Math.pow(b0.a,3)))+(b0.mDot||0), nD2=(deb.n0||Math.sqrt(MU/Math.pow(deb.a,3)))+(deb.mDot||0); let ndMt=((b0.M0+nB2*t)-(deb.M0+nD2*t))%TAU; if(ndMt>Math.PI) ndMt-=TAU; if(ndMt<-Math.PI) ndMt+=TAU; b0._holdDeltaMt=ndMt; b0._holdTrue=case1AlongDeg(deb,b0,t); CASE1._lastHoldT=t; }catch(_){}
+      }
+    }
+  }catch(_){}
+}
+function case1ArmThrusterPush(t){
   const deb=CASE1.target, b=CASE1.bot;
-  // HARD GATE: main thruster path (docked push) requires stabilized debris (spin ~= 0).
-  // Ion-beam shepherding must have bled tumble first — never dock a tumbling target.
+  // HARD GATE: pods only drive a stabilized target (spin ~= 0).
+  // Ion-beam shepherding must have bled tumble first — never push tumbling debris.
   if(case1Tumble(deb)>CASE_1_CONFIG.tumble.maxRadS){
-    case1Log('DOCK REFUSED — tumble '+case1Tumble(deb).toFixed(4)+' rad/s > '+CASE_1_CONFIG.tumble.maxRadS+' — ion beam must finish first (thruster locked)');
+    case1Log('PODS REFUSED — tumble '+case1Tumble(deb).toFixed(4)+' rad/s > '+CASE_1_CONFIG.tumble.maxRadS+' — ion beam must finish first (thrusters locked)');
     try{ if(b) b.attitude='ibs-track'; }catch(_){}
     if(CASE1.beamT0==null) CASE1.beamT0=t;
     CASE1.lastBeamT=t;
-    if(CASE1.state!=='SHEPHERD') case1SetState('SHEPHERD','dock refused — shepherd spin to ~0 first');
+    CASE1.launch=null;
+    if(CASE1.state!=='SHEPHERD') case1SetState('SHEPHERD','pods refused — shepherd spin to ~0 first');
     return false;
   }
-  // Stabilized: lock spin to zero for the docked stack (no re-tumble while joined).
+  // Stabilized: lock spin to zero for the pod-driven stack (no re-tumble while joined).
   try{ deb.tumbleRadS=0; deb.spin=0; }catch(_){}
   const est=case1EstimateBurn(deb, CASE_1_CONFIG.burn.targetPerigeeKm);
   try{
@@ -4599,33 +4672,34 @@ function case1Dock(t){
     case1Vis.preburn=new THREE.Line(deb.orbit.geometry.clone(), new THREE.LineBasicMaterial({color:0x94a3b8,transparent:true,opacity:0.35,depthWrite:false}));
     case1Vis.preburn.renderOrder=5; case1Vis.preburn.frustumCulled=false; scene.add(case1Vis.preburn);
   }catch(_){}
-  // DOCKED PUSH (thruster stage, only after detumble spin ~= 0): the docked stack
-  // pushes the now-stable debris forward-down to crash — retrograde Δv in small
-  // fractions over pushDurSec (low-thrust spiral, visibly gradual) through
-  // maneuver(), so the trajectory always results from changed state. Metered per
-  // tick by case1ProgressDockedPush — BURN ACTIVE spans the window from this sim time.
+  // PODS PUSH (thruster stage, only after detumble spin ~= 0): the attached pods
+  // drive the now-stable debris forward-down to crash — retrograde Δv in small
+  // fractions over pushDurSec through maneuver(), so the trajectory always
+  // results from changed state. Metered per tick by case1ProgressDockedPush.
+  // The action bot holds its lead slot the whole time and never docks itself.
   const _dvMag=est.dv;
   const impulse=_dvMag*1000*(deb.mass||40);
-  const pushDur=Math.max(60, CASE_1_CONFIG.burn.pushDurSec||480);
-  CASE1.burn={ dv:est.dv, impulse, burnSec:pushDur, perigee:est.perigee, t, burnT0:t, by:'IBS DOCKED PUSH' };
+  const pushDur=Math.max(60, CASE_1_CONFIG.burn.pushDurSec||180);
+  CASE1.burn={ dv:est.dv, impulse, burnSec:pushDur, perigee:est.perigee, t, burnT0:t, by:'PODS PUSH' };
   CASE1.predicted={ el:case1ElOf(deb), t };
   CASE1.postBurn={ start:t, period:deb.periodSec() };
-  CASE1.docked=true;
+  CASE1.docked=true; // push stack joined = pods attached (bot stands off)
   CASE1.push={ total:_dvMag, applied:0, t0:t, dur:pushDur };
-  try{ case1LockBotToDebris(t); }catch(_){}
+  CASE1._slotT=t;
+  try{ case1HoldLeadSlot(t); }catch(_){}
   try{ if(b) b.attitude='ibs-track'; }catch(_){}
   if(b&&sats.indexOf(b)>=0&&case1BotBudget(b)<CASE_1_CONFIG.action.reserveKmS){
     b.needsDisposal=true;
     try{ fleetNotice('CCS ALERT — <b>'+b.label+'</b> below energy reserve · awaiting confirmation (IRIS.confirmDisposal)'); }catch(_){}
     case1Log('EOL watch: '+b.label+' needsDisposal — waiting CCS, not auto-disposing');
   }
-  try{ fleetNotice('◈ IBS DOCKED — <b>'+b.label+'</b> captured stable <b>'+deb.label+'</b> (spin ~0) · <b>BURN ACTIVE</b> thruster push Δv '+est.dv.toFixed(3)+'km/s forward-to-crash over ~'+Math.round(pushDur)+'s sim → perigee '+est.perigee+'km'); }catch(_){}
-  case1Log('DOCKED→PUSHING: '+b.label+' pushing stable '+deb.label+' forward to crash — Δv '+est.dv.toFixed(4)+'km/s (impulse '+Math.round(impulse)+'N·s over ~'+Math.round(pushDur)+'s sim) from simT '+Math.round(t));
-  case1SetState('POST_BURN_VERIFICATION','docked thruster push underway — tracking predicted vs actual');
+  try{ fleetNotice('◈ PODS ATTACHED — 3 thrusters on stable <b>'+deb.label+'</b> (spin ~0) · <b>BURN ARMED</b> pod push Δv '+est.dv.toFixed(3)+'km/s → perigee '+est.perigee+'km · <b>'+b.label+'</b> holding slot'); }catch(_){}
+  case1Log('PODS→ARMED: pods driving stable '+deb.label+' down — Δv '+est.dv.toFixed(4)+'km/s (impulse ~'+Math.round(impulse)+'N·s over ~'+Math.round(pushDur)+'s sim) from simT '+Math.round(t));
+  return true;
 }
-// Docked push metering: stack Δv as small retrograde fractions across the burn
-// window (same maneuver() per fraction). Undocks (raise burn, bot survives) the
-// moment the full Δv is delivered. Returns true while pushing.
+// Pods push metering: attached pods feed Δv as small retrograde fractions across
+// the burn window (same maneuver() per fraction, fuel charged to the action
+// bot's tanks). Bot holds clear the whole time. Returns true while pushing.
 function case1ProgressDockedPush(t){
   try{
     const deb=CASE1.target, b=CASE1.bot;
@@ -4645,21 +4719,18 @@ function case1ProgressDockedPush(t){
       CASE1.push.applied=target;
       if(b&&sats.indexOf(b)>=0) b.dvUsedKmS=(b.dvUsedKmS||0)+d;
     }
-    try{ case1LockBotToDebris(t); }catch(_){}
+    try{ case1HoldLeadSlot(t); }catch(_){}
     if(frac>=1){
       case1Undock(t,'push complete');
-      case1Log('PUSHING→UNDOCKED — full Δv delivered ('+CASE1.push.total.toFixed(4)+'km/s) — debris coasts to reentry');
+      case1Log('PUSHING→CLEAR — full Δv delivered ('+CASE1.push.total.toFixed(4)+'km/s) — pods ride debris to burn-up, bot holds clear');
       return false;
     }
     return true;
   }catch(_){ return false; }
 }
-// (propeller mesh removed — IBS agent docks itself; see case1LockBotToDebris)
-// (propeller label/dispose/lock/path-visual helpers removed with the propeller)
-// (propeller release solver removed — IBS agent docks itself via case1Dock)
-// (propeller ballistic flight removed — docked stack flies as one, see case1LockBotToDebris)
-// (propeller intercept/attach removed — docking handled by case1Dock above)
-// (old propeller push metering removed — see case1ProgressDockedPush above)
+// (propeller = the launched thruster pods; see THRUSTER LAUNCH leg below)
+// (pods release from the action bot, fly to the debris and attach — the bot
+// itself holds its lead slot and never docks; push metering stays below)
 // ATMOSPHERIC BURN-UP: targeted debris burns in thick air via drag/friction, then vanishes (deleted).
 // Burning starts below 135km (visual fire); deletion happens deep at ~65km (60–70km band).
 // Only after the downward push (CASE1.burn exists). With target perigee ~65km this
@@ -4683,6 +4754,8 @@ function case1CheckBurnup(deb, t){
     if(wasDocked){ try{ case1Undock(t,'burnup commit'); }catch(_){ CASE1.docked=false; } }
     case1Log('atmospheric burn-up: '+label+' alt '+altInst.toFixed(1)+'km perigee '+per.toFixed(0)+'km — drag/friction burn, deleting debris'+(b&&sats.indexOf(b)>=0?(' · '+b.label+' safe'):''));
     try{ disposeSat(deb); }catch(_){}
+    try{ case1DisposePods(); }catch(_){}
+    try{ CASE1.launch=null; }catch(_){}
     try{ case1ClearRunVisuals(); }catch(_){}
     CASE1.reentry={ perigee:per, lat:bLat, lon:bLon, burned:true, alt:altInst };
     CASE1.docked=false;
@@ -4916,7 +4989,7 @@ function case1Tick(){
       // ION-BEAM SHEPHERDING: contactless plume bleeds debris spin while the agent
       // holds standoff facing it (+Z emitter on target). Force is CALCULATED from
       // mapped tumble (CASE1.detumble): torque=F*arm*eta, dOmega=torque/I*dt.
-      // When spin ~= 0 beam stops, then docked thruster pushes stable debris to crash.
+      // When spin ~= 0 beam stops, then pods release and push stable debris to crash.
       const b=CASE1.bot;
       if(!b||sats.indexOf(b)<0||b.case1Unavailable){ case1Handoff('bot lost'); break; }
       case1SampleLive();
@@ -4924,6 +4997,7 @@ function case1Tick(){
       if(CASE1.beamT0==null){
         CASE1.beamT0=t;
         if(!CASE1.detumble){ try{ CASE1.detumble=case1DetumblePlan(deb); }catch(_){} }
+        if(!CASE1.shepherd&&b){ CASE1.shepherd=b; case1Log('shepherd locked: '+b.label+' owns this kill beam→push — same bot, no handoff'); }
       }
       const dtS=Math.max(0, t-(CASE1.lastBeamT!=null?CASE1.lastBeamT:t));
       CASE1.lastBeamT=t;
@@ -4948,41 +5022,9 @@ function case1Tick(){
           }
         }
       }catch(_){}
-      // PRE-MATCH while beaming: converge orbit (radial+plane) at FULL dock
-      // rate so the shepherd flies the SAME speed as the debris (formation) —
-      // no stop, no speed drop, no fall-behind after bleed-out. Station-keeping
-      // thrust stays ACTIVE during the whole beam (only the docked push is
-      // gated on stable spin, never the shepherd nav thrust).
-      try{
-        if(dtS>0){
-          const Dr=(CASE_1_CONFIG.dock||{}).matchRateKmSPerSimSec||0.0001;
-          const rate=Dr*1.0*(CASE1.ccsBoost||1)*dtSC;
-          const da=deb.a-b.a;
-          // tight thresholds: capture needs dist ≤2.5km, so radial ≤0.1km and
-          // plane ≤1e-4 rad (0.7km) — the old 0.3km/4e-4 stopped just short.
-          if(Math.abs(da)>0.1&&case1BotBudget(b)>0.03){
-            const v=circVel(b.a);
-            const dvNeed=da*v/(2*b.a);
-            const step=Math.max(-rate,Math.min(rate,dvNeed*0.15));
-            if(Math.abs(step)>1e-9){ b.maneuver(step,0,0,t); b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(step); }
-          }
-          try{
-            const ha=case1HVec(b.eciKm(t),b.velKmS(t)), hb=case1HVec(deb.eciKm(t),deb.velKmS(t));
-            const la=Math.hypot(ha[0],ha[1],ha[2])||1, lb=Math.hypot(hb[0],hb[1],hb[2])||1;
-            let c=(ha[0]*hb[0]+ha[1]*hb[1]+ha[2]*hb[2])/(la*lb); c=Math.max(-1,Math.min(1,c));
-            const ang=Math.acos(c);
-            if(ang>1e-4&&case1BotBudget(b)>0.03){
-              if(b._planeSign==null) b._planeSign=1;
-              if(t-(b._planeT||0)>60){
-                if(b._planeAngPrev!=null&&ang>=b._planeAngPrev) b._planeSign*=-1;
-                b._planeAngPrev=ang; b._planeT=t;
-              }
-              const mag=Math.min(rate,0.002);
-              b.maneuver(0,0,b._planeSign*mag,t); b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(mag);
-            }
-          }catch(_){}
-        }
-      }catch(_){}
+      // SPEED-HOLD while beaming: NO orbit burns during the beam — the shepherd
+      // keeps its speed and only trims phase (formation slot above). Orbit
+      // matching (radial/plane/ecc) happens in DOCKING, after detumble.
       if(dtS>0){
         const tb=case1Tumble(deb);
         if(tb>0){
@@ -5007,27 +5049,21 @@ function case1Tick(){
       }
       const tbNow=case1Tumble(deb);
       if(tbNow<=CASE_1_CONFIG.tumble.maxRadS&&(t-CASE1.beamT0)>=90){
-        case1Log('detumble complete: '+tbNow.toFixed(4)+' rad/s ≤ '+CASE_1_CONFIG.tumble.maxRadS+' — beam off, propeller release next');
-        try{ if(b) b.attitude='prograde'; }catch(_){}
-        // SAME-BOT THROUGH, IMMEDIATE PROPELLER RELEASE: the shepherd that bled
-        // the spin (same ~8km/s formation) keeps the job — no re-select. If it
-        // is already capture-ready (≤2.5km & ≤1.2km/s) dock + push down at once
-        // so the debris goes straight to burn-up; else 1-tick safety then dock.
+        case1Log('detumble complete: '+tbNow.toFixed(4)+' rad/s ≤ '+CASE_1_CONFIG.tumble.maxRadS+' — beam off, THRUSTER LAUNCH next');
+        try{ if(b) b.attitude='ibs-track'; }catch(_){}
+        // SAME-BOT THROUGH, IMMEDIATE THRUSTER LAUNCH: the shepherd that bled
+        // the spin keeps the job — no re-select, no delay. Its thruster pods
+        // release now, fly to the debris and attach; the bot itself holds its
+        // slot and never docks.
         try{
           CASE1.ccsBoost=1; CASE1.ccsOrder=null; CASE1.catchETA=null;
           try{ CASE1._missTrail=[]; }catch(_){}
-          const _dd=case1DistKm(deb,b,t), _rr=case1RelVel(deb,b,t);
-          const _D=CASE_1_CONFIG.dock||{captureKm:2.5,captureRelVelKmS:1.2};
-          if(_dd<=_D.captureKm&&_rr<=_D.captureRelVelKmS){
-            case1Log('PROPELLER RELEASE → '+b.label+' capture-ready ('+_dd.toFixed(2)+'km) — dock + push down now');
-            try{ fleetNotice('PROPELLER RELEASE → <b>'+b.label+'</b> pushing <b>'+deb.label+'</b> down to burn-up'); }catch(_){}
-            case1Dock(t);
-            break;
-          }
-          case1Log('SHEPHERD '+b.label+' keeps job (same speed → propeller release → disposal, no re-select)');
-          try{ fleetNotice('DE-TUMBLED ✓ → <b>'+b.label+'</b> propeller release next (no re-select)'); }catch(_){}
+          CASE1.launch=null; CASE1._launchLogT=null; CASE1._slotT=t;
+          CASE1.lastDockT=t; CASE1.dockDeadline=t+CASE_1_CONFIG.dock.timeoutRevs*deb.periodSec()+600;
+          case1Log('THRUSTER LAUNCH → '+b.label+' releasing pods onto '+deb.label+' (same bot, no delay)');
+          try{ fleetNotice('DE-TUMBLED ✓ → <b>'+b.label+'</b> <b>THRUSTER LAUNCH</b> — pods away, no re-select'); }catch(_){}
         }catch(_){}
-        case1SetState('SAFETY_VALIDATION','tumble '+tbNow.toFixed(4)+' rad/s OK');
+        case1SetState('DOCKING','thruster pods away — flying to '+deb.label);
       }
       break;
     }
@@ -5089,7 +5125,8 @@ function case1Tick(){
       CASE1.lastDockT=t; CASE1.dockDeadline=t+CASE_1_CONFIG.dock.timeoutRevs*deb.periodSec()+600;
       try{ if(CASE1.bot) CASE1.bot.attitude='ibs-track'; }catch(_){}
       try{ if(CASE1.bot){ CASE1.bot._planeSign=null; CASE1.bot._planeAngPrev=null; CASE1.bot._planeT=0; } }catch(_){}
-      case1SetState('DOCKING','Δv '+est.dv.toFixed(3)+'km/s'+(delayK?' delay '+delayK+'/4 rev':''));
+      CASE1._slotT=t;
+      case1SetState('POST_BURN_VERIFICATION','pods GO — Δv '+est.dv.toFixed(3)+'km/s'+(delayK?' delay '+delayK+'/4 rev':''));
       break;
     }
     case 'SAFETY_HOLD': {
@@ -5101,94 +5138,76 @@ function case1Tick(){
       break;
     }
     case 'DOCKING': {
-      // STRICT GATE: no orbit-match / capture while tumbling. Ion beam first.
+      // THRUSTER LAUNCH leg (step 9): the action bot holds its lead slot and
+      // releases N thruster pods. Pods fly to the debris on a fixed timer,
+      // attach, arm the push — then SAFETY validates the descent. The bot
+      // itself never docks, so there is no capture gate to get stuck on:
+      // transit always completes on schedule.
+      // STRICT GATE: no pod release onto tumbling debris. Ion beam first.
       if(case1Tumble(deb)>CASE_1_CONFIG.tumble.maxRadS){
-        case1Log('dock blocked — tumble '+case1Tumble(deb).toFixed(4)+' rad/s, back to ion-beam shepherd (thruster locked)');
+        case1Log('launch blocked — tumble '+case1Tumble(deb).toFixed(4)+' rad/s, back to ion-beam shepherd (thrusters locked)');
         try{ if(CASE1.bot) CASE1.bot.attitude='ibs-track'; }catch(_){}
         if(CASE1.beamT0==null) CASE1.beamT0=t;
         CASE1.lastBeamT=t;
-        case1SetState('SHEPHERD','dock refused — bleeding spin to ~0 first');
+        CASE1.launch=null;
+        case1SetState('SHEPHERD','launch refused — bleeding spin to ~0 first');
         break;
       }
-      // IBS DOCKING: match the debris orbit through maneuver() — radial (Hohmann
-      // fractions) + plane (sign-hunting dvN) + phase (M0 trim) — all rate-limited
-      // and charged to dvUsed. Capture at ≤2.5km & ≤1.2km/s → docked stack.
       const b=CASE1.bot, D=CASE_1_CONFIG.dock;
-      if(!b||sats.indexOf(b)<0||b.case1Unavailable){ case1Handoff('bot failed at dock'); break; }
+      if(!b||sats.indexOf(b)<0||b.case1Unavailable){ case1Handoff('bot failed at launch'); break; }
       case1SampleLive();
-      if(!case1LiveFresh()){ case1Log('dock postponed one tick — live stale'); break; }
+      if(!case1LiveFresh()){ case1Log('launch postponed one tick — live stale'); break; }
       try{ b.attitude='ibs-track'; }catch(_){}
-      const dtD=Math.max(0, t-(CASE1.lastDockT!=null?CASE1.lastDockT:t));
-      CASE1.lastDockT=t;
-      const dtDC=case1CtrlDt(dtD); // clamped: fuel + trim per tick, warp-proof
-      if(dtD>0){
-        const rate=(D.matchRateKmSPerSimSec||0.0001)*(CASE1.ccsBoost||1)*dtDC;
-        // radial match (tight: capture needs ≤2.5km, so converge to ≤0.1km)
-        const da=deb.a-b.a;
-        if(Math.abs(da)>0.1&&case1BotBudget(b)>0.03){
-          const v=circVel(b.a);
-          const dvNeed=da*v/(2*b.a);
-          const step=Math.max(-rate, Math.min(rate, dvNeed*0.15));
-          if(Math.abs(step)>1e-9){ b.maneuver(step,0,0,t); b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(step); }
-        }
-        // plane match (tight ≤1e-4 rad ≈ 0.7km for 2.5km capture; sign-hunting dvN, re-evaluated every 60 sim-s)
-        try{
-          const ha=case1HVec(b.eciKm(t),b.velKmS(t)), hb=case1HVec(deb.eciKm(t),deb.velKmS(t));
-          const la=Math.hypot(ha[0],ha[1],ha[2])||1, lb=Math.hypot(hb[0],hb[1],hb[2])||1;
-          let c=(ha[0]*hb[0]+ha[1]*hb[1]+ha[2]*hb[2])/(la*lb); c=Math.max(-1,Math.min(1,c));
-          const ang=Math.acos(c);
-          if(ang>1e-4&&case1BotBudget(b)>0.03){
-            if(b._planeSign==null) b._planeSign=1;
-            if(t-(b._planeT||0)>60){
-              if(b._planeAngPrev!=null&&ang>=b._planeAngPrev) b._planeSign*=-1;
-              b._planeAngPrev=ang; b._planeT=t;
-            }
-            const mag=Math.min(rate, 0.002);
-            b.maneuver(0,0,b._planeSign*mag,t); b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(mag);
-          }
-        }catch(_){}
-        // phase trim toward close (rate-limited like rendezvous)
-        const dist0=case1DistKm(deb, b, t);
-        if(dist0>D.captureKm){
-          const diffDeg=case1AlongDeg(deb,b,t); // true geometry, never M0-proxy
-          const step=CASE_1_CONFIG.rendezvous.phaseRateDegPerSimSec*(CASE1.ccsBoost||1)*dtDC;
-          const mv=Math.max(-step, Math.min(step, diffDeg));
-          b.M0=((b.M0+mv*RAD)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
-          b.dvUsedKmS=(b.dvUsedKmS||0)+Math.abs(mv)*CASE_1_CONFIG.rendezvous.fuelPerDegKmS;
-          try{ b._holdTrue=case1AlongDeg(deb,b,t); }catch(_){}
-        }
+      try{ case1HoldLeadSlot(t); }catch(_){}
+      if(!CASE1.launch){
+        CASE1.launch={ t0:t, dur:120, n:3, attached:false };
+        CASE1._launchLogT=null;
+        try{ fleetNotice('🚀 THRUSTER LAUNCH — <b>'+b.label+'</b> released <b>3 pods</b> → <b>'+deb.label+'</b> · bot holding slot'); }catch(_){}
+        case1Log('THRUSTER LAUNCH: 3 pods away from '+b.label+' → '+deb.label+' (transit ~120s sim, bot holding slot)');
       }
-      const dist=case1DistKm(deb, b, t), rel=case1RelVel(deb, b, t);
-      if(dist<=D.captureKm&&rel<=D.captureRelVelKmS){ try{ CASE1._missTrail=[]; }catch(_){} case1Dock(t); break; }
-      // MISS DETECTOR (dock): only when truly lost (>20km and diverging).
-      // 2km close-formation jitter must NEVER trigger a handoff/held-back loop.
+      const L=CASE1.launch;
+      const fL=Math.max(0, Math.min(1, (t-L.t0)/Math.max(1,L.dur)));
+      if(fL>=1&&!L.attached){
+        L.attached=true;
+        try{ CASE1._missTrail=[]; }catch(_){}
+        if(case1ArmThrusterPush(t)){
+          case1Log('PODS ATTACHED ✓ — all 3 pods on '+deb.label+' — safety validation next');
+          case1SetState('SAFETY_VALIDATION','pods attached — validating pod-push descent');
+        }
+        break;
+      }
+      // transit heartbeat so the flight reads as motion, not stuck
       try{
-        CASE1._missTrail=CASE1._missTrail||[];
-        CASE1._missTrail.push(dist); if(CASE1._missTrail.length>3) CASE1._missTrail.shift();
-        const m=CASE1._missTrail;
-        if(m.length===3&&dtD<=60&&m[2]>m[1]&&m[1]>m[0]&&(m[2]-m[0])>1.5&&dist>D.captureKm&&dist>20&&m[0]>20){
-          CASE1._missTrail=[];
-          case1Handoff('missed dock — diverging '+m[0].toFixed(1)+'→'+m[2].toFixed(1)+'km');
-          break;
+        if(!L.attached&&(CASE1._launchLogT==null||t-CASE1._launchLogT>40)){
+          CASE1._launchLogT=t;
+          case1Log('pods in flight '+Math.round(fL*100)+'% → '+deb.label+' · bot '+b.label+' holding slot');
         }
       }catch(_){}
-      if(t>(CASE1.dockDeadline||Infinity)){ case1Handoff('dock timeout d='+dist.toFixed(1)+'km'); }
+      if(t>(CASE1.dockDeadline||Infinity)){ CASE1.launch=null; case1Handoff('launch timeout'); }
       break;
     }
     // (PROPELLER_FLIGHT removed — IBS docks directly, then POST_BURN verifies)
     case 'POST_BURN_VERIFICATION': {
       case1SampleLive();
-      try{ if(CASE1.docked) case1LockBotToDebris(t); }catch(_){}
+      try{ if(CASE1.docked) case1HoldLeadSlot(t); }catch(_){}
       if(CASE1.docked&&(!CASE1.bot||sats.indexOf(CASE1.bot)<0)){
         // NO ABORTED: bot lost mid-push — hand to next-best bot by position.
         case1Log('bot lost during push — auto-handoff to next-best (no abort)');
         CASE1.docked=false; CASE1.push=null;
         case1Handoff('bot lost during push'); break;
       }
-      // GRADUAL PUSH metering: docked stack feeds its Δv in small retrograde
+      // GRADUAL PUSH metering: attached pods feed Δv in small retrograde
       // fractions across the burn window — debris spirals down progressively while
       // BURN ACTIVE shows. Undocks (bot survives) once the full Δv is delivered.
       try{ case1ProgressDockedPush(t); }catch(_){}
+      // push heartbeat: % + perigee so the spiral-down reads as motion, not stuck
+      try{
+        if(CASE1.push&&CASE1.push.total>0&&(CASE1._pushLogT==null||t-CASE1._pushLogT>60)){
+          CASE1._pushLogT=t;
+          const per0=deb.a*(1-deb.e)-KM_PER_UNIT;
+          case1Log('push '+Math.min(99,Math.round(100*(CASE1.push.applied||0)/CASE1.push.total))+'% · perigee '+per0.toFixed(0)+'km → '+((CASE1.burn&&CASE1.burn.perigee)||65)+'km (retrograde dip, low side opposite burn)');
+        }
+      }catch(_){}
       // burn in atmosphere as soon as the downward trajectory dips into thick air (even during verification)
       if(case1CheckBurnup(deb, t)) break;
       const P=CASE1.predicted;
@@ -5207,25 +5226,34 @@ function case1Tick(){
       if(t-CASE1.postBurn.start>=CASE1.postBurn.period*CASE_1_CONFIG.verify.postBurnRevs){
         const per=deb.a*(1-deb.e)-KM_PER_UNIT;
         if(per<=CASE_1_CONFIG.reentry.safePerigeeMaxKm) case1SetState('REENTRY_TRACKING','perigee '+per.toFixed(0)+'km');
-        // NO ABORTED: burn under-delivered — re-estimate from current orbit and
-        // push again (next-best window), instead of killing the run.
+        // NO ABORTED: burn under-delivered — relaunch pods, then push again.
+        // Pushing undocked does nothing (metering needs pods attached), so go
+        // back to THRUSTER LAUNCH for a fresh release instead of coasting.
         else {
+          if(!CASE1.docked){
+            case1Log('burn under-delivered (perigee '+per.toFixed(0)+'km) — relaunching pods for retry push (no abort)');
+            CASE1.launch=null;
+            CASE1.lastDockT=t; CASE1.dockDeadline=t+CASE_1_CONFIG.dock.timeoutRevs*deb.periodSec()+600;
+            try{ CASE1._missTrail=[]; }catch(_){}
+            case1SetState('DOCKING','retry push — relaunch pods first');
+          } else {
           const re=case1EstimateBurn(deb, CASE_1_CONFIG.burn.targetPerigeeKm);
           const imp2=re.dv*1000*(deb.mass||40);
-          const dur2=Math.max(60, CASE_1_CONFIG.burn.pushDurSec||480);
+          const dur2=Math.max(60, CASE_1_CONFIG.burn.pushDurSec||180);
           CASE1.burn={ dv:re.dv, impulse:imp2, burnSec:dur2, perigee:re.perigee, t, burnT0:t, by:'IBS RETRY PUSH' };
           CASE1.push={ total:re.dv, applied:0, t0:t, dur:dur2 };
           CASE1.postBurn={ start:t, period:deb.periodSec() };
           case1Log('burn under-delivered (perigee '+per.toFixed(0)+'km) — retrying push Δv '+re.dv.toFixed(3)+'km/s (no abort)');
           try{ fleetNotice('CASE 1 RETRY PUSH — <b>Δv '+re.dv.toFixed(3)+'km/s</b> again (no abort)'); }catch(_){}
           try{ case1Render(); }catch(_){}
+          }
         }
       }
       break;
     }
     case 'REENTRY_TRACKING': {
       case1SampleLive();
-      try{ if(CASE1.docked) case1LockBotToDebris(t); }catch(_){}
+      try{ if(CASE1.docked) case1HoldLeadSlot(t); }catch(_){}
       try{ case1ProgressDockedPush(t); }catch(_){} // backstop: finish any undelivered push fraction
       if(CASE1.docked) try{ case1Undock(t,'reentry commit'); }catch(_){} // failsafe: never ride into burnup
       const per=deb.a*(1-deb.e)-KM_PER_UNIT;
@@ -5253,7 +5281,7 @@ function case1Tick(){
       let curAlt=null;
       try{ const ec0=deb.eciKm(t); curAlt=Math.hypot(ec0[0],ec0[1],ec0[2])-KM_PER_UNIT; }catch(_){}
       CASE1.reentry={ perigee:per, lat, lon, alt:curAlt };
-      try{ const _bl=(CASE1.bot&&sats.indexOf(CASE1.bot)>=0)?' · IBS <b>'+CASE1.bot.label+'</b> safe'+(CASE1.docked?' (docked)':' (free)') :''; fleetNotice('REENTRY TRACKING — <b>'+deb.label+'</b> perigee '+per.toFixed(0)+'km · alt '+(curAlt!=null?curAlt.toFixed(0):'—')+'km → burns <135km · deleted <65km'+_bl); }catch(_){}
+      try{ const _bl=(CASE1.bot&&sats.indexOf(CASE1.bot)>=0)?' · IBS <b>'+CASE1.bot.label+'</b> safe'+(CASE1.docked?' (pods on)':' (clear)') :''; fleetNotice('REENTRY TRACKING — <b>'+deb.label+'</b> perigee '+per.toFixed(0)+'km · alt '+(curAlt!=null?curAlt.toFixed(0):'—')+'km → burns <135km · deleted <65km'+_bl); }catch(_){}
       case1Log('reentry tracking: '+deb.label+' alt '+(curAlt!=null?curAlt.toFixed(1):'—')+'km, burning below 135km, delete below 65km');
       break;
     }
@@ -5262,6 +5290,29 @@ function case1Tick(){
   try{ case1Render(); }catch(_){}
 }
 function case1Handoff(reason){  const b=CASE1.bot;
+  // SAME-BOT RULE: once the shepherd has started beaming it owns the kill
+  // beam→push — no passing orders, no delay, no second bot. Retry with the
+  // same bot (fresh timers/trails) unless it is truly gone.
+  try{
+    const sh=CASE1.shepherd;
+    if(sh&&b&&sh===b&&sats.indexOf(sh)>=0&&!sh.case1Unavailable){
+      const t=case1Now();
+      try{ CASE1._missTrail=[]; }catch(_){}
+      try{ CASE1._snapT0=null; }catch(_){}
+      CASE1._lastRzT=t;
+      CASE1.rzDeadline=t+CASE_1_CONFIG.rendezvous.timeoutRevs*CASE1.target.periodSec()+600;
+      CASE1.lastDockT=t;
+      CASE1.dockDeadline=t+CASE_1_CONFIG.dock.timeoutRevs*CASE1.target.periodSec()+600;
+      case1Log('same-bot rule: '+sh.label+' keeps the kill ('+reason+') — retrying now, no handoff, no delay');
+      try{ fleetNotice('CASE 1 SAME-BOT — <b>'+sh.label+'</b> keeps the kill ('+reason+') → retrying now'); }catch(_){}
+      try{
+        if(CASE1.docked||CASE1.push){ /* pods on — keep pushing */ }
+        else if(case1Tumble(CASE1.target)<=CASE_1_CONFIG.tumble.maxRadS){ CASE1.launch=null; case1SetState('DOCKING','same-bot retry — relaunch pods'); }
+        else case1SetState('SHEPHERD','same-bot retry — re-beam to ~0');
+      }catch(_){}
+      return;
+    }
+  }catch(_){}
   if(CASE1.docked){ try{ case1Undock(case1Now(),'handoff'); }catch(_){ CASE1.docked=false; } }
   try{ if(b) b.attitude='prograde'; }catch(_){}
   try{ if(b) b.case1Unavailable=true; }catch(_){}
@@ -5277,6 +5328,7 @@ function case1Handoff(reason){  const b=CASE1.bot;
   const sel=case1SelectBot();
   if(sel.best){
     CASE1.bot=sel.best.bot; CASE1.backupBots=sel.rest.map(r=>r.bot);
+    CASE1.shepherd=null; CASE1.beamT0=null; CASE1.lastBeamT=null; CASE1.detumble=null;
     CASE1._lastRzT=case1Now(); CASE1.rzDeadline=case1Now()+CASE_1_CONFIG.rendezvous.timeoutRevs*CASE1.target.periodSec()+600;
     try{ if(typeof setAutoFollow==='function') setAutoFollow(CASE1.target, false); }catch(_){}
     case1Log('ORDERS → '+(sel.best.bot.label||'bot')+' (best position now: '+sel.best.dist.toFixed(0)+'km, rel '+(sel.best.rel*1000).toFixed(0)+'m/s, margin +'+sel.best.margin.toFixed(3)+'km/s)');
