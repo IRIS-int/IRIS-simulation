@@ -208,6 +208,31 @@ window.addEventListener('DOMContentLoaded', ()=>{
   .dep-actions{display:flex;gap:10px;margin-top:14px}
   .dep-actions .btn{flex:1;text-align:center;padding:11px}
   @media(max-width:640px){.dep-grid{grid-template-columns:1fr}.region-row{grid-template-columns:1fr}}
+  /* === BOT LAB — inspection room === */
+  #labOverlay{position:fixed;inset:0;background:rgba(2,6,23,0.85);backdrop-filter:blur(10px);z-index:40;display:none;align-items:center;justify-content:center;padding:16px}
+  #labOverlay.show{display:flex}
+  #labModal{width:1020px;max-width:97vw;max-height:94vh;overflow:hidden;background:rgba(10,18,36,0.97);border:1px solid rgba(96,165,250,0.3);border-radius:0;padding:0;box-shadow:0 24px 80px rgba(0,0,0,0.6);font-family:'Space Grotesk',system-ui,sans-serif;display:flex;flex-direction:column}
+  #labHead{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid rgba(96,165,250,0.18)}
+  #labHead h2{font-size:14px;letter-spacing:0.12em;font-weight:700}
+  #labHead h2 span{font-weight:300;opacity:0.65}
+  #labHead .sub{font-size:11px;opacity:0.6}
+  #labTabs{display:flex;gap:8px;padding:10px 16px 0}
+  .lab-tab{cursor:pointer;font-family:'Space Grotesk',system-ui,sans-serif;font-size:11px;letter-spacing:0.08em;padding:8px 14px;border-radius:0;border:1px solid rgba(96,165,250,0.3);background:rgba(15,23,42,0.7);color:#cbd5e1}
+  .lab-tab.active{background:rgba(37,99,235,0.9);color:#fff;border-color:rgba(96,165,250,0.5)}
+  #labBody{display:flex;gap:0;min-height:0;flex:1}
+  #labCanvasWrap{flex:1.4;position:relative;min-height:420px;background:radial-gradient(600px 300px at 50% 20%, #0b1530 0%, #050a18 60%, #020617 100%)}
+  #labCanvas{width:100%;height:100%;display:block;min-height:420px;max-height:62vh}
+  #labSide{flex:1;width:320px;max-width:340px;border-left:1px solid rgba(96,165,250,0.18);padding:14px 16px;overflow-y:auto;max-height:62vh}
+  #labSide h3{font-size:12px;letter-spacing:0.1em;margin-bottom:6px}
+  #labSide p{font-size:12px;line-height:1.6;opacity:0.85}
+  #labParts{margin:10px 0;padding:0;list-style:none}
+  #labParts li{padding:8px 10px;border:1px solid rgba(96,165,250,0.16);background:rgba(15,23,42,0.7);margin-bottom:6px;font-size:11px;line-height:1.5}
+  #labParts li b{display:block;font-size:11px;letter-spacing:0.06em;color:#7dd3fc}
+  #labSpecs{font-size:11px;line-height:1.7;background:rgba(2,6,23,0.8);border:1px solid rgba(96,165,250,0.14);padding:10px 12px;margin-top:8px}
+  #labSpecs b{color:#7dd3fc}
+  #labFoot{display:flex;gap:10px;padding:12px 16px;border-top:1px solid rgba(96,165,250,0.18)}
+  #labFoot .btn{flex:1;text-align:center}
+  @media(max-width:860px){#labBody{flex-direction:column}#labSide{width:auto;max-width:none;border-left:none;border-top:1px solid rgba(96,165,250,0.18);max-height:30vh}#labCanvas{min-height:300px}}
 </style>
 </head>
 <body>
@@ -232,6 +257,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
       <span class="pill live">● LIVE</span>
       <span class="pill" id="pillCount">— OBJECTS</span>
       <button class="btn" id="btnFPS" title="Toggle FPS game mode (WASD)">▶ FPS MODE</button>
+      <button class="btn" id="btnLab" title="Open Bot Lab — inspect Action / Sensory / Thruster in 3D">BOT LAB</button>
       <button class="btn" id="btnSimCentre" title="Open Simulation Centre">SIMULATION CENTRE</button>
       <button class="btn ghost" id="btnOrbitsTop" title="Show/hide orbit lines (O)">◉ ORBITS ON</button>
       <button class="btn ghost" id="btnFollow" title="Auto-follow Case-1 target (flies close + sticks to it)">◎ FOLLOW OFF</button>
@@ -457,6 +483,39 @@ window.addEventListener('DOMContentLoaded', ()=>{
       <button class="btn" id="depGo">● DEPLOY → LEO</button>
     </div>
     <div style="font-family:'JetBrains Mono',monospace;font-size:9px;opacity:0.5;margin-top:8px;line-height:1.5">Density: NRLMSISE-00 moderate fit (400 km ≈ 2.7e-12 kg/m³ · 943 K). v=√(μ/r), T=2π√(r³/μ), μ=398600 km³/s². Drag accel = ½ρv²/(B), B=m/(CdA). Lifetime guide: 200 km days · 300 km weeks–months · 400 km 1–2 y · 600 km ~25 y · 800 km 100+y.</div>
+  </div>
+</div>
+
+<!-- BOT LAB — 3D inspection room for Action / Sensory / Guided-push Thruster -->
+<div id="labOverlay">
+  <div id="labModal">
+    <div id="labHead">
+      <div class="logo-mark" style="width:30px;height:30px"><i></i></div>
+      <div style="flex:1">
+        <h2>BOT LAB <span>/ INSPECTION ROOM</span></h2>
+        <div class="sub">Aerodynamic flight models — the same meshes fly in LEO as Action / Sensory / Guided-push Thruster</div>
+      </div>
+      <button class="btn ghost" id="labClose">✕ CLOSE</button>
+    </div>
+    <div id="labTabs">
+      <button class="lab-tab active" data-lab="action">ACTION BOT</button>
+      <button class="lab-tab" data-lab="sensory">SENSORY BOT</button>
+      <button class="lab-tab" data-lab="thruster">GUIDED-PUSH THRUSTER</button>
+    </div>
+    <div id="labBody">
+      <div id="labCanvasWrap"><canvas id="labCanvas"></canvas></div>
+      <div id="labSide">
+        <h3 id="labTitle">ACTION BOT — IBS INTERCEPTOR</h3>
+        <p id="labDesc"></p>
+        <ul id="labParts"></ul>
+        <div id="labSpecs"></div>
+      </div>
+    </div>
+    <div id="labFoot">
+      <button class="btn ghost" id="labPrev">◀ PREV</button>
+      <button class="btn" id="labAdd">+ ADD THIS TO FLEET</button>
+      <button class="btn ghost" id="labNext">NEXT ▶</button>
+    </div>
   </div>
 </div>
 
@@ -1805,6 +1864,326 @@ function buildSensoryDetails(head,SZ){
   }
   head.userData.micro=micro;
 }
+// === AERO V2 — low-drag flight models (same physics, same interfaces) ===
+// Action: slender lifting-dart along Z (nose +Z ion face, tail -Z bell).
+// Sensory: teardrop with flush dome. Thruster: ogive kicker with boat-tail + grid fins.
+// All keep the userData contracts the sim animates (rings/blinkers/plume/throat/pglow).
+function _latheZ(parent, pts, mat){
+  const g = new THREE.LatheGeometry(pts.map(p=>new THREE.Vector2(p[0],p[1])), 28);
+  const m = new THREE.Mesh(g, mat);
+  m.rotation.x = Math.PI/2; // lathe Y-axis -> Z-axis (nose +Z)
+  parent.add(m); return m;
+}
+function buildActionAero(core, SZ){
+  _M.init(SZ);
+  const u = SZ;
+  const micro = new THREE.Group(); micro.name='micro'; core.add(micro);
+  // --- slender hull: ogive nose -> max beam -> tapered boat-tail (Z axis) ---
+  const prof = [];
+  const L = 0.034, R = 0.0072;
+  for(let i=0;i<=12;i++){ const k=i/12; const z=-L/2 + k*L; // -tail .. +nose
+    let r;
+    if(k<0.62){ const t=k/0.62; r=R*(0.45+0.55*Math.sin(t*Math.PI/2)); } // tail taper
+    else { const t=(k-0.62)/0.38; r=R*(1.0-0.72*t*t); } // ogive nose
+    prof.push([Math.max(r,0.0008)*u, z*u]);
+  }
+  const hullMat = new THREE.MeshStandardMaterial({color:0xc96a1e, emissive:0x9a3412, emissiveIntensity:0.35, roughness:0.38, metalness:0.7, map:foilTexture()});
+  hullMat.envMapIntensity=0.8;
+  _latheZ(core, prof, hullMat);
+  // copper equipment band (flush, low step)
+  const band = new THREE.Mesh(new THREE.TorusGeometry(0.0074*u, 0.0007*u, 8, 28), _M.copper);
+  band.position.set(0,0,-0.002*u); core.add(band);
+  // --- 4 swept delta fins (X arrangement) at tail ---
+  const finMat = _M.dark;
+  for(let i=0;i<4;i++){
+    const a = i*Math.PI/2 + Math.PI/4;
+    const fin = _box(core, 0.0009*u, 0.011*u, 0.009*u, Math.cos(a)*0.0085*u, Math.sin(a)*0.0085*u, -0.012*u, finMat);
+    fin.rotation.z = -a; fin.rotation.y = 0.5; // sweep back
+    const tip = _box(core, 0.001*u, 0.0112*u, 0.002*u, Math.cos(a)*0.0125*u, Math.sin(a)*0.0125*u, -0.0145*u, _M.alu);
+    tip.rotation.z = -a;
+  }
+  // --- ion emitter face (+Z nose, recessed cups, flush ring) ---
+  _cyl(core,0.0058*u,0.0064*u,0.0016*u,18, 0,0,0.0162*u,_M.dark,Math.PI/2,0);
+  const emitM=new THREE.MeshStandardMaterial({color:0x1a1033,emissive:0x8b5cf6,emissiveIntensity:2.4,roughness:0.3,metalness:0.8});
+  const emitG=new THREE.TorusGeometry(0.0022*u,0.0005*u,8,20);
+  const emitDotM=new THREE.MeshBasicMaterial({color:0xc4b5fd});
+  [[0,0],[-0.0032,0],[0.0032,0],[0,0.0032],[0,-0.0032]].forEach(([ex,ey])=>{
+    _cyl(core,0.0026*u,0.0026*u,0.0009*u,14, ex*u,ey*u,0.0168*u,_M.black,Math.PI/2,0);
+    const g=new THREE.Mesh(emitG,emitM.clone());
+    g.position.set(ex*u,ey*u,0.0173*u); core.add(g);
+    (core.userData.rings||(core.userData.rings=[])).push(g.material);
+    const dot=new THREE.Mesh(new THREE.CircleGeometry(0.0012*u,14),emitDotM);
+    dot.position.set(ex*u,ey*u,0.01725*u); core.add(dot);
+  });
+  const dock=new THREE.Mesh(new THREE.TorusGeometry(0.0072*u,0.0006*u,8,28),_M.titanium);
+  dock.position.set(0,0,0.0182*u); core.add(dock);
+  _strobe(core,_M.strobeA,0.0072*u,0,0.0182*u,0.0009,u,0.9);
+  _glow(core,0x8b5cf6,0,0,0.0182*u,0.016,u,0.9);
+  try{ _plate(core,'IBS','#8b5cf6',0.008*u, 0,-0.0086*u,0.012*u,0); }catch(_){}
+  // --- main bell (-Z tail, tucked, ribbed) ---
+  _cyl(core,0.0026*u,0.002*u,0.0026*u,12, 0,0,-0.0182*u,_M.copper,Math.PI/2,0);
+  const bell=new THREE.Mesh(new THREE.ConeGeometry(0.0042*u,0.006*u,18,1,true),_M.dark);
+  bell.position.set(0,0,-0.0225*u); bell.rotation.x=-Math.PI/2; core.add(bell);
+  const throatGlow=new THREE.Mesh(new THREE.CircleGeometry(0.0019*u,16),new THREE.MeshBasicMaterial({color:0xffc37a}));
+  throatGlow.position.set(0,0,-0.0196*u); throatGlow.rotation.y=Math.PI; core.add(throatGlow);
+  [-1,1].forEach(s=>{ _cyl(core,0.0005*u,0.0005*u,0.004*u,8, s*0.0032*u,-0.003*u,-0.0175*u,_M.alu,0.3*s,0); });
+  _glow(core,0xff8c2e,0,0,-0.026*u,0.012,u,2.2);
+  // --- LOADED GUIDED THRUSTER (belly hardpoint, cup-forward +Z, released in DOCKING) ---
+  _box(core,0.004*u,0.0012*u,0.024*u, 0,-0.0098*u,-0.002*u,_M.dark); // belly rail
+  const kick=new THREE.Group(); kick.position.set(0,-0.0135*u,-0.002*u); core.add(kick);
+  const kProf=[]; const kL=0.020, kR=0.0032;
+  for(let i=0;i<=10;i++){ const k=i/10; const z=-kL/2+k*kL; let r;
+    if(k>0.7){ const t=(k-0.7)/0.3; r=kR*(1-0.8*t*t); } else r=kR*(0.9+0.1*Math.sin((k/0.7)*Math.PI/2));
+    kProf.push([Math.max(r,0.0004)*u, z*u]);
+  }
+  const kBodyMat=new THREE.MeshStandardMaterial({color:0xd7dde3, roughness:0.35, metalness:0.85});
+  _latheZ(kick, kProf, kBodyMat);
+  [-0.005,0.004].forEach(kz=>{ // clamp bands
+    const cb=new THREE.Mesh(new THREE.TorusGeometry(0.0034*u,0.0004*u,6,18),_M.dark);
+    cb.position.set(0,0,kz*u); kick.add(cb);
+  });
+  // suction cup forward (+Z)
+  const kCupPts=[]; for(let i=0;i<=8;i++){ const k=i/8; kCupPts.push([0.0016+0.0034*k*k, 0.010+k*0.0032]); }
+  _latheZ(kick, kCupPts.map(p=>[p[0]*u,p[1]*u]), new THREE.MeshStandardMaterial({color:0x1c1210, roughness:0.85, metalness:0.25, side:THREE.DoubleSide}));
+  const kLip=new THREE.Mesh(new THREE.TorusGeometry(0.0049*u,0.0007*u,8,20),
+    new THREE.MeshStandardMaterial({color:0x7c2d12, emissive:0xea580c, emissiveIntensity:0.8, roughness:0.6, metalness:0.3}));
+  kLip.position.set(0,0,0.0132*u); kick.add(kLip);
+  const kVac=new THREE.Mesh(new THREE.CircleGeometry(0.003*u,16),
+    new THREE.MeshStandardMaterial({color:0x04202a, emissive:0x22d3ee, emissiveIntensity:1.6, roughness:0.3, metalness:0.6}));
+  kVac.position.set(0,0,0.0102*u); kick.add(kVac);
+  // mini grid fins + mini bell aft (-Z)
+  for(let i=0;i<3;i++){ const a=i*Math.PI*2/3;
+    const f=_box(kick,0.0004*u,0.004*u,0.0026*u, Math.cos(a)*0.0038*u,Math.sin(a)*0.0038*u,-0.006*u,_M.dark);
+    f.rotation.z=-a;
+  }
+  const kBell=new THREE.Mesh(new THREE.ConeGeometry(0.0022*u,0.0032*u,14,1,true),_M.dark);
+  kBell.position.set(0,0,-0.0118*u); kBell.rotation.x=-Math.PI/2; kick.add(kBell);
+  const kThroat=new THREE.Mesh(new THREE.CircleGeometry(0.0011*u,12),new THREE.MeshBasicMaterial({color:0xffb020}));
+  kThroat.position.set(0,0,-0.0102*u); kThroat.rotation.y=Math.PI; kick.add(kThroat);
+  _strobe(kick,_M.strobeA,0.0036*u,0.0036*u,-0.002*u,0.0005,u,1.1); // release marker
+  _glow(kick,0xffb020,0,0,-0.014*u,0.008,u,1.1);
+  try{ _plate(kick,'KICKER','#ffb020',0.005*u, 0,-0.0048*u,0.002*u,0); }catch(_){}
+  core.userData.loadedKicker=kick;
+  // --- conformal solar (flush strips, no draggy wings) + dorsal blade antenna ---
+  [-1,1].forEach(s=>{
+    const strip=_box(core,0.0006*u,0.0022*u,0.020*u, s*0.0068*u,0.0028*u,-0.002*u,_M.solar);
+    strip.rotation.y=s*0.06;
+    _box(core,0.0007*u,0.0007*u,0.020*u, s*0.0068*u,0.0014*u,-0.002*u,_M.dark);
+  });
+  // --- DEPLOYED SOLAR WING (constant power) — swept thin paddles on side spars ---
+  [-1,1].forEach(s=>{
+    _cyl(core,0.0009*u,0.0009*u,0.007*u,8, s*0.0095*u,0.004*u,-0.004*u,_M.alu,0,Math.PI/2); // spar
+    _cyl(core,0.0015*u,0.0015*u,0.0024*u,10, s*0.0075*u,0.004*u,-0.004*u,_M.dark,0,Math.PI/2); // hinge drum
+    _box(core,0.002*u,0.002*u,0.002*u, s*0.0068*u,0.004*u,-0.004*u,_M.dark); // root bracket
+    const panel=_box(core,0.016*u,0.0006*u,0.010*u, s*0.020*u,0.004*u,-0.0065*u,_M.solar); // cell face
+    panel.rotation.y=-s*0.42; // swept back ~24°
+    _box(core,0.0166*u,0.0003*u,0.0106*u, s*0.020*u,0.0036*u,-0.0065*u,_M.solarBack).rotation.y=-s*0.42; // backing
+    const tipBar=_box(core,0.003*u,0.0008*u,0.008*u, s*0.0275*u,0.004*u,-0.010*u,_M.alu);
+    tipBar.rotation.y=-s*0.42;
+    const rib=_box(core,0.014*u,0.0004*u,0.0008*u, s*0.020*u,0.0044*u,-0.0065*u,_M.dark); // center rib
+    rib.rotation.y=-s*0.42;
+    _strobe(core,_M.strobeG,s*0.0285*u,0.004*u,-0.0105*u,0.0006,u,s>0?1.8:4.8); // wingtip markers
+  });
+  _box(core,0.004*u,0.001*u,0.002*u, 0.004*u,0.004*u,-0.004*u,_M.array); // power regulator tile
+  try{ _plate(core,'PWR','#22ff66',0.005*u, -0.0072*u,0.004*u,-0.004*u,-Math.PI/2); }catch(_){}
+  _box(core,0.0005*u,0.007*u,0.006*u, 0,0.009*u,-0.008*u,_M.alu); // dorsal fin-blade
+  _box(core,0.0006*u,0.004*u,0.003*u, 0,0.0105*u,-0.008*u,_M.array); // comm patch on blade
+  const dish=new THREE.Mesh(new THREE.SphereGeometry(0.0028*u,16,10,0,Math.PI*2,0,Math.PI/2.8),_M.dishWhite);
+  dish.position.set(0,0.0075*u,-0.013*u); dish.rotation.x=Math.PI*0.78; core.add(dish);
+  _cyl(core,0.0006*u,0.0006*u,0.004*u,8, 0,0.0055*u,-0.013*u,_M.alu);
+  _strobe(core,_M.strobeG,0,0.0125*u,-0.008*u,0.0009,u,2.6);
+  try{ _plate(core,'LINK','#22ff66',0.006*u, 0.0072*u,0.0,-0.002*u,Math.PI/2); }catch(_){}
+  // --- flush RCS micro-nozzles (4, faired) ---
+  [[0.005,0.005],[-0.005,0.005],[0.005,-0.005],[-0.005,-0.005]].forEach(([rx,ry])=>{
+    _cyl(core,0.0006*u,0.0008*u,0.0014*u,8, rx*u,ry*u,-0.010*u,_M.titanium);
+  });
+  _strobe(core,_M.strobeR,0,0.0072*u,-0.002*u,0.0009,u,4.1);
+  _strobe(core,_M.strobeA,0,-0.0072*u,-0.002*u,0.0009,u,5.3);
+  // --- micro: rim bolts, grid pins, petal sensors, vent slats ---
+  for(let i=0;i<8;i++){ const a=i/8*Math.PI*2;
+    _cyl(micro,0.00035*u,0.00035*u,0.0008*u,6, Math.cos(a)*0.006*u,Math.sin(a)*0.006*u,0.0162*u,_M.alu,Math.PI/2,0);
+  }
+  for(let i=0;i<3;i++){ const a=i/3*Math.PI*2+Math.PI/6;
+    _box(micro,0.0016*u,0.0009*u,0.0014*u, Math.cos(a)*0.0072*u,Math.sin(a)*0.0072*u,0.0182*u,_M.copper);
+    const pad=new THREE.Mesh(new THREE.CircleGeometry(0.0006*u,10),_M.lensC);
+    pad.position.set(Math.cos(a)*0.0072*u,Math.sin(a)*0.0072*u,0.019*u); micro.add(pad);
+  }
+  for(let i=0;i<4;i++) _box(micro,0.005*u,0.0005*u,0.0004*u, 0,-0.0045*u+i*0.0011*u,-0.0205*u,_M.black);
+  core.userData.ibs={emitters:(core.userData.rings||[]),bell,dish};
+  core.userData.micro=micro;
+  core.userData.parts=[
+    {n:'Ogive nose + ion face', d:'5 recessed gridded emitters, flush capture ring — low-drag shepherd face.'},
+    {n:'Lifting-dart hull', d:'Slender lathe body, copper band flush — cuts LEO drag vs boxy bus.'},
+    {n:'LOADED guided thruster', d:'Belly-mounted kicker with suction cup forward — released in DOCKING to fly to debris.'},
+    {n:'Swept delta fins ×4', d:'Tail X-fins for reentry-adjacent stability and prograde weathervane.'},
+    {n:'Conformal solar', d:'Body-flush cell strips — trickle power without wing drag.'},
+    {n:'Deployed solar wing', d:'Swept twin paddles on side spars — constant power for ion face + kicker.'},
+    {n:'Guided-push bell', d:'Gimballed kicker bell tucked in boat-tail — the deorbit push.'},
+    {n:'Comm blade + dish', d:'Dorsal fin antenna + micro dish for CCS link.'},
+  ];
+}
+function buildSensoryAero(head, SZ){
+  _M.init(SZ);
+  const u = SZ;
+  head.material.map=foilTexture(); head.material.color.setHex(0xffffff); head.material.needsUpdate=true;
+  const micro=new THREE.Group(); micro.name='micro'; head.add(micro);
+  // --- teardrop hull (stretched sphere, point down = sensor end) ---
+  const drop = new THREE.Mesh(new THREE.SphereGeometry(0.011*u, 24, 18), head.material);
+  drop.scale.set(1, 1.5, 1); head.add(drop);
+  const tailCone = new THREE.Mesh(new THREE.ConeGeometry(0.006*u, 0.012*u, 18), _M.dark);
+  tailCone.position.set(0, 0.020*u, 0); head.add(tailCone);
+  // --- blended equator collar (faired ring, 6 flush cells) ---
+  const collar=new THREE.Mesh(new THREE.TorusGeometry(0.0105*u,0.0014*u,8,26),_M.dark);
+  collar.rotation.x=Math.PI/2; head.add(collar);
+  for(let i=0;i<6;i++){ const a=i/6*Math.PI*2;
+    const cell=_box(head,0.004*u,0.0006*u,0.0024*u, Math.cos(a)*0.011*u,0.001*u,Math.sin(a)*0.011*u,_M.solar);
+    cell.rotation.y=-a;
+  }
+  // --- flush sensor dome (down) + baffle lip ---
+  _cyl(head,0.003*u,0.0038*u,0.005*u,14, 0,-0.016*u,0,_M.black);
+  const dome=new THREE.Mesh(new THREE.SphereGeometry(0.003*u,18,12,0,Math.PI*2,0,Math.PI/2),_M.lensC);
+  dome.position.set(0,-0.0185*u,0); dome.rotation.x=Math.PI; head.add(dome);
+  const lip=new THREE.Mesh(new THREE.TorusGeometry(0.0034*u,0.00045*u,8,24),_M.copper);
+  lip.position.set(0,-0.0182*u,0); lip.rotation.x=Math.PI/2; head.add(lip);
+  const shade=new THREE.Mesh(new THREE.CylinderGeometry(0.0042*u,0.0038*u,0.003*u,18,1,true),_M.blackMLI||_M.black);
+  shade.position.set(0,-0.0195*u,0); head.add(shade);
+  // --- 3 micro strakes (swept, low drag) instead of ribs ---
+  for(let i=0;i<3;i++){ const a=i/3*Math.PI*2;
+    const st=_box(head,0.0007*u,0.010*u,0.003*u, Math.cos(a)*0.009*u,0.008*u,Math.sin(a)*0.009*u,_M.copper);
+    st.rotation.y=-a; st.rotation.x=0.25;
+  }
+  // --- spike antenna faired at tail + beacon ---
+  _cyl(head,0.0004*u,0.0007*u,0.010*u,6, 0,0.028*u,0,_M.alu);
+  const sPh=Math.random()*6;
+  _strobe(head,_M.strobeA,0,0.033*u,0,0.0009,u,sPh);
+  _glow(head,0xffc040,0,0.033*u,0,0.008,u,sPh);
+  const scrG=new THREE.CylinderGeometry(0.0003*u,0.0003*u,0.0005*u,6);
+  for(let i=0;i<8;i++){ const a=(i+0.5)/8*Math.PI*2;
+    const sc=new THREE.Mesh(scrG,_M.alu);
+    sc.position.set(Math.cos(a)*0.0095*u,0.006*u,Math.sin(a)*0.0095*u); micro.add(sc);
+  }
+  head.userData.micro=micro;
+  head.userData.parts=[
+    {n:'Teardrop hull', d:'Stretched low-drag body — tail spike first prograde, dome nadir.'},
+    {n:'Flush sensor dome', d:'Recessed glass + copper lip + stray-light shade.'},
+    {n:'Faired collar cells', d:'6 conformal solar cells on blended equator ring.'},
+    {n:'Micro strakes ×3', d:'Swept stabilizing strakes, no blunt ribs.'},
+    {n:'Tail beacon', d:'Faired mast + strobe for optical tracking.'},
+  ];
+}
+function buildThrusterAero(){
+  // Standalone kicker — ogive fairing + boat-tail + grid fins. +Y up, bell -Y.
+  // Keeps userData {plume, throat, pglow, strobe} for the Case-1 flight anim.
+  const g = new THREE.Group();
+  const metal=new THREE.MeshStandardMaterial({color:0xd7dde3, roughness:0.32, metalness:0.88, map:case1ThrusterTexture()});
+  const dark=new THREE.MeshStandardMaterial({color:0x2b3138, roughness:0.5, metalness:0.9});
+  const copper=new THREE.MeshStandardMaterial({color:0xb46a28, roughness:0.35, metalness:0.95});
+  // ogive nose + cylindrical tank in one lathe (Y-up)
+  const pts=[]; const H=0.034, R=0.0085;
+  for(let i=0;i<=14;i++){ const k=i/14; const y=-H/2 + k*H; let r;
+    if(k>0.72){ const t=(k-0.72)/0.28; r=R*(1-0.85*t*t); } else r=R*(0.92+0.08*Math.sin((k/0.72)*Math.PI/2));
+    pts.push(new THREE.Vector2(Math.max(r,0.0008), y));
+  }
+  const body=new THREE.Mesh(new THREE.LatheGeometry(pts,26), metal); g.add(body);
+  // boat-tail taper above bell
+  const tail=new THREE.Mesh(new THREE.CylinderGeometry(0.0085,0.0062,0.006,20), dark);
+  tail.position.y=-0.020; g.add(tail);
+  // === SUPER SUCTION CAP (front, +Y) — vacuum grapple that holds debris ===
+  const suck=new THREE.Group(); suck.position.y=0.017; g.add(suck);
+  const mountRing=new THREE.Mesh(new THREE.TorusGeometry(0.0055,0.0012,8,22), copper);
+  mountRing.rotation.x=Math.PI/2; suck.add(mountRing);
+  const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.0042,0.005,0.004,16), dark);
+  neck.position.y=0.002; suck.add(neck);
+  // flared compliant cup opening +Y
+  const cupPts=[]; for(let i=0;i<=10;i++){ const k=i/10; cupPts.push(new THREE.Vector2(0.004+0.0085*k*k, 0.004+k*0.007)); }
+  const cup=new THREE.Mesh(new THREE.LatheGeometry(cupPts,26),
+    new THREE.MeshStandardMaterial({color:0x1c1210, roughness:0.85, metalness:0.25, side:THREE.DoubleSide}));
+  suck.add(cup);
+  const lip=new THREE.Mesh(new THREE.TorusGeometry(0.0122,0.0016,10,28),
+    new THREE.MeshStandardMaterial({color:0x7c2d12, emissive:0xea580c, emissiveIntensity:0.7, roughness:0.6, metalness:0.3}));
+  lip.rotation.x=Math.PI/2; lip.position.y=0.011; suck.add(lip);
+  // inner vacuum disc (glows when sealed) + hub
+  const vacDisc=new THREE.Mesh(new THREE.CircleGeometry(0.0075,22),
+    new THREE.MeshStandardMaterial({color:0x04202a, emissive:0x22d3ee, emissiveIntensity:1.8, roughness:0.3, metalness:0.6}));
+  vacDisc.rotation.x=-Math.PI/2; vacDisc.position.y=0.0045; suck.add(vacDisc);
+  const hub=new THREE.Mesh(new THREE.SphereGeometry(0.002,10,8), copper);
+  hub.position.y=0.0055; suck.add(hub);
+  // vacuum lines cup->body + seal strobes
+  for(const sd of [-1,1]){
+    const curve=new THREE.CatmullRomCurve3([
+      new THREE.Vector3(sd*0.004,0.004,0),
+      new THREE.Vector3(sd*0.007,0.0,0.001),
+      new THREE.Vector3(sd*0.0075,-0.008,0.001)]);
+    g.add(new THREE.Mesh(new THREE.TubeGeometry(curve,10,0.0008,6), copper));
+  }
+  _strobe(g,_M.init(1).strobeA,0.013,0.026,0,0.0016,1,0.4);
+  _strobe(g,_M.init(1).strobeG,-0.013,0.026,0,0.0016,1,3.4);
+  _glow(g,0x22d3ee,0,0.030,0,0.022,1,1.2);
+  g.userData.suction=suck; g.userData.vacDisc=vacDisc;
+  // mast + strobe moved to flank (nose tip is now the suction cup)
+  const mast=new THREE.Mesh(new THREE.CylinderGeometry(0.0009,0.0014,0.007,8), dark);
+  mast.position.set(0.0085,0.010,0); mast.rotation.z=-0.25; g.add(mast);
+  const strobe=new THREE.Mesh(new THREE.SphereGeometry(0.0018,10,8),
+    new THREE.MeshBasicMaterial({color:0xff2222, depthTest:false, transparent:true}));
+  strobe.position.y=0.0245; strobe.renderOrder=32; g.add(strobe); g.userData.strobe=strobe;
+  // 3 grid fins (low-drag lattice approximated as thin faired plates)
+  for(let i=0;i<3;i++){ const a=i*Math.PI*2/3;
+    const fin=new THREE.Mesh(new THREE.BoxGeometry(0.0007,0.009,0.006), dark);
+    fin.position.set(Math.cos(a)*0.0095,0.008,Math.sin(a)*0.0095);
+    fin.rotation.y=-a; fin.rotation.x=0.35; g.add(fin);
+  }
+  // flush RCS quads
+  for(let i=0;i<4;i++){ const a=i*Math.PI/2+Math.PI/4;
+    const rcs=new THREE.Mesh(new THREE.ConeGeometry(0.0014,0.003,8), dark);
+    rcs.position.set(Math.cos(a)*0.0082,0.012,Math.sin(a)*0.0082);
+    rcs.rotation.z=-Math.PI/2; rcs.rotation.y=-a; g.add(rcs);
+  }
+  // chamber + gimbal + feed lines (tucked)
+  const chamber=new THREE.Mesh(new THREE.SphereGeometry(0.006,18,14), copper);
+  chamber.position.y=-0.024; g.add(chamber);
+  const gim=new THREE.Mesh(new THREE.TorusGeometry(0.0062,0.001,8,20), dark);
+  gim.position.y=-0.0205; gim.rotation.x=Math.PI/2; g.add(gim);
+  for(const sd of [-1,1]){
+    const curve=new THREE.CatmullRomCurve3([
+      new THREE.Vector3(sd*0.008,-0.008,0.002),
+      new THREE.Vector3(sd*0.0095,-0.016,0.002),
+      new THREE.Vector3(sd*0.005,-0.022,0.001)]);
+    g.add(new THREE.Mesh(new THREE.TubeGeometry(curve,12,0.0009,6), copper));
+  }
+  // bell + throat (same contract as before)
+  const bpts=[]; for(let i=0;i<=16;i++){ const k=i/16; bpts.push(new THREE.Vector2(0.0045+0.008*k*k, -k*0.015)); }
+  const bell=new THREE.Mesh(new THREE.LatheGeometry(bpts,24),
+    new THREE.MeshStandardMaterial({color:0x3a4048, roughness:0.35, metalness:0.95, side:THREE.DoubleSide}));
+  bell.position.y=-0.027; g.add(bell); g.userData.bell=bell;
+  const throat=new THREE.Mesh(new THREE.CircleGeometry(0.0042,18),
+    new THREE.MeshBasicMaterial({color:0xffb020, transparent:true, opacity:0.9, depthTest:false}));
+  throat.position.y=-0.0285; throat.rotation.x=Math.PI/2; throat.renderOrder=32; g.add(throat);
+  g.userData.throat=throat;
+  // retractable grapple pads (flush when flying, extend on attach — static extended here)
+  for(let i=0;i<3;i++){ const a=i*Math.PI*2/3;
+    const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.0008,0.0008,0.016,6), dark);
+    leg.position.set(Math.cos(a)*0.0095,-0.032,Math.sin(a)*0.0095);
+    leg.rotation.set(Math.sin(a)*0.5,0,-Math.cos(a)*0.5); g.add(leg);
+    const pad=new THREE.Mesh(new THREE.BoxGeometry(0.004,0.0012,0.004), dark);
+    pad.position.set(Math.cos(a)*0.0135,-0.039,Math.sin(a)*0.0135); g.add(pad);
+  }
+  const plume=new THREE.Mesh(new THREE.ConeGeometry(0.008,0.036,16,1,true),
+    new THREE.MeshBasicMaterial({color:0xff8c1a, transparent:true, opacity:0.55, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide}));
+  plume.position.y=-0.060; plume.renderOrder=32; g.add(plume);
+  g.userData.plume=plume;
+  const pglow=case1MakeGlow('rgba(255,150,40,0.95)',0.040);
+  pglow.position.y=-0.044; g.add(pglow); g.userData.pglow=pglow;
+  g.traverse(n=>{ try{ n.frustumCulled=false; }catch(_){} });
+  g.userData.parts=[
+    {n:'SUPER SUCTION CAP', d:'Flared compliant cup + vacuum disc + seal ring — clamps debris face and holds through the push.'},
+    {n:'Ogive fairing', d:'Low-drag nose over tank + avionics — clean separation from carrier.'},
+    {n:'Grid fins ×3', d:'Swept lattice fins for guided-push stability.'},
+    {n:'Boat-tail + 500N bell', d:'Tapered tail tucks the gimballed bell out of the airstream.'},
+    {n:'Grapple pads ×3', d:'Extend to grip debris zenith face, retract flush in flight.'},
+    {n:'Flush RCS', d:'Recessed quads for terminal attach alignment.'},
+  ];
+  return g;
+}
 function solveKepler(M,e){ let E=M; for(let i=0;i<6;i++){ let f=E - e*Math.sin(E) - M, fp=1 - e*Math.cos(E); E-=f/fp; } return E; }
 class Sat{
   constructor(o){ this.type=o.type; this.a=o.a; this.e=o.e||0; this.inc=o.inc*RAD; this.raan=o.raan*RAD; this.argP=o.argP*RAD; this.M0=o.M0*RAD; this.mass=o.mass||800; this.spin=o.spin||0;
@@ -1867,22 +2246,25 @@ class Sat{
       try{ buildActiveDetails(mesh,SZ); }catch(e){ console.warn('active detail fail',e); }
     }
     else if(this.type==='sensory'){ 
-      const g=new THREE.OctahedronGeometry(0.012*SZ,0);
+      const g=new THREE.SphereGeometry(0.006*SZ,12,10);
       const m=new THREE.MeshStandardMaterial({color:0xffffff, map:foilTexture(), emissive:0xf59e0b, emissiveIntensity:0.35, roughness:0.38, metalness:0.75}); 
       mesh=new THREE.Mesh(g,m); 
-      const cg=new THREE.ConeGeometry(0.018*SZ,0.04*SZ,16,1,true); 
-      const cm=new THREE.MeshBasicMaterial({color:0xfacc15, transparent:true, opacity:0.14, side:THREE.DoubleSide}); 
-      const cone=new THREE.Mesh(cg,cm); cone.rotation.x=Math.PI; cone.position.y=-0.035*SZ; mesh.add(cone); 
-      try{ buildSensoryDetails(mesh,SZ); }catch(e){ console.warn('sensory detail fail',e); }
+      const cg=new THREE.ConeGeometry(0.014*SZ,0.032*SZ,16,1,true); 
+      const cm=new THREE.MeshBasicMaterial({color:0xfacc15, transparent:true, opacity:0.10, side:THREE.DoubleSide}); 
+      const cone=new THREE.Mesh(cg,cm); cone.rotation.x=Math.PI; cone.position.y=-0.032*SZ; mesh.add(cone); 
+      try{ buildSensoryAero(mesh,SZ); }catch(e){ console.warn('sensory detail fail',e); }
+      try{ mesh.scale.setScalar(2.2); }catch(_){}
     }
     else { 
-      const g=new THREE.CylinderGeometry(0.008*SZ,0.011*SZ,0.032*SZ,12); 
-      const m=new THREE.MeshStandardMaterial({color:0xc96a1e, emissive:0x9a3412, emissiveIntensity:0.35, roughness:0.42, metalness:0.6, map:foilTexture()}); 
-      mesh=new THREE.Mesh(g,m); mesh.rotation.z=Math.PI/2; 
-      // detail group must counter-rotate so drone stays upright: build in wrapper
-      // build drone parts inside inner group aligned to cylinder axis
+      // AERO V2 action dart — holder group + aero inner (same physics, new low-drag look)
+      const holder=new THREE.Group();
+      const coreMat=new THREE.MeshStandardMaterial({color:0xc96a1e, emissive:0x9a3412, emissiveIntensity:0.35, roughness:0.42, metalness:0.6, map:foilTexture()});
+      const coreStub=new THREE.Mesh(new THREE.SphereGeometry(0.004*SZ,10,8), coreMat);
+      coreStub.visible=false; holder.add(coreStub);
+      mesh=holder;
       const inner=new THREE.Group(); mesh.add(inner);
-      try{ buildActionDetails(inner,SZ); mesh.userData.blinkers=inner.userData.blinkers; mesh.userData.rings=inner.userData.rings; mesh.userData.micro=inner.userData.micro; mesh.userData.inner=inner; mesh.userData.eddy=inner.userData.eddy; mesh.userData.sidePods=inner.userData.sidePods; }catch(e){ console.warn('action detail fail',e); }
+      try{ buildActionAero(inner,SZ); mesh.userData.blinkers=inner.userData.blinkers; mesh.userData.rings=inner.userData.rings; mesh.userData.micro=inner.userData.micro; mesh.userData.inner=inner; mesh.userData.parts=inner.userData.parts; }catch(e){ console.warn('action detail fail',e); }
+      try{ inner.scale.setScalar(2.2); mesh.userData.hitR=0.06*SZ; }catch(_){}
     }
     this.mesh=mesh; this.group.add(mesh);
     const col=this.type==='debris'?0xf87171:this.type==='active'?0x22c55e:this.type==='sensory'?0xfacc15:0xfb923c;
@@ -2314,13 +2696,13 @@ function attachBot(parentRef, kind, opts){
   const parent=resolveParentSat(parentRef);
   if(!parent){ fleetNotice('ADD AN <b>ACTIVE SAT</b> FIRST — THEN ATTACH SENSORY BOTS'); return null; }
   const SZ=R_EARTH*0.595;
-  const g=new THREE.OctahedronGeometry(0.012*SZ,0);
+  const g=new THREE.SphereGeometry(0.006*SZ,12,10);
   const m=new THREE.MeshStandardMaterial({color:0xffffff, map:foilTexture(), emissive:0xf59e0b, emissiveIntensity:0.35, roughness:0.38, metalness:0.75});
   const mesh=new THREE.Mesh(g,m);
-  const cg=new THREE.ConeGeometry(0.018*SZ,0.04*SZ,16,1,true);
-  const cm=new THREE.MeshBasicMaterial({color:0xfacc15, transparent:true, opacity:0.14, side:THREE.DoubleSide});
-  const cone=new THREE.Mesh(cg,cm); cone.rotation.x=Math.PI; cone.position.y=-0.038*SZ; mesh.add(cone);
-  try{ buildSensoryDetails(mesh,SZ); }catch(e){ console.warn('sensory bot detail fail',e); }
+  const cg=new THREE.ConeGeometry(0.014*SZ,0.032*SZ,16,1,true);
+  const cm=new THREE.MeshBasicMaterial({color:0xfacc15, transparent:true, opacity:0.10, side:THREE.DoubleSide});
+  const cone=new THREE.Mesh(cg,cm); cone.rotation.x=Math.PI; cone.position.y=-0.034*SZ; mesh.add(cone);
+  try{ buildSensoryAero(mesh,SZ); }catch(e){ console.warn('sensory bot detail fail',e); }
   const siblings=(parent.bots||[]).length;
   mesh.position.copy(opts.offset || defaultBotOffset(kind, siblings));
   parent.group.add(mesh);
@@ -2336,7 +2718,7 @@ function attachBot(parentRef, kind, opts){
   try{ tagSatMesh(mesh,bot.id,'#facc15',SZ,'sensory'); }catch(_){}
   parent.bots.push(bot);
   bots.push(bot);
-  try{ mesh.scale.copy(parent.mesh.scale).multiplyScalar(0.85); }catch(_){}
+  try{ mesh.scale.setScalar(2.0); }catch(_){}
   updateFleetCounts();
   return bot;
 }
@@ -4051,6 +4433,8 @@ function case1ThrusterTexture(){
   return t;
 }
 function case1BuildThruster(){
+  // AERO V2 kicker — same flight contract (plume/throat/pglow/strobe), low-drag fairing.
+  try{ if(typeof buildThrusterAero==='function') return buildThrusterAero(); }catch(_){}
   const g=new THREE.Group();
   const metal=new THREE.MeshStandardMaterial({color:0xd7dde3, roughness:0.35, metalness:0.85, map:case1ThrusterTexture()});
   const dark=new THREE.MeshStandardMaterial({color:0x2b3138, roughness:0.5, metalness:0.9});
@@ -5670,13 +6054,132 @@ function enterZone(id){
   setTimeout(()=>document.body.style.background='#000', 220);
 }
 zoneBtns.forEach(b=> b.addEventListener('click', ()=> enterZone(b.dataset.zone)));
-addEventListener('keydown', e=>{ if(e.key==='Escape') doReset(); });
+addEventListener('keydown', e=>{ if(e.key==='Escape'){ try{ if(typeof LAB!=='undefined'&&LAB.open){ closeLab(); return; } }catch(_){} doReset(); } });
 window._forcedZone=null;
 const sRay=new THREE.Raycaster();
 renderer.domElement.addEventListener('dblclick', e=>{
   const mx=(e.clientX/innerWidth)*2-1, my=-(e.clientY/innerHeight)*2+1; sRay.setFromCamera({x:mx,y:my}, camera);
   const its=sRay.intersectObjects(shellMeshes);
   if(its.length){ const r=its[0].object.geometry.parameters.radius; const alt=altFromRadius(r); const nd=sceneRadius(alt+180); const dir=camera.position.clone().normalize(); const np=dir.multiplyScalar(nd); const s0=camera.position.clone(), t0=performance.now(); (function a(now){ const p=Math.min(1,(now-t0)/900), e=1-Math.pow(1-p,3); camera.position.lerpVectors(s0,np,e); controls.update(); if(p<1) requestAnimationFrame(a); })(performance.now()); }
+});
+// === BOT LAB — inspection room (own scene, zero impact on main sim) ===
+const LAB_INFO={
+  action:{title:'ACTION BOT — IBS INTERCEPTOR', desc:'Aerodynamic shepherd dart. Slender lifting body with ogive nose, swept X-fins and conformal solar — same 120 kg / 4 m² flight model as LEO, just low-drag skin. Carries a loaded guided thruster on its belly rail (suction cup forward) — released in DOCKING to latch debris. Ion face bleeds spin first, tail bell backs the push.',
+    specs:'<b>Mass</b> 120 kg · <b>Area</b> 4 m² · <b>Role</b> rendezvous + ion shepherd + kicker carrier<br><b>Loaded</b> belly kicker with suction cup (forward +Z) · <b>Face</b> 5× ion emitters + capture ring · <b>Tail</b> gimballed bell<br><b>Power</b> deployed swept wing + conformal strips (constant) · <b>Link</b> dorsal blade + micro dish'},
+  sensory:{title:'SENSORY BOT — TRACKER', desc:'Aerodynamic teardrop tracker. Rides attached to an active sat, staring nadir with a flush sensor dome. Faired collar cells power it, strakes keep it steady — detects debris inside 2500 km for Case-1.',
+    specs:'<b>Mass</b> ~8 kg · <b>Role</b> detection + tracking (attached)<br><b>Sensor</b> flush dome + shade · <b>Range</b> 2500 km<br><b>Power</b> 6× faired collar cells'},
+  thruster:{title:'GUIDED-PUSH THRUSTER — KICKER', desc:'Aerodynamic deorbit kicker with a super-strong suction cap up front. Flared compliant cup + vacuum disc + seal ring clamp the debris face and hold through the whole push. Ogive fairing, boat-tail and 3 grid fins guide it from the action-bot belly rail to the debris zenith face. Grapple pads back up the suction grip, 500 N bell pushes perigee to ~65 km — expendable, burns up with debris.',
+    specs:'<b>Thrust</b> 500 N · <b>Push</b> ~180 s · <b>Target perigee</b> 65 km<br><b>Grip</b> super suction cap (cup + vacuum disc + seal) + 3× grapple pads<br><b>Guide</b> 3× grid fins + flush RCS · <b>Released</b> automatically in Case-1 DOCKING after detumble'},
+};
+const LAB={open:false, tab:'action', renderer:null, scene:null, camera:null, controls:null, models:{}, raf:0, t:0};
+function labSide(tab){
+  const info=LAB_INFO[tab];
+  document.getElementById('labTitle').textContent=info.title;
+  document.getElementById('labDesc').textContent=info.desc;
+  document.getElementById('labSpecs').innerHTML=info.specs;
+  const host=document.getElementById('labParts'); host.innerHTML='';
+  const parts=(tab==='action'?(LAB.models.action?.userData?.parts||[]):tab==='sensory'?(LAB.models.sensory?.userData?.parts||[]):(LAB.models.thruster?.userData?.parts||[]));
+  (parts.length?parts:[{n:'Flight model',d:'Same mesh that flies in LEO.'}]).forEach(p=>{
+    const li=document.createElement('li'); const b=document.createElement('b'); b.textContent=p.n;
+    const s=document.createElement('span'); s.textContent=p.d; li.appendChild(b); li.appendChild(s); host.appendChild(li);
+  });
+  document.querySelectorAll('.lab-tab').forEach(b=>b.classList.toggle('active', b.dataset.lab===tab));
+}
+function labBuildRoom(){
+  const sc=new THREE.Scene(); sc.background=new THREE.Color(0x050a18);
+  sc.fog=new THREE.Fog(0x050a18, 8, 22);
+  const cam=new THREE.PerspectiveCamera(42, 1, 0.01, 100); cam.position.set(0,1.5,4.4);
+  const ctr=new OrbitControls(cam, document.getElementById('labCanvas'));
+  ctr.enableDamping=true; ctr.dampingFactor=0.08; ctr.target.set(0,1.0,0);
+  ctr.minDistance=1.2; ctr.maxDistance=10; ctr.maxPolarAngle=Math.PI*0.52;
+  sc.add(new THREE.HemisphereLight(0xbdd7ff, 0x0a0f1e, 0.9));
+  const key=new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(3,5,4); sc.add(key);
+  const rim=new THREE.DirectionalLight(0x38bdf8, 0.8); rim.position.set(-4,3,-3); sc.add(rim);
+  const warm=new THREE.PointLight(0xffc37a, 12, 12); warm.position.set(0,3.4,0); sc.add(warm);
+  // room: floor + grid + back/side walls + ceiling strip lights
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(16,16), new THREE.MeshStandardMaterial({color:0x0b1226, roughness:0.85, metalness:0.25}));
+  floor.rotation.x=-Math.PI/2; sc.add(floor);
+  const grid=new THREE.GridHelper(16, 32, 0x38bdf8, 0x1e3a5f);
+  grid.position.y=0.001; grid.material.transparent=true; grid.material.opacity=0.35; sc.add(grid);
+  const wallMat=new THREE.MeshStandardMaterial({color:0x0a1328, roughness:0.9, metalness:0.15});
+  const back=new THREE.Mesh(new THREE.PlaneGeometry(16,6), wallMat); back.position.set(0,3,-5); sc.add(back);
+  const left=new THREE.Mesh(new THREE.PlaneGeometry(16,6), wallMat); left.rotation.y=Math.PI/2; left.position.set(-6,3,0); sc.add(left);
+  const right=new THREE.Mesh(new THREE.PlaneGeometry(16,6), wallMat); right.rotation.y=-Math.PI/2; right.position.set(6,3,0); sc.add(right);
+  const stripMat=new THREE.MeshBasicMaterial({color:0x7dd3fc});
+  [-3,-1,1,3].forEach(x=>{ const s=new THREE.Mesh(new THREE.BoxGeometry(1.2,0.04,0.12), stripMat); s.position.set(x,4.4,-4.9); sc.add(s); });
+  // pedestals + models — built at fleet scale then enlarged ~20x for inspection
+  const defs=[['action',-2.2,0xfb923c],['sensory',0,0xfacc15],['thruster',2.2,0x4ade80]];
+  const SZL=1.0, LAB_SCALE=20;
+  defs.forEach(([kind,x,accent])=>{
+    const ped=new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.65,0.5,28), new THREE.MeshStandardMaterial({color:0x111c36, roughness:0.5, metalness:0.7}));
+    ped.position.set(x,0.25,0); sc.add(ped);
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(0.55,0.02,8,40), new THREE.MeshBasicMaterial({color:accent}));
+    ring.rotation.x=Math.PI/2; ring.position.set(x,0.51,0); sc.add(ring);
+    let m;
+    if(kind==='action'){ m=new THREE.Group(); const inner=new THREE.Group(); m.add(inner); try{ buildActionAero(inner,SZL); m.userData.parts=inner.userData.parts; m.userData.inner=inner; }catch(e){} m.position.set(x,1.35,0); }
+    else if(kind==='sensory'){ const mm=new THREE.Mesh(new THREE.SphereGeometry(0.006*SZL,12,10), new THREE.MeshStandardMaterial({color:0xffffff, map:foilTexture(), emissive:0xf59e0b, emissiveIntensity:0.35, roughness:0.38, metalness:0.75})); m=mm; try{ buildSensoryAero(m,SZL); }catch(e){} m.position.set(x,1.35,0); }
+    else { try{ m=buildThrusterAero(); }catch(e){ m=new THREE.Group(); } m.position.set(x,1.45,0); }
+    m.scale.setScalar(LAB_SCALE);
+    m.traverse(n=>{ try{ n.frustumCulled=false; }catch(_){} });
+    sc.add(m); LAB.models[kind]=m; LAB.models[kind+'Ring']=ring;
+  });
+  LAB.scene=sc; LAB.camera=cam; LAB.controls=ctr;
+}
+function labInit(){
+  if(LAB.renderer) return;
+  const cv=document.getElementById('labCanvas');
+  LAB.renderer=new THREE.WebGLRenderer({canvas:cv, antialias:true});
+  LAB.renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  LAB.renderer.outputColorSpace=THREE.SRGBColorSpace;
+  LAB.renderer.toneMapping=THREE.ACESFilmicToneMapping;
+  labBuildRoom();
+  const wrap=document.getElementById('labCanvasWrap');
+  const rs=()=>{ try{ const w=wrap.clientWidth||800, h=wrap.clientHeight||480; LAB.renderer.setSize(w,h,false); LAB.camera.aspect=w/Math.max(1,h); LAB.camera.updateProjectionMatrix(); }catch(_){} };
+  LAB._resize=rs; addEventListener('resize', rs); rs();
+}
+function labFocus(tab){
+  LAB.tab=tab; labSide(tab);
+  if(!LAB.camera||!LAB.controls) return;
+  const x=tab==='action'?-2.2:tab==='sensory'?0:2.2;
+  const c0=LAB.camera.position.clone(), t0=LAB.controls.target.clone();
+  const c1=new THREE.Vector3(x*0.6, 1.5, 2.1), t1=new THREE.Vector3(x, 1.3, 0);
+  const s=performance.now();
+  (function a(n){ const p=Math.min(1,(n-s)/700), e=1-Math.pow(1-p,3);
+    LAB.camera.position.lerpVectors(c0,c1,e); LAB.controls.target.lerpVectors(t0,t1,e); LAB.controls.update();
+    if(p<1&&LAB.open) requestAnimationFrame(a); })(performance.now());
+}
+function labLoop(){
+  if(!LAB.open) return;
+  LAB.t+=0.016;
+  try{
+    Object.entries(LAB.models).forEach(([k,m])=>{ if(!m||k.endsWith('Ring')) return; m.rotation.y+=0.006; });
+    const act=LAB.models[LAB.tab+'Ring']; if(act) act.scale.setScalar(1+0.04*Math.sin(LAB.t*3));
+    const th=LAB.models.thruster;
+    if(th?.userData?.plume){ const f=0.8+0.2*Math.sin(LAB.t*9); th.userData.plume.scale.set(f,0.9+0.25*Math.sin(LAB.t*11),f); }
+    LAB.controls.update(); LAB.renderer.render(LAB.scene, LAB.camera);
+  }catch(_){}
+  LAB.raf=requestAnimationFrame(labLoop);
+}
+function openLab(){
+  labInit(); LAB.open=true;
+  document.getElementById('labOverlay').classList.add('show');
+  try{ LAB._resize(); }catch(_){}
+  labFocus(LAB.tab||'action'); labLoop();
+}
+function closeLab(){ LAB.open=false; document.getElementById('labOverlay').classList.remove('show'); try{ cancelAnimationFrame(LAB.raf); }catch(_){} }
+document.getElementById('btnLab')?.addEventListener('click', openLab);
+document.getElementById('labClose')?.addEventListener('click', closeLab);
+document.getElementById('labOverlay')?.addEventListener('click', e=>{ if(e.target.id==='labOverlay') closeLab(); });
+document.querySelectorAll('.lab-tab').forEach(b=>b.addEventListener('click', ()=>labFocus(b.dataset.lab)));
+document.getElementById('labPrev')?.addEventListener('click', ()=>{ const o=['action','sensory','thruster']; labFocus(o[(o.indexOf(LAB.tab)+2)%3]); });
+document.getElementById('labNext')?.addEventListener('click', ()=>{ const o=['action','sensory','thruster']; labFocus(o[(o.indexOf(LAB.tab)+1)%3]); });
+document.getElementById('labAdd')?.addEventListener('click', ()=>{
+  try{
+    if(LAB.tab==='action'){ const s=spawnActionBot({}); if(s) fleetNotice('BOT LAB — <b>'+s.label+'</b> deployed (aero dart)'); }
+    else if(LAB.tab==='sensory'){ const b=attachBot(null,'sensory',{}); if(b) fleetNotice('BOT LAB — <b>'+b.id+'</b> attached (aero teardrop)'); }
+    else { fleetNotice('BOT LAB — kicker is <b>auto-released by the action bot</b> in Case-1 DOCKING after detumble'); try{ case1EnsurePods(1); }catch(_){} }
+  }catch(e){ try{ fleetNotice('BOT LAB — add failed, use Fleet Builder'); }catch(_){} }
+  closeLab();
 });
 setTimeout(()=>updTel(),200);
 </script>
