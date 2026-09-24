@@ -38,10 +38,10 @@ window.addEventListener('DOMContentLoaded', ()=>{
   .logo h1 span{font-weight:300;opacity:0.9}
   .logo p{font-size:10px;letter-spacing:0.18em;opacity:0.6;margin-top:1px;font-family:'JetBrains Mono',monospace}
   .top-actions{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;row-gap:6px}
-  .pill{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;padding:6px 10px;border-radius:999px;border:1px solid rgba(96,165,250,0.25);background:rgba(15,23,42,0.7);backdrop-filter:blur(8px)}
+  .pill{font-family:'Space Grotesk',system-ui,sans-serif;font-size:10px;letter-spacing:0.12em;padding:6px 10px;border-radius:0;border:1px solid rgba(96,165,250,0.25);background:rgba(15,23,42,0.7);backdrop-filter:blur(8px)}
   .pill.live{color:#22c55e;border-color:rgba(34,197,94,0.35)}
   .pill.dx{background:rgba(16,185,129,0.15);border-color:rgba(16,185,129,0.4);color:#6ee7b7}
-  .btn{cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.08em;padding:8px 14px;border-radius:8px;border:1px solid rgba(96,165,250,0.3);background:rgba(37,99,235,0.9);color:white}
+  .btn{cursor:pointer;font-family:'Space Grotesk',system-ui,sans-serif;font-size:11px;letter-spacing:0.08em;padding:8px 14px;border-radius:0;border:1px solid rgba(96,165,250,0.3);background:rgba(37,99,235,0.9);color:white}
   .btn.ghost{background:rgba(15,23,42,0.6);color:#cbd5e1}
   .panel{position:absolute;background:rgba(10,18,36,0.72);backdrop-filter:blur(14px);border:1px solid rgba(96,165,250,0.18);border-radius:16px;pointer-events:none;box-shadow:0 12px 40px rgba(0,0,0,0.45)}
   .panel *{pointer-events:auto}
@@ -97,15 +97,15 @@ window.addEventListener('DOMContentLoaded', ()=>{
   .drag-hint{position:absolute;left:50%;bottom:118px;transform:translateX(-50%);background:rgba(10,18,36,0.78);border:1px solid rgba(96,165,250,0.22);padding:7px 12px;border-radius:999px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;opacity:0.85;pointer-events:none;backdrop-filter:blur(8px);transition:0.4s;white-space:nowrap;max-width:calc(100vw - 420px);overflow:hidden;text-overflow:ellipsis}
   .drag-hint.hide{opacity:0;transform:translateX(-50%) translateY(8px)}
   .panel-toggle{display:none;position:absolute;top:66px;right:12px;z-index:5;pointer-events:auto}
-  .panel-toggle button{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;padding:7px 10px;border-radius:999px;border:1px solid rgba(96,165,250,0.28);background:rgba(10,18,36,0.88);color:#cbd5e1;backdrop-filter:blur(10px)}
+  .panel-toggle button{font-family:'Space Grotesk',system-ui,sans-serif;font-size:10px;letter-spacing:0.1em;padding:7px 10px;border-radius:0;border:1px solid rgba(96,165,250,0.28);background:rgba(10,18,36,0.88);color:#cbd5e1;backdrop-filter:blur(10px)}
   .zone-bar{position:absolute;right:12px;top:70px;bottom:110px;transform:none;width:198px;background:rgba(10,18,36,0.78);backdrop-filter:blur(16px);border:1px solid rgba(96,165,250,0.18);border-radius:16px;padding:10px;pointer-events:auto;box-shadow:0 12px 40px rgba(0,0,0,0.45);display:flex;flex-direction:column;gap:7px;z-index:4;overflow-y:auto;overflow-x:hidden;justify-content:flex-start}
   .zone-bar-title{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.16em;opacity:0.62;text-align:center;padding:4px 0 6px;border-bottom:1px solid rgba(96,165,250,0.12);margin-bottom:2px}
-  .zone-btn{width:100%;display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(15,23,42,0.72);color:#e6eef8;cursor:pointer;text-align:left;transition:0.18s}
+  .zone-btn{width:100%;display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:0;border:1px solid rgba(255,255,255,0.08);background:rgba(15,23,42,0.72);color:#e6eef8;cursor:pointer;text-align:left;transition:0.18s;font-family:'Space Grotesk',system-ui,sans-serif}
   .zone-btn:hover{transform:translateX(-2px);border-color:var(--c);background:rgba(15,23,42,0.95);box-shadow:0 0 14px var(--c, #38bdf8)}
   .zone-btn.active{border-color:var(--c);background:var(--c);color:#020617;box-shadow:0 0 18px var(--c)}
   .zone-btn.active small{color:rgba(2,6,23,0.72)}
-  .zone-btn b{font-size:11px;letter-spacing:0.06em;display:block;line-height:1}
-  .zone-btn small{font-family:'JetBrains Mono',monospace;font-size:9px;opacity:0.62;line-height:1}
+  .zone-btn b{font-size:11px;letter-spacing:0.06em;display:block;line-height:1;font-family:'Space Grotesk',system-ui,sans-serif}
+  .zone-btn small{font-family:'Space Grotesk',system-ui,sans-serif;font-size:9px;opacity:0.62;line-height:1}
   .zone-btn i{margin-left:auto;font-style:normal;font-size:13px;opacity:0.5}
   .zone-btn.active i{opacity:0.9}
   .zb-dot{width:9px;height:9px;border-radius:50%;background:var(--c);box-shadow:0 0 10px var(--c);flex:none}
@@ -113,7 +113,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
   #case1Seq{margin-top:10px;border:1px solid rgba(250,204,21,0.22);border-radius:12px;background:rgba(2,6,23,0.6);overflow:hidden}
   #case1SeqHead{display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;user-select:none;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;color:#fde68a}
   #case1SeqHead .pill{margin-left:auto;padding:3px 8px;font-size:9px}
-  #case1SeqMin{cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 8px;border-radius:999px;border:1px solid rgba(250,204,21,0.35);background:rgba(15,23,42,0.8);color:#fde68a}
+  #case1SeqMin{cursor:pointer;font-family:'Space Grotesk',system-ui,sans-serif;font-size:10px;padding:2px 8px;border-radius:0;border:1px solid rgba(250,204,21,0.35);background:rgba(15,23,42,0.8);color:#fde68a}
   #case1SeqBody{display:block;padding:0 10px 10px}
   #case1SeqBody.hide{display:none}
   #case1Steps{display:flex;flex-direction:column;gap:0;margin:2px 0 8px;max-height:220px;overflow-y:auto}
@@ -195,9 +195,9 @@ window.addEventListener('DOMContentLoaded', ()=>{
   .dep-field input[type=range]{width:100%;accent-color:#38bdf8}
   .dep-val{font-family:'JetBrains Mono',monospace;font-size:12px;color:#7dd3fc}
   .region-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
-  .region-btn{cursor:pointer;border-radius:12px;padding:10px 8px;border:1px solid rgba(255,255,255,0.1);background:rgba(15,23,42,0.7);color:#e6eef8;text-align:center;transition:0.15s}
-  .region-btn b{font-size:11px;display:block;letter-spacing:0.06em}
-  .region-btn small{font-family:'JetBrains Mono',monospace;font-size:9px;opacity:0.65}
+  .region-btn{cursor:pointer;border-radius:0;padding:10px 8px;border:1px solid rgba(255,255,255,0.1);background:rgba(15,23,42,0.7);color:#e6eef8;text-align:center;transition:0.15s;font-family:'Space Grotesk',system-ui,sans-serif}
+  .region-btn b{font-size:11px;display:block;letter-spacing:0.06em;font-family:'Space Grotesk',system-ui,sans-serif}
+  .region-btn small{font-family:'Space Grotesk',system-ui,sans-serif;font-size:9px;opacity:0.65}
   .region-btn.active{border-color:var(--c);background:var(--c);color:#020617;box-shadow:0 0 16px var(--c)}
   .region-btn.active small{color:rgba(2,6,23,0.7)}
   #depEnv{background:rgba(2,6,23,0.85);border:1px solid rgba(56,189,248,0.2);border-radius:12px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.65;margin-top:10px}
@@ -226,11 +226,9 @@ window.addEventListener('DOMContentLoaded', ()=>{
       <div class="logo-mark"><i></i></div>
       <div>
         <h1>IRIS <span>/ LEO</span></h1>
-        <p>HYPERREAL · DIRECTX 12 / WEBGPU · 160–2000 KM</p>
       </div>
     </div>
     <div class="top-actions">
-      <span class="pill dx" id="pillRenderer">◇ DETECTING...</span>
       <span class="pill live">● LIVE</span>
       <span class="pill" id="pillCount">— OBJECTS</span>
       <button class="btn" id="btnFPS" title="Toggle FPS game mode (WASD)">▶ FPS MODE</button>
@@ -259,7 +257,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
     <div id="case1Status" style="font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.6;opacity:0.85;margin-top:8px;text-align:left;">IDLE — no Case 1 running.</div>
   </div>
   <div class="panel" id="ccsPanel" style="position:absolute;left:50%;top:335px;transform:translateX(-50%);padding:12px 14px;z-index:4;display:none;min-width:360px;max-width:94vw;max-height:46vh;overflow-y:auto;">
-    <div class="kicker" style="margin:0 0 6px;justify-content:center;">CCS PANEL · STAGE 1 COLLECT/STORE — <span id="ccsTarget">—</span><button id="btnCcsMin" title="Minimize panel" style="margin-left:8px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 8px;border-radius:999px;border:1px solid rgba(96,165,250,0.3);background:rgba(15,23,42,0.8);color:#cbd5e1;">–</button></div>
+    <div class="kicker" style="margin:0 0 6px;justify-content:center;">CCS PANEL · STAGE 1 COLLECT/STORE — <span id="ccsTarget">—</span><button id="btnCcsMin" title="Minimize panel" style="margin-left:8px;cursor:pointer;font-family:'Space Grotesk',system-ui,sans-serif;font-size:10px;padding:2px 8px;border-radius:0;border:1px solid rgba(96,165,250,0.3);background:rgba(15,23,42,0.8);color:#cbd5e1;">–</button></div>
     <div id="ccsBody">
     <div id="ccsStatus" style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;opacity:0.75;margin-bottom:8px;">waiting for target…</div>
     <div class="grid2">
@@ -285,12 +283,12 @@ window.addEventListener('DOMContentLoaded', ()=>{
   <div class="enter-notify" id="enterNotify"><span>🛰</span> <span id="enterText">ENTERING <b>LEO</b></span></div>
   <div class="drag-hint" id="dragHint">🖱 DRAG 360° · ←→↑↓ ARROWS rotate · SCROLL zoom · WASD roam · Q/E/C up/down · SHIFT+WASD ⚡INSANE ×25 · F roam · X intercept sat</div>
   <div class="zone-bar" id="zoneBar">
-    <button class="zone-btn" data-zone="outer" style="--c:#a78bfa"><span class="zb-dot"></span><span><b>UPPER LEO</b><small>800–2000 km · 4.77–10.42</small></span><i>⤵</i></button>
-    <button class="zone-btn" data-zone="leo" style="--c:#38bdf8"><span class="zb-dot"></span><span><b>LEO CORE</b><small>450–800 km · 3.12–4.77</small></span><i>⤵</i></button>
-    <button class="zone-btn" data-zone="vleo" style="--c:#facc15"><span class="zb-dot"></span><span><b>VLEO</b><small>160–450 km · 1.75–3.12</small></span><i>⤵</i></button>
-    <button class="zone-btn" data-zone="karman" style="--c:#93c5fd"><span class="zb-dot"></span><span><b>KÁRMÁN</b><small>100–160 km · 1.47–1.75</small></span><i>⤵</i></button>
-    <button class="zone-btn" data-zone="meo" style="--c:#f472b6"><span class="zb-dot"></span><span><b>MEO / GPS</b><small>20,200 km · 96.1</small></span><i>⤵</i></button>
-    <button class="zone-btn" data-zone="geo" style="--c:#facc15"><span class="zb-dot"></span><span><b>GEO</b><small>35,786 km · 169.5</small></span><i>⤵</i></button>
+    <button class="zone-btn" data-zone="outer" style="--c:#a78bfa"><span class="zb-dot"></span><span><b>UPPER LEO</b><small>800–2000 km</small></span><i>⤵</i></button>
+    <button class="zone-btn" data-zone="leo" style="--c:#38bdf8"><span class="zb-dot"></span><span><b>LEO CORE</b><small>450–800 km</small></span><i>⤵</i></button>
+    <button class="zone-btn" data-zone="vleo" style="--c:#facc15"><span class="zb-dot"></span><span><b>VLEO</b><small>160–450 km</small></span><i>⤵</i></button>
+    <button class="zone-btn" data-zone="karman" style="--c:#93c5fd"><span class="zb-dot"></span><span><b>KÁRMÁN</b><small>100–160 km</small></span><i>⤵</i></button>
+    <button class="zone-btn" data-zone="meo" style="--c:#f472b6"><span class="zb-dot"></span><span><b>MEO / GPS</b><small>20,200 km</small></span><i>⤵</i></button>
+    <button class="zone-btn" data-zone="geo" style="--c:#facc15"><span class="zb-dot"></span><span><b>GEO</b><small>35,786 km</small></span><i>⤵</i></button>
   </div>
 
   <div class="panel panel-left" id="panelLeft">
@@ -315,7 +313,6 @@ window.addEventListener('DOMContentLoaded', ()=>{
         <button class="btn ghost" style="flex:1" id="btnToggleShells">SHELLS</button>
         <button class="btn ghost" style="flex:1" id="btnToggleOrbits">ORBITS</button>
       </div>
-      <div style="margin-top:8px;padding:6px 8px;background:rgba(15,23,42,0.6);border-radius:8px;font-size:10px;opacity:0.7"><span id="dxInfo">WebGL2 only — raw GLSL</span></div>
     </div>
     <div style="margin-top:10px;padding:10px;border:1px solid rgba(96,165,250,0.18);border-radius:12px;background:rgba(2,6,23,0.6)">
       <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;opacity:0.65;margin-bottom:8px">FLEET BUILDER — ADD + ATTACH</div>
@@ -710,8 +707,6 @@ const LEO_LAYER_BANDS_BASE = [
 
 const canvas = document.getElementById('canvas');
 const loaderText = document.getElementById('loaderText');
-const pillRenderer = document.getElementById('pillRenderer');
-const dxInfo = document.getElementById('dxInfo');
 
 // --- RENDERER: WebGL2 (WebGPU/TSL not used) ---
 // NOTE: WebGPURenderer in three@0.162 requires TSL NodeMaterials (MeshStandardNodeMaterial etc.).
@@ -730,9 +725,7 @@ function initRenderer(){
   renderer.toneMappingExposure = 1.1;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = false;
-  pillRenderer.textContent = '◇ WEBGL2 · GLSL SHADERS';
-  dxInfo.textContent = 'WebGL2 only — raw GLSL requires WebGL (TSL would be needed for WebGPU)';
-  loaderText.textContent = 'WebGL2 ready';
+  loaderText.textContent = 'Ready';
   console.log('[IRIS-DX] Using WebGLRenderer only (WebGPU path removed per physically accurate scale spec).');
 }
 initRenderer();
