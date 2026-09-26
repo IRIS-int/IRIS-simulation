@@ -233,6 +233,24 @@ window.addEventListener('DOMContentLoaded', ()=>{
   #labFoot{display:flex;gap:10px;padding:12px 16px;border-top:1px solid rgba(96,165,250,0.18)}
   #labFoot .btn{flex:1;text-align:center}
   @media(max-width:860px){#labBody{flex-direction:column}#labSide{width:auto;max-width:none;border-left:none;border-top:1px solid rgba(96,165,250,0.18);max-height:30vh}#labCanvas{min-height:300px}}
+  /* === IRIS VIDEO MODE — clean 90s export: no buttons, telemetry left + sequence right only === */
+  #irisVideoPrompt{position:fixed;inset:0;background:rgba(2,6,23,0.78);backdrop-filter:blur(10px);z-index:60;display:none;align-items:center;justify-content:center;padding:16px}
+  #irisVideoPrompt.show{display:flex}
+  #irisVideoCard{width:460px;max-width:94vw;background:rgba(10,18,36,0.97);border:1px solid rgba(250,204,21,0.4);border-radius:16px;padding:20px;box-shadow:0 24px 80px rgba(0,0,0,0.6);text-align:center}
+  #irisVideoCard h2{font-size:14px;letter-spacing:0.12em}
+  #irisVideoCard p{font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.7;opacity:0.8;margin:10px 0 16px}
+  #irisVideoCard .row{display:flex;gap:10px}
+  #irisVideoCard .btn{flex:1;text-align:center;padding:12px}
+  #irisRecBadge{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:55;display:none;align-items:center;gap:10px;background:rgba(2,6,23,0.9);border:1px solid rgba(248,113,113,0.5);border-radius:999px;padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em}
+  #irisRecBadge.show{display:flex}
+  #irisRecDot{width:10px;height:10px;border-radius:50%;background:#ef4444;box-shadow:0 0 12px #ef4444;animation:irisBlink 1s steps(2) infinite}
+  @keyframes irisBlink{50%{opacity:0.25}}
+  #irisRecBar{width:120px;height:4px;background:rgba(248,113,113,0.2);border-radius:2px;overflow:hidden}
+  #irisRecFill{height:100%;width:0%;background:#ef4444}
+  /* IRIS VIDEO: on-screen view stays 100% normal (follow + all buttons).
+     The clean feed (sequence LEFT + telemetry RIGHT, no buttons) is composed
+     in the backend video canvas only. */
+  body.iris-video #irisRecBadge{display:flex}
 </style>
 </head>
 <body>
@@ -245,6 +263,9 @@ window.addEventListener('DOMContentLoaded', ()=>{
   </div>
 </div>
 <div id="tooltip"></div>
+<div id="irisRecBadge"><span id="irisRecDot"></span><span>● REC</span><span id="irisRecTime">00:00 / 01:30</span><span id="irisRecBar"><span id="irisRecFill" style="display:block"></span></span></div>
+<div id="irisVideoPrompt"><div id="irisVideoCard"><h2>🎬 RECORD 90-SECOND VIDEO?</h2><p id="irisVideoPromptText">Clean export — no buttons · <b>Full HD 1080p60, max quality</b>.<br>Only <b>Case-1 sequence (left)</b> + <b>telemetry (right)</b>.<br>Change <b>TIME speed anytime</b> — fast parts ease down, slow parts ease up<br>so the full mission incl. burn-up fits <b>exactly 90 seconds</b>.<br>Everything keeps working · runs in background if you switch tabs · auto-downloads.</p><div class="row"><button class="btn" id="irisVideoYes">● YES — RECORD</button><button class="btn ghost" id="irisVideoNo">JUST RUN</button></div></div></div>
+<canvas id="irisVideoCanvas" width="1920" height="1080" style="display:none"></canvas>
 <div class="hud">
   <div class="topbar">
     <div class="logo">
@@ -2208,7 +2229,7 @@ class Sat{
     this.exaggeration = ((0.0107*R_EARTH*KM_PER_UNIT/ALT_EXAG)/this.realSizeKm).toFixed(0);
     this.group=new THREE.Group(); this.trail=[]; this.trailMax=90;
     let mesh;
-    const SZ=R_EARTH*0.595; // -15% (was 0.70)
+    const SZ=R_EARTH*0.595*0.62; // -38% fleet visual (was 0.595)
     if(this.type==='debris'){ 
       // jagged breakup shard — dark fatigued metal, hot reentry-tint emissive, non-uniform axes for variety
       const g=new THREE.IcosahedronGeometry(0.013*SZ,0);
@@ -2605,7 +2626,7 @@ function spawnActiveSat(opts){
     const sat=new Sat({type:'active', ...cand, mass:opts.mass??260, area:opts.area??10, Cd:opts.Cd??CD_DEFAULT, Cr:opts.Cr??CR_DEFAULT, attitude:opts.attitude||'nadir'});
     sat.label=opts.name || ('ACTIVE-'+(++activeSeq));
     sat.bots=[];
-    try{ tagSatMesh(sat.mesh,sat.label,'#39ff14',R_EARTH,'active'); }catch(_){}
+    try{ tagSatMesh(sat.mesh,sat.label,'#39ff14',R_EARTH*0.62,'active'); }catch(_){}
     try{ sat.group.position.copy(sat.at(window._simT||0)); sat.currentAlt=cand.a-KM_PER_UNIT; }catch(_){}
     sats.push(sat);
     updateFleetCounts();
@@ -2632,7 +2653,7 @@ function spawnActionBot(opts){
     const sat=new Sat({type:'action', ...cand, mass:opts.mass??120, area:opts.area??4, Cd:opts.Cd??CD_DEFAULT, Cr:opts.Cr??CR_DEFAULT, attitude:opts.attitude||'prograde'});
     sat.label=opts.name || ('ACTION-'+(++actionSeq));
     sat.bots=[];
-    try{ tagSatMesh(sat.mesh.userData.inner||sat.mesh,sat.label,'#fb923c',R_EARTH,'action'); }catch(_){}
+    try{ tagSatMesh(sat.mesh.userData.inner||sat.mesh,sat.label,'#fb923c',R_EARTH*0.62,'action'); }catch(_){}
     try{ sat.group.position.copy(sat.at(window._simT||0)); sat.currentAlt=cand.a-KM_PER_UNIT; }catch(_){}
     sats.push(sat);
     updateFleetCounts();
@@ -2682,7 +2703,7 @@ function resolveParentSat(ref){
   return actives.length?actives[actives.length-1]:null;
 }
 function defaultBotOffset(kind, i){
-  const SZ=R_EARTH*0.595;
+  const SZ=R_EARTH*0.595*0.62;
   const ring=0.055*SZ, y=0.045*SZ;
   const a=(i||0)*2.39996; // golden angle — spreads multiple bots around parent
   if(kind==='sensory') return new THREE.Vector3(Math.cos(a)*ring, y, Math.sin(a)*ring);
@@ -2695,7 +2716,7 @@ function attachBot(parentRef, kind, opts){
   opts=opts||{};
   const parent=resolveParentSat(parentRef);
   if(!parent){ fleetNotice('ADD AN <b>ACTIVE SAT</b> FIRST — THEN ATTACH SENSORY BOTS'); return null; }
-  const SZ=R_EARTH*0.595;
+  const SZ=R_EARTH*0.595*0.62;
   const g=new THREE.SphereGeometry(0.006*SZ,12,10);
   const m=new THREE.MeshStandardMaterial({color:0xffffff, map:foilTexture(), emissive:0xf59e0b, emissiveIntensity:0.35, roughness:0.38, metalness:0.75});
   const mesh=new THREE.Mesh(g,m);
@@ -2908,8 +2929,9 @@ function setAutoFollow(s, flyTo){
   // CLOSE follow limits: allow zooming to ~5km beside the debris (else minDistance
   // ~1.5u parks you hundreds of km off and scroll can't get closer).
   try{ controls.minDistance=s?0.005:sceneRadius(5); }catch(_){}
-  // FLY BESIDE IT: park ~5km off the hull (0.0237u — right beside it, debris
-  // fills the view), not the 400km overview that focusSat uses.
+  // WIDE follow framing: park ~50–60km off the hull (~0.257u — debris + bot +
+  // beam stay clearly visible with full Earth-limb context), not an extreme
+  // macro, not the 400km overview that focusSat uses.
   if(s&&flyTo!==false){
     try{ selectSat(s); }catch(_){}
     try{
@@ -2917,7 +2939,7 @@ function setAutoFollow(s, flyTo){
       const dir=p.clone().normalize();
       const side=new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0,1,0));
       if(side.lengthSq()<1e-6) side.set(1,0,0); else side.normalize();
-      const camPos=p.clone().addScaledVector(dir, 0.019).addScaledVector(side, 0.011).add(new THREE.Vector3(0,0.009,0));
+      const camPos=p.clone().addScaledVector(dir, 0.20).addScaledVector(side, 0.126).add(new THREE.Vector3(0,0.10,0));
       const s0=camera.position.clone(), st0=controls.target.clone();
       const t0=performance.now();
       window._followTween=true;
@@ -3269,7 +3291,8 @@ btnDetails?.addEventListener('click', ()=>{
   btnDetails.textContent = detailsOpen ? 'Details ▴' : 'Details ▾';
 });
 
-// sliders
+// sliders — TIME stays usable even during 90s REC; the REC controller
+// rebalances around your setting so the total still lands at exactly 90s.
 document.getElementById('timeSlider').addEventListener('input', e=>{ const v=parseInt(e.target.value); timeScale=v===0?0:Math.pow(v/18,2); document.getElementById('timeLabel').textContent=timeScale===0?'PAUSED':timeScale.toFixed(1)+'×'; });
 document.getElementById('fovSlider').addEventListener('input', e=>{ camera.fov=parseInt(e.target.value); camera.updateProjectionMatrix(); document.getElementById('fovLabel').textContent=camera.fov+'°'; });
 document.getElementById('bloomSlider').addEventListener('input', e=>{
@@ -3842,7 +3865,15 @@ function updateCCSPanel(){
   if(st) st.innerHTML=`UNIFIED DETAILS ✓ — final orbit + final decay from 2 orbits · ${window._ccsStore.length} packets fused`;
 }
 setInterval(updateCCSPanel,500);
-document.getElementById('btnStartSim')?.addEventListener('click', startSimulationDemo);
+document.getElementById('btnStartSim')?.addEventListener('click', ()=>{
+  irisAskVideo(null, async ()=>{
+    await startSimulationDemo();
+    try{
+      const ds=sats.filter(s=>s.type==='debris');
+      if(ds.length&&!window._targetDebris) targetDebrisByLabel(ds[0].label);
+    }catch(_){}
+  });
+});
 document.getElementById('btnTargetDebris')?.addEventListener('click', ()=>{
   const sel=document.getElementById('debrisTargetSelect');
   targetDebrisByLabel(sel&&sel.value?sel.value:'');
@@ -4434,7 +4465,7 @@ function case1ThrusterTexture(){
 }
 function case1BuildThruster(){
   // AERO V2 kicker — same flight contract (plume/throat/pglow/strobe), low-drag fairing.
-  try{ if(typeof buildThrusterAero==='function') return buildThrusterAero(); }catch(_){}
+  try{ if(typeof buildThrusterAero==='function'){ const _t=buildThrusterAero(); _t.scale.setScalar(0.62); return _t; } }catch(_){}
   const g=new THREE.Group();
   const metal=new THREE.MeshStandardMaterial({color:0xd7dde3, roughness:0.35, metalness:0.85, map:case1ThrusterTexture()});
   const dark=new THREE.MeshStandardMaterial({color:0x2b3138, roughness:0.5, metalness:0.9});
@@ -4848,7 +4879,7 @@ function case1NormalizeArrange(){
   const perParent={};
   CASE1.sensory.forEach((b)=>{
     const p=b.parent, k=(perParent[p.label]||0); perParent[p.label]=k+1;
-    const a=k*2.39996, SZ=R_EARTH*0.595;
+    const a=k*2.39996, SZ=R_EARTH*0.595*0.62;
     b.baseOffset=new THREE.Vector3(Math.cos(a)*0.055*SZ, 0.045*SZ, Math.sin(a)*0.055*SZ);
     b.bobPhase=k*1.1; b.mesh.position.copy(b.baseOffset);
   });
@@ -5909,7 +5940,9 @@ function case1Handoff(reason){  const b=CASE1.bot;
   }
 }
 setInterval(case1Tick, 500);
-document.getElementById('btnStartCase1')?.addEventListener('click', case1Start);
+document.getElementById('btnStartCase1')?.addEventListener('click', ()=>{
+  irisAskVideo(null, async ()=>{ case1Start(); });
+});
 document.getElementById('btnAbortCase1')?.addEventListener('click', ()=>case1Abort('operator abort'));
 document.getElementById('btnSetCase1Target')?.addEventListener('click', ()=>{
   const dd=document.getElementById('case1TargetSelect');
@@ -6180,6 +6213,391 @@ document.getElementById('labAdd')?.addEventListener('click', ()=>{
     else { fleetNotice('BOT LAB — kicker is <b>auto-released by the action bot</b> in Case-1 DOCKING after detumble'); try{ case1EnsurePods(1); }catch(_){} }
   }catch(e){ try{ fleetNotice('BOT LAB — add failed, use Fleet Builder'); }catch(_){} }
   closeLab();
+});
+// ================= IRIS 90-SECOND CLEAN VIDEO EXPORT =================
+// Backend-only composition (NOT screen capture): full-bleed WebGL scene +
+// floating cards — Case-1 sequence (LEFT) + telemetry (RIGHT). No buttons.
+// HIGH HD: 1920x1080 @60fps, VP9/AV1 ~30 Mbps (maximum Full-HD quality).
+// EXACT 90s AUTO-FIT: you can raise/lower TIME speed anytime — even mid-REC.
+// The controller rebalances continuously: fast segments ease down, slow
+// segments ease up, so the full mission incl. burn-up lands at exactly 90s
+// wall-clock (burn-up ~84s + 6s aftermath). Stop timer is strictly 90s.
+// BACKGROUND-PROOF: silent-audio keep-alive + wall-clock pump keep the sim,
+// render and recorder running even when you switch tabs; file auto-downloads.
+const IRIS_VIDEO={len:90, recording:false, mode:null, t0wall:0, simT0:0, chunks:[],
+  rec:null, stream:null, uiTimer:0, stopTimer:0, normTimer:0,
+  prevWarp:1, prevPixelRatio:0, lockedWarp:1, totalSimEst:15000, renderWrapped:false, bgLast:0, _dt:0};
+// Silent-audio keep-alive: browsers throttle hidden-tab timers (which would
+// freeze the sim + recorder when you switch tabs). An active audio pipeline
+// exempts the page, so the background pump keeps running. Effectively silent.
+let _irisAudio=null;
+function irisAudioKeepalive(on){
+  try{
+    if(on){
+      if(_irisAudio) return;
+      const AC=window.AudioContext||window.webkitAudioContext;
+      if(!AC) return;
+      const ctx=new AC();
+      const osc=ctx.createOscillator(), g=ctx.createGain();
+      g.gain.value=0.0001; osc.frequency.value=440;
+      osc.connect(g); g.connect(ctx.destination); osc.start();
+      try{ if(ctx.resume) ctx.resume(); }catch(_){}
+      _irisAudio={ctx:ctx, osc:osc};
+    }else{
+      if(_irisAudio){ try{_irisAudio.osc.stop();}catch(_){} try{_irisAudio.ctx.close();}catch(_){} _irisAudio=null; }
+    }
+  }catch(_){}
+}
+function irisVideoMime(){
+  // Best-quality first: VP9 (reliable realtime 1080p60 HW encode), then AV1
+  // (better compression, heavier CPU), then fallbacks.
+  const c=['video/webm;codecs=vp9','video/webm;codecs=av1','video/webm;codecs=vp8','video/webm'];
+  for(const m of c){ try{ if(window.MediaRecorder&&MediaRecorder.isTypeSupported(m)) return m; }catch(_){} }
+  return '';
+}
+function irisVideoPeriod(){
+  try{
+    const d=(typeof CASE1!=='undefined'&&(CASE1.target||CASE1.targetSel))||sats.find(s=>s.type==='debris');
+    if(d&&d.periodSec) return d.periodSec();
+  }catch(_){}
+  return 5700;
+}
+function irisVideoEstimate(mode){
+  const P=irisVideoPeriod();
+  if(mode==='sim') return 2*P+12; // CCS: 2 orbits + processing (exact)
+  // Case-1 full-mission budget from live config — deliberately conservative
+  // (worst-case windows) so burn-up always fits; cruise eases down if ahead.
+  let tumble=1.65, push=180, rzTO=2, verRevs=1;
+  try{ tumble=case1Tumble(CASE1.target||CASE1.targetSel)||1.65; }catch(_){}
+  try{
+    const C=CASE_1_CONFIG||{};
+    push=Math.max(60,(C.burn||{}).pushDurSec||180);
+    rzTO=(C.rendezvous||{}).timeoutRevs||2;
+    verRevs=(C.verify||{}).postBurnRevs||1;
+  }catch(_){}
+  const mapRev=2*P;                 // OBSERVING rev 1+2
+  const selWindow=1.5*P+600;        // SELECTING retry deadline
+  const rendezvous=rzTO*P+600;      // RENDEZVOUS timeout window
+  const detumble=Math.max(150,tumble/0.0003)+120; // SHEPHERD bleed + min beam
+  const transit=120;                // DOCKING thruster flight
+  const pushVerify=push+verRevs*P;  // POST_BURN push + verification revs
+  const coastBurn=1.0*P;            // REENTRY coast to first perigee burn-up
+  return mapRev+selWindow+rendezvous+detumble+transit+pushVerify+coastBurn;
+}
+function irisVideoSetWarp(w, force){
+  // All speed writes funnel here (slider, controller, console). Clamped 1–60.
+  // Slider UI is skipped while you are actively dragging it (focus guard) so
+  // the controller never fights your hand — timeScale itself still updates.
+  w=Math.max(1,Math.min(60,w));
+  timeScale=w;
+  try{
+    const sl=document.getElementById('timeSlider');
+    if(sl&&sl!==document.activeElement) sl.value=Math.max(0,Math.min(100,Math.round(18*Math.sqrt(Math.min(w,30.8)))));
+    const lb=document.getElementById('timeLabel');
+    if(lb) lb.textContent=w.toFixed(1)+'×';
+  }catch(_){}
+}
+function irisVideoCard(x, px,py,pw,ph){
+  x.fillStyle='rgba(2,6,23,0.80)';
+  try{ x.beginPath(); x.roundRect(px,py,pw,ph,14); x.fill(); }
+  catch(_){ x.fillRect(px,py,pw,ph); }
+  x.strokeStyle='rgba(56,189,248,0.40)'; x.lineWidth=2;
+  try{ x.beginPath(); x.roundRect(px,py,pw,ph,14); x.stroke(); }
+  catch(_){ x.strokeRect(px,py,pw,ph); }
+}
+function irisVideoDraw(force){
+  try{
+    if(!IRIS_VIDEO.recording) return;
+    // FULL 60fps capture — every finished frame goes to the 1080p recorder (no skipping).
+    const cv=document.getElementById('irisVideoCanvas');
+    if(!cv||!renderer||!renderer.domElement) return;
+    const W=cv.width, H=cv.height, x=cv.getContext('2d');
+    const src=renderer.domElement;
+    // FULL-BLEED scene — no side bands, cards float on top
+    if(src.width&&src.height){
+      const sa=src.width/src.height, da=W/H;
+      let sw,sh,sx,sy;
+      if(sa>da){ sh=src.height; sw=sh*da; sx=(src.width-sw)/2; sy=0; }
+      else { sw=src.width; sh=sw/da; sx=0; sy=(src.height-sh)/2; }
+      try{ x.drawImage(src,sx,sy,sw,sh,0,0,W,H); }catch(_){ x.fillStyle='#020617'; x.fillRect(0,0,W,H); }
+    } else { x.fillStyle='#020617'; x.fillRect(0,0,W,H); }
+    const txt=(id)=>{ try{ const e=document.getElementById(id); return e?(e.textContent||'—').trim().slice(0,40):'—'; }catch(_){ return '—'; } };
+    const simT=(window._simT||0);
+    x.textBaseline='top';
+    const S=W/1280; // HD scale: overlay designed at 720p, scaled up for 1920×1080 so cards stay readable
+    let state='IDLE';
+    try{ state=CASE1.state||'IDLE'; }catch(_){}
+    // LEFT card: live Case-1 sequence
+    const LW=Math.round(372*S), LH=Math.round(330*S), PAD=Math.round(16*S);
+    irisVideoCard(x, PAD,PAD,LW,LH);
+    x.fillStyle='#fde68a'; x.font='bold '+Math.round(17*S)+'px monospace';
+    x.fillText('CASE 1 · '+state.slice(0,24), PAD+PAD,S*30);
+    x.font=Math.round(13*S)+'px monospace';
+    let y=58*S;
+    try{
+      const log=(CASE1&&CASE1.log)||[];
+      const last=log.slice(-12);
+      if(!last.length){ x.fillStyle='#64748b'; x.fillText('-- awaiting START --',PAD+PAD,y); }
+      for(const e of last){
+        const line=('T+'+Math.round(e.t)+' '+String(e.m)).slice(0,42);
+        x.fillStyle='rgba(230,238,248,0.94)';
+        x.fillText(line,PAD+PAD,y); y+=20*S;
+        if(y>PAD+LH-28*S) break;
+      }
+      if(state==='SHEPHERD'&&CASE1.target){ x.fillStyle='#a78bfa'; x.fillText('BEAM ON '+case1Tumble(CASE1.target).toFixed(3)+' rad/s',PAD+PAD,PAD+LH-24*S); }
+    }catch(_){}
+    // RIGHT card: telemetry
+    const RW=Math.round(308*S), RH=Math.round(322*S), RX=W-PAD-RW;
+    irisVideoCard(x, RX,PAD,RW,RH);
+    x.fillStyle='#7dd3fc'; x.font='bold '+Math.round(17*S)+'px monospace'; x.fillText('IRIS · TELEMETRY',RX+PAD,S*30);
+    x.fillStyle='#e6eef8'; x.font='bold '+Math.round(34*S)+'px monospace';
+    x.fillText(txt('altBig').replace(/KM ALT/i,'').trim(),RX+PAD,52*S);
+    x.font=Math.round(13*S)+'px monospace'; x.fillStyle='#7dd3fc'; x.fillText('KM ALT · '+txt('layerBadge'),RX+PAD,92*S);
+    x.fillStyle='#e6eef8'; x.font=Math.round(14*S)+'px monospace';
+    x.fillText('VEL '+txt('vStat')+' km/s',RX+PAD,116*S);
+    x.fillText('PERIOD '+txt('periodStat')+' min',RX+PAD,138*S);
+    x.fillText('LAT '+txt('latStat'),RX+PAD,160*S);
+    x.fillText('LON '+txt('lonStat'),RX+PAD,182*S);
+    x.fillStyle='#94a3b8'; x.font=Math.round(12*S)+'px monospace';
+    x.fillText('ECI '+txt('eciPos').slice(0,36),RX+PAD,206*S);
+    x.fillText('T+'+Math.round(simT)+'s sim',RX+PAD,226*S);
+    try{
+      const tg=(typeof CASE1!=='undefined'&&(CASE1.target||CASE1.targetSel));
+      x.fillStyle='#fde68a'; x.font=Math.round(13*S)+'px monospace';
+      x.fillText('TGT '+(tg?(tg.label||'debris'):'—'),RX+PAD,248*S);
+      if(tg&&tg.currentAlt!=null) x.fillText('TGT '+tg.currentAlt.toFixed(0)+' km',RX+PAD,268*S);
+      if(CASE1&&CASE1.bot) x.fillText('IBS '+(CASE1.bot.label||''),RX+PAD,288*S);
+    }catch(_){}
+    // TOP-CENTER: REC signal
+    const el=(performance.now()-IRIS_VIDEO.t0wall)/1000;
+    const mm=String(Math.floor(el/60)).padStart(2,'0'), ss=String(Math.floor(el%60)).padStart(2,'0');
+    const bw=Math.round(300*S), bh=Math.round(34*S);
+    x.fillStyle='rgba(2,6,23,0.85)'; x.fillRect(W/2-bw/2,10*S,bw,bh);
+    x.strokeStyle='rgba(248,113,113,0.6)'; x.strokeRect(W/2-bw/2,10*S,bw,bh);
+    const blink=Math.floor(el*2)%2===0;
+    x.fillStyle=blink?'#ef4444':'#7f1d1d';
+    x.beginPath(); x.arc(W/2-bw/2+Math.round(22*S),10*S+bh/2,Math.round(8*S),0,7); x.fill();
+    x.fillStyle='#fecaca'; x.font='bold '+Math.round(17*S)+'px monospace';
+    x.fillText('REC '+mm+':'+ss+' / 01:30',W/2-bw/2+Math.round(40*S),10*S+Math.round(6*S));
+    x.fillStyle='rgba(239,68,68,0.25)'; x.fillRect(W/2-bw/2,10*S+bh, bw,Math.round(4*S));
+    x.fillStyle='#ef4444'; x.fillRect(W/2-bw/2,10*S+bh, bw*Math.min(1,el/IRIS_VIDEO.len),Math.round(4*S));
+    // BOTTOM-CENTER: sim clock + uniform-speed proof
+    try{
+      const lab='T+'+Math.round(simT)+'s · '+((typeof timeScale!=='undefined')?timeScale:1).toFixed(1)+'× auto-fit · Full HD 1080p60';
+      x.font=Math.round(12*S)+'px monospace';
+      const tw=x.measureText(lab).width;
+      x.fillStyle='rgba(2,6,23,0.80)'; x.fillRect(W/2-tw/2-10*S,H-34*S,tw+20*S,22*S);
+      x.fillStyle='#7dd3fc'; x.fillText(lab,W/2-tw/2,H-28*S);
+    }catch(_){}
+  }catch(_){}
+}
+function irisVideoWrapRender(){
+  if(IRIS_VIDEO.renderWrapped) return;
+  IRIS_VIDEO.renderWrapped=true;
+  try{
+    // composer does the final on-screen pass — hook ONLY it, so every captured
+    // frame is a finished frame (hooking renderer.render too would grab
+    // composer's half-finished internal passes = flicker/bad quality)
+    const c=composer;
+    if(c&&c.render){
+      const _cr=c.render.bind(c);
+      c.render=function(){ _cr.apply(null,arguments); try{ irisVideoDraw(false); }catch(_){} };
+    } else {
+      const r=renderer, _rr=r.render.bind(r);
+      r.render=function(){ _rr.apply(null,arguments); try{ irisVideoDraw(false); }catch(_){} };
+    }
+  }catch(_){}
+}
+function irisVideoStart(mode){
+  if(IRIS_VIDEO.recording) return;
+  const cv=document.getElementById('irisVideoCanvas');
+  if(!cv||!window.MediaRecorder){ try{ fleetNotice('VIDEO FAILED — MediaRecorder unsupported'); }catch(_){} return; }
+  irisVideoWrapRender();
+  IRIS_VIDEO.mode=mode; IRIS_VIDEO.chunks=[];
+  IRIS_VIDEO.prevWarp=(typeof timeScale!=='undefined')?timeScale:1;
+  IRIS_VIDEO.totalSimEst=irisVideoEstimate(mode);
+  IRIS_VIDEO.simT0=(window._simT||0);
+  // Opening warp from the mission budget (burn-up ~84s + 6s aftermath).
+  // It stays ADJUSTABLE: drag TIME anytime — the controller below rebalances
+  // fast/slow segments so the total still lands at exactly 90s.
+  IRIS_VIDEO.lockedWarp=Math.max(1,Math.min(60,IRIS_VIDEO.totalSimEst/(84*(typeof SIM_WARP!=='undefined'?SIM_WARP:18))));
+  irisVideoSetWarp(IRIS_VIDEO.lockedWarp, true);
+  // MAXIMUM Full-HD source: force pixelRatio 2 during REC (supersampled backing
+  // store on DPR-1 screens too) so the 1080p export gets the sharpest possible
+  // detail, then restore after download.
+  try{
+    IRIS_VIDEO.prevPixelRatio=renderer.getPixelRatio?renderer.getPixelRatio():0;
+    renderer.setPixelRatio(2);
+    try{ if(composer&&composer.setSize) composer.setSize(innerWidth,innerHeight); }catch(_){}
+    try{ if(composer&&composer.setPixelRatio) composer.setPixelRatio(2); }catch(_){}
+  }catch(_){}
+  // ~55km framing for the video: debris + bot + beam clearly visible with
+  // full context — not a close-up macro, not far away.
+  try{
+    const vt=(typeof CASE1!=='undefined'&&(CASE1.target||CASE1.targetSel))||sats.find(s=>s.type==='debris');
+    if(vt&&typeof setAutoFollow==='function') setAutoFollow(vt, true);
+  }catch(_){}
+  try{ document.body.classList.add('iris-video'); }catch(_){}
+  // Everything stays functional during REC — TIME included. The badge shows
+  // the live auto-fit speed so you can see fast parts ease down / slow parts up.
+  try{
+    const sl=document.getElementById('timeSlider');
+    if(sl){ sl.disabled=false; sl.style.opacity=''; sl.title='REC auto-fit to 90s — you can still change speed'; }
+  }catch(_){}
+  // Background-proofing: silent audio + wake lock so switching tabs never stops
+  // the sim, the render, or the recorder.
+  irisAudioKeepalive(true);
+  try{
+    const b=document.getElementById('irisRecBadge'); if(b) b.classList.add('show');
+    try{ if(navigator.wakeLock&&navigator.wakeLock.request) navigator.wakeLock.request('screen').catch(()=>{}); }catch(_){}
+  }catch(_){}
+  IRIS_VIDEO.recording=true; IRIS_VIDEO.t0wall=performance.now(); IRIS_VIDEO.bgLast=performance.now();
+  try{
+    IRIS_VIDEO.stream=cv.captureStream(60);
+    const mime=irisVideoMime();
+    const HD_BITS=30000000; // 30 Mbps — maximum practical Full-HD quality (visually lossless 1080p60)
+    IRIS_VIDEO.rec=new MediaRecorder(IRIS_VIDEO.stream, mime?{mimeType:mime,videoBitsPerSecond:HD_BITS}:{videoBitsPerSecond:HD_BITS});
+    IRIS_VIDEO.rec.ondataavailable=(e)=>{ if(e.data&&e.data.size) IRIS_VIDEO.chunks.push(e.data); };
+    IRIS_VIDEO.rec.onstop=irisVideoFinish;
+    IRIS_VIDEO.rec.start(1000);
+  }catch(err){ IRIS_VIDEO.recording=false; try{ document.body.classList.remove('iris-video'); }catch(_){} try{ irisAudioKeepalive(false); }catch(_){} try{ const sl=document.getElementById('timeSlider'); if(sl){ sl.disabled=false; sl.style.opacity=''; sl.title=''; } }catch(_){} try{ if(IRIS_VIDEO.prevPixelRatio) renderer.setPixelRatio(IRIS_VIDEO.prevPixelRatio); }catch(_){} try{ irisVideoSetWarp(IRIS_VIDEO.prevWarp||1, true); }catch(_){} return; }
+  irisVideoDraw(true);
+  IRIS_VIDEO.uiTimer=setInterval(()=>{
+    try{
+      const el=(performance.now()-IRIS_VIDEO.t0wall)/1000;
+      const t=document.getElementById('irisRecTime');
+      if(t) t.textContent=String(Math.floor(el/60)).padStart(2,'0')+':'+String(Math.floor(el%60)).padStart(2,'0')+' / 01:30';
+      const f=document.getElementById('irisRecFill');
+      if(f) f.style.width=Math.min(100,el/IRIS_VIDEO.len*100)+'%';
+    }catch(_){}
+  },250);
+  // AUTO-FIT controller (1s): continuously rebalances speed so the mission lands
+  // at exactly 90s. Raised speed? fast segments ease down. Lowered it? slow
+  // segments ease up. Finished early? gentle scenic drift. Near the end and not
+  // done? last-resort max so burn-up is never missed. Slew-limited (±~30%) so
+  // changes are smooth, never jumps. Stop timer below still fires at exactly 90s.
+  IRIS_VIDEO.normTimer=setInterval(()=>{
+    try{
+      if(!IRIS_VIDEO.recording) return;
+      const el=(performance.now()-IRIS_VIDEO.t0wall)/1000, rem=Math.max(1,IRIS_VIDEO.len-el);
+      const mode=IRIS_VIDEO.mode;
+      let done=false;
+      try{ done=(mode==='case1')?(CASE1.state==='CASE_1_COMPLETE'):(!!window._ccsDone); }catch(_){}
+      const cur=(typeof timeScale!=='undefined')?timeScale:1;
+      if(done){ if(cur>2.6) irisVideoSetWarp(Math.max(2.5,cur*0.93), true); return; }
+      if(el>=84){ if(cur<60) irisVideoSetWarp(60, true); return; }
+      const simDone=Math.max(0,(window._simT||0)-IRIS_VIDEO.simT0);
+      const simLeft=Math.max(120,IRIS_VIDEO.totalSimEst-simDone);
+      const need=Math.max(1,Math.min(60,simLeft/(rem*(typeof SIM_WARP!=='undefined'?SIM_WARP:18))));
+      if(need<cur*0.92) irisVideoSetWarp(Math.max(need,cur*0.93), true);
+      else if(need>cur*1.25) irisVideoSetWarp(Math.min(60,Math.max(cur*1.07,Math.min(need,cur*1.35))), true);
+    }catch(_){}
+  },1000);
+  IRIS_VIDEO.stopTimer=setTimeout(irisVideoStop, IRIS_VIDEO.len*1000);
+  try{ fleetNotice('● REC — <b>90s Full HD 1080p60</b> · speed auto-fits to 90s · switch tabs freely, it keeps running'); }catch(_){}
+}
+function irisVideoStop(){
+  if(!IRIS_VIDEO.recording) return;
+  IRIS_VIDEO.recording=false;
+  try{ clearInterval(IRIS_VIDEO.uiTimer); clearInterval(IRIS_VIDEO.normTimer); clearTimeout(IRIS_VIDEO.stopTimer); }catch(_){}
+  try{ if(IRIS_VIDEO.rec&&IRIS_VIDEO.rec.state!=='inactive') IRIS_VIDEO.rec.stop(); else irisVideoFinish(); }catch(_){ try{ irisVideoFinish(); }catch(__){} }
+  try{ irisVideoDraw(true); }catch(_){}
+}
+function irisVideoFinish(){
+  try{
+    document.body.classList.remove('iris-video');
+    const b=document.getElementById('irisRecBadge'); if(b) b.classList.remove('show');
+  }catch(_){}
+  // Restore your pre-REC speed + slider hint + pixel ratio, stop keep-alive.
+  try{ irisVideoSetWarp(IRIS_VIDEO.prevWarp||1, true); }catch(_){}
+  try{ irisAudioKeepalive(false); }catch(_){}
+  try{
+    const sl=document.getElementById('timeSlider');
+    if(sl){ sl.disabled=false; sl.style.opacity=''; sl.title=''; }
+  }catch(_){}
+  try{
+    if(IRIS_VIDEO.prevPixelRatio) renderer.setPixelRatio(IRIS_VIDEO.prevPixelRatio);
+    try{ if(composer&&composer.setPixelRatio&&IRIS_VIDEO.prevPixelRatio) composer.setPixelRatio(IRIS_VIDEO.prevPixelRatio); }catch(_){}
+    try{ if(composer&&composer.setSize) composer.setSize(innerWidth,innerHeight); }catch(_){}
+    IRIS_VIDEO.prevPixelRatio=0;
+  }catch(_){}
+  try{
+    if(IRIS_VIDEO.stream){ IRIS_VIDEO.stream.getTracks().forEach(tr=>{ try{ tr.stop(); }catch(_){} }); IRIS_VIDEO.stream=null; }
+  }catch(_){}
+  try{
+    if(IRIS_VIDEO.chunks&&IRIS_VIDEO.chunks.length){
+      const blob=new Blob(IRIS_VIDEO.chunks,{type:'video/webm'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      const ts=new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+      a.href=url; a.download='IRIS-'+(IRIS_VIDEO.mode||'case1')+'-90s-1080p-'+ts+'.webm';
+      document.body.appendChild(a); a.click();
+      setTimeout(()=>{ try{ URL.revokeObjectURL(url); a.remove(); }catch(_){} },4000);
+      try{ fleetNotice('■ REC DONE — <b>90s Full-HD 1080p60 video downloaded</b> ('+(blob.size/1048576).toFixed(1)+' MB)'); }catch(_){}
+    } else { try{ fleetNotice('REC DONE — no frames captured'); }catch(_){} }
+  }catch(_){}
+  IRIS_VIDEO.chunks=[]; IRIS_VIDEO.rec=null;
+}
+// ---- background-tab keep-alive: wall-clock sim advance + render + REC frame ----
+// Runs at 10Hz so a hidden tab keeps the sim, the 3D render AND the recorder
+// fed with fresh frames (rAF is paused by the browser when hidden). Combined
+// with the silent-audio keep-alive above, switching tabs no longer stops or
+// freezes anything — the 90s stop timer and auto-download still fire on time.
+setInterval(()=>{
+  try{
+    if(!document.hidden) { IRIS_VIDEO.bgLast=performance.now(); return; }
+    // hidden tab: rAF is paused — advance the sim on wall-clock so it NEVER stops
+    const now=performance.now();
+    const wallDt=Math.min(10,(now-IRIS_VIDEO.bgLast)/1000); // cap 10s per tick (throttle-safe)
+    IRIS_VIDEO.bgLast=now;
+    const warp=(typeof SIM_WARP!=='undefined'?SIM_WARP:18)*((typeof timeScale!=='undefined')?timeScale:1);
+    let simDt=wallDt*warp;
+    // sub-step so drag/clamps stay stable on big jumps
+    let guard=0;
+    while(simDt>0.5&&guard<400){
+      const step=Math.min(50,simDt);
+      t+=step; window._simT=t;
+      try{ sats.forEach(s=>s.upd(t, step/((typeof SIM_WARP!=='undefined')?SIM_WARP:18))); }catch(_){}
+      simDt-=step; guard++;
+    }
+    if(simDt>0){ t+=simDt; window._simT=t; try{ sats.forEach(s=>s.upd(t, simDt/((typeof SIM_WARP!=='undefined')?SIM_WARP:18))); }catch(_){} }
+    try{ if(typeof case1VisualFrame==='function') case1VisualFrame(wallDt); }catch(_){}
+    try{ if(typeof earthMesh!=='undefined'&&earthMesh) earthMesh.rotation.y+=7.2921159e-5*wallDt*warp; }catch(_){}
+    try{ if(typeof cloudsMesh!=='undefined'&&cloudsMesh) cloudsMesh.rotation.y+=7.2921159e-5*1.03*wallDt*warp; }catch(_){}
+    try{ if(typeof updTel==='function') updTel(); }catch(_){}
+    if(!IRIS_VIDEO.recording) return; // sim keeps running; render+REC frame only when recording
+    try{ if(composer) composer.render(); else if(renderer) renderer.render(scene,camera); }catch(_){}
+    try{ irisVideoDraw(true); }catch(_){}
+  }catch(_){ try{ IRIS_VIDEO.bgLast=performance.now(); }catch(__){} }
+},100);
+document.addEventListener('visibilitychange', ()=>{ try{ IRIS_VIDEO.bgLast=performance.now(); if(clock) clock.getDelta(); }catch(_){} });
+// ---- prompt plumbing: ask on START SIMULATION / START CASE 1 ----
+let irisPendingRun=null;
+function irisAskVideo(text, runFn){
+  irisPendingRun=runFn;
+  try{
+    const p=document.getElementById('irisVideoPromptText');
+    if(p&&text) p.innerHTML=text;
+    document.getElementById('irisVideoPrompt').classList.add('show');
+  }catch(_){ try{ runFn(); }catch(__){} irisPendingRun=null; }
+}
+document.getElementById('irisVideoYes')?.addEventListener('click', async ()=>{
+  try{ document.getElementById('irisVideoPrompt').classList.remove('show'); }catch(_){}
+  const run=irisPendingRun; irisPendingRun=null;
+  try{ if(run) await run(); }catch(_){}
+  try{
+    const st=(typeof CASE1!=='undefined')?CASE1.state:'IDLE';
+    const okCase1=['INITIALIZING_CASE_1','ARRANGING_SCENARIO','OBSERVING_REVOLUTION_1','OBSERVING_REVOLUTION_2','CALCULATING_DECAY','PREDICTING_REVOLUTION_3','SELECTING_ACTION_BOT','RENDEZVOUS','SHEPHERD','DOCKING','SAFETY_VALIDATION','POST_BURN_VERIFICATION','REENTRY_TRACKING'].indexOf(st)>=0;
+    const hasDebris=sats.some(s=>s.type==='debris');
+    if(okCase1) irisVideoStart('case1');
+    else if(hasDebris) irisVideoStart('sim');
+    else try{ fleetNotice('VIDEO SKIPPED — scenario did not start'); }catch(_){}
+  }catch(_){}
+});
+document.getElementById('irisVideoNo')?.addEventListener('click', async ()=>{
+  try{ document.getElementById('irisVideoPrompt').classList.remove('show'); }catch(_){}
+  const run=irisPendingRun; irisPendingRun=null;
+  try{ if(run) await run(); }catch(_){}
 });
 setTimeout(()=>updTel(),200);
 </script>
