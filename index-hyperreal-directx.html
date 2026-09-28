@@ -233,7 +233,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
   #labFoot{display:flex;gap:10px;padding:12px 16px;border-top:1px solid rgba(96,165,250,0.18)}
   #labFoot .btn{flex:1;text-align:center}
   @media(max-width:860px){#labBody{flex-direction:column}#labSide{width:auto;max-width:none;border-left:none;border-top:1px solid rgba(96,165,250,0.18);max-height:30vh}#labCanvas{min-height:300px}}
-  /* === IRIS VIDEO MODE — clean 90s export: no buttons, telemetry left + sequence right only === */
+  /* === IRIS VIDEO MODE — full-mission export: no buttons, telemetry left + sequence right only === */
   #irisVideoPrompt{position:fixed;inset:0;background:rgba(2,6,23,0.78);backdrop-filter:blur(10px);z-index:60;display:none;align-items:center;justify-content:center;padding:16px}
   #irisVideoPrompt.show{display:flex}
   #irisVideoCard{width:460px;max-width:94vw;background:rgba(10,18,36,0.97);border:1px solid rgba(250,204,21,0.4);border-radius:16px;padding:20px;box-shadow:0 24px 80px rgba(0,0,0,0.6);text-align:center}
@@ -247,6 +247,10 @@ window.addEventListener('DOMContentLoaded', ()=>{
   @keyframes irisBlink{50%{opacity:0.25}}
   #irisRecBar{width:120px;height:4px;background:rgba(248,113,113,0.2);border-radius:2px;overflow:hidden}
   #irisRecFill{height:100%;width:0%;background:#ef4444}
+  #irisProcBadge{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:55;display:none;align-items:center;gap:10px;background:rgba(2,6,23,0.9);border:1px solid rgba(250,204,21,0.5);border-radius:999px;padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#fde68a}
+  #irisProcBadge.show{display:flex}
+  #irisProcBar{width:140px;height:4px;background:rgba(250,204,21,0.2);border-radius:2px;overflow:hidden}
+  #irisProcFill{height:100%;width:0%;background:#facc15;display:block}
   /* IRIS VIDEO: on-screen view stays 100% normal (follow + all buttons).
      The clean feed (sequence LEFT + telemetry RIGHT, no buttons) is composed
      in the backend video canvas only. */
@@ -263,9 +267,10 @@ window.addEventListener('DOMContentLoaded', ()=>{
   </div>
 </div>
 <div id="tooltip"></div>
-<div id="irisRecBadge"><span id="irisRecDot"></span><span>● REC</span><span id="irisRecTime">00:00 / 01:30</span><span id="irisRecBar"><span id="irisRecFill" style="display:block"></span></span></div>
-<div id="irisVideoPrompt"><div id="irisVideoCard"><h2>🎬 RECORD 90-SECOND VIDEO?</h2><p id="irisVideoPromptText">Clean export — no buttons · <b>Full HD 1080p60, max quality</b>.<br>Only <b>Case-1 sequence (left)</b> + <b>telemetry (right)</b>.<br>Change <b>TIME speed anytime</b> — fast parts ease down, slow parts ease up<br>so the full mission incl. burn-up fits <b>exactly 90 seconds</b>.<br>Everything keeps working · runs in background if you switch tabs · auto-downloads.</p><div class="row"><button class="btn" id="irisVideoYes">● YES — RECORD</button><button class="btn ghost" id="irisVideoNo">JUST RUN</button></div></div></div>
+<div id="irisRecBadge"><span id="irisRecDot"></span><span>● REC</span><span id="irisRecTime">00:00</span><button id="irisRecStop" title="Stop recording now and download" style="cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;padding:4px 10px;border-radius:999px;border:1px solid rgba(248,113,113,0.6);background:rgba(127,29,29,0.8);color:#fecaca;">STOP</button></div>
+<div id="irisVideoPrompt"><div id="irisVideoCard"><h2>RECORD FULL-MISSION VIDEO?</h2><p id="irisVideoPromptText">Clean export — no buttons · <b>Full HD 1080p60, max quality</b>.<br>Only <b>Case-1 sequence (left)</b> + <b>telemetry (right)</b>.<br>Records the <b>WHOLE mission however long it takes</b> (TIME locked at one speed — nothing cut off).<br>When done it <b>fits to exactly 90 seconds</b> and auto-downloads.<br>Keep this tab visible during the final squeeze.</p><div class="row"><button class="btn" id="irisVideoYes">● YES — RECORD</button><button class="btn ghost" id="irisVideoNo">JUST RUN</button></div></div></div>
 <canvas id="irisVideoCanvas" width="1920" height="1080" style="display:none"></canvas>
+<div id="irisProcBadge"><span>FITTING TO 90s</span><span id="irisProcBar"><span id="irisProcFill"></span></span><span id="irisProcTxt">0%</span></div>
 <div class="hud">
   <div class="topbar">
     <div class="logo">
@@ -3291,9 +3296,8 @@ btnDetails?.addEventListener('click', ()=>{
   btnDetails.textContent = detailsOpen ? 'Details ▴' : 'Details ▾';
 });
 
-// sliders — TIME stays usable even during 90s REC; the REC controller
-// rebalances around your setting so the total still lands at exactly 90s.
-document.getElementById('timeSlider').addEventListener('input', e=>{ const v=parseInt(e.target.value); timeScale=v===0?0:Math.pow(v/18,2); document.getElementById('timeLabel').textContent=timeScale===0?'PAUSED':timeScale.toFixed(1)+'×'; });
+// sliders — TIME is LOCKED during video REC (constant single speed, full mission).
+document.getElementById('timeSlider').addEventListener('input', e=>{ if(typeof IRIS_VIDEO!=='undefined'&&IRIS_VIDEO.recording){ try{ e.target.value=Math.max(0,Math.min(100,Math.round(18*Math.sqrt(Math.min(timeScale,30.8))))); }catch(_){} return; } const v=parseInt(e.target.value); timeScale=v===0?0:Math.pow(v/18,2); document.getElementById('timeLabel').textContent=timeScale===0?'PAUSED':timeScale.toFixed(1)+'×'; });
 document.getElementById('fovSlider').addEventListener('input', e=>{ camera.fov=parseInt(e.target.value); camera.updateProjectionMatrix(); document.getElementById('fovLabel').textContent=camera.fov+'°'; });
 document.getElementById('bloomSlider').addEventListener('input', e=>{
   const v=parseInt(e.target.value)/100;
@@ -3865,14 +3869,14 @@ function updateCCSPanel(){
   if(st) st.innerHTML=`UNIFIED DETAILS ✓ — final orbit + final decay from 2 orbits · ${window._ccsStore.length} packets fused`;
 }
 setInterval(updateCCSPanel,500);
-document.getElementById('btnStartSim')?.addEventListener('click', ()=>{
-  irisAskVideo(null, async ()=>{
-    await startSimulationDemo();
-    try{
-      const ds=sats.filter(s=>s.type==='debris');
-      if(ds.length&&!window._targetDebris) targetDebrisByLabel(ds[0].label);
-    }catch(_){}
-  });
+document.getElementById('btnStartSim')?.addEventListener('click', async ()=>{
+  // START SIMULATION just runs — no video prompt (prompt lives on START CASE 1 only)
+  irisPendingWant='sim';
+  await startSimulationDemo();
+  try{
+    const ds=sats.filter(s=>s.type==='debris');
+    if(ds.length&&!window._targetDebris) targetDebrisByLabel(ds[0].label);
+  }catch(_){}
 });
 document.getElementById('btnTargetDebris')?.addEventListener('click', ()=>{
   const sel=document.getElementById('debrisTargetSelect');
@@ -5941,6 +5945,7 @@ function case1Handoff(reason){  const b=CASE1.bot;
 }
 setInterval(case1Tick, 500);
 document.getElementById('btnStartCase1')?.addEventListener('click', ()=>{
+  irisPendingWant='case1';
   irisAskVideo(null, async ()=>{ case1Start(); });
 });
 document.getElementById('btnAbortCase1')?.addEventListener('click', ()=>case1Abort('operator abort'));
@@ -6214,19 +6219,23 @@ document.getElementById('labAdd')?.addEventListener('click', ()=>{
   }catch(e){ try{ fleetNotice('BOT LAB — add failed, use Fleet Builder'); }catch(_){} }
   closeLab();
 });
-// ================= IRIS 90-SECOND CLEAN VIDEO EXPORT =================
+// ================= IRIS FULL-MISSION CLEAN VIDEO EXPORT =================
 // Backend-only composition (NOT screen capture): full-bleed WebGL scene +
 // floating cards — Case-1 sequence (LEFT) + telemetry (RIGHT). No buttons.
 // HIGH HD: 1920x1080 @60fps, VP9/AV1 ~30 Mbps (maximum Full-HD quality).
-// EXACT 90s AUTO-FIT: you can raise/lower TIME speed anytime — even mid-REC.
-// The controller rebalances continuously: fast segments ease down, slow
-// segments ease up, so the full mission incl. burn-up lands at exactly 90s
-// wall-clock (burn-up ~84s + 6s aftermath). Stop timer is strictly 90s.
+// FULL-MISSION, SINGLE LOCKED SPEED, NO CUTOFF:
+//  - At REC start ONE warp is auto-picked and LOCKED (constant speed).
+//  - TIME slider is DISABLED during REC — no mid-rec speed changes, no
+//    continuous re-counting / auto-fit controller.
+//  - Recording NEVER stops on a timer. It stops only when the whole mission
+//    is done (CASE_1_COMPLETE / _ccsDone + aftermath), then restores your
+//    speed, squeezes the capture to exactly 90s, and auto-downloads.
 // BACKGROUND-PROOF: silent-audio keep-alive + wall-clock pump keep the sim,
 // render and recorder running even when you switch tabs; file auto-downloads.
-const IRIS_VIDEO={len:90, recording:false, mode:null, t0wall:0, simT0:0, chunks:[],
-  rec:null, stream:null, uiTimer:0, stopTimer:0, normTimer:0,
-  prevWarp:1, prevPixelRatio:0, lockedWarp:1, totalSimEst:15000, renderWrapped:false, bgLast:0, _dt:0};
+const IRIS_VIDEO={recording:false, mode:null, t0wall:0, simT0:0, chunks:[],
+  rec:null, stream:null, uiTimer:0, stopTimer:0, watchTimer:0,
+  prevWarp:1, prevPixelRatio:0, lockedWarp:1, totalSimEst:15000, renderWrapped:false, bgLast:0, _dt:0,
+  doneWallT0:0, FAILSAFE_S:3600};
 // Silent-audio keep-alive: browsers throttle hidden-tab timers (which would
 // freeze the sim + recorder when you switch tabs). An active audio pipeline
 // exempts the page, so the background pump keeps running. Effectively silent.
@@ -6284,10 +6293,29 @@ function irisVideoEstimate(mode){
   const coastBurn=1.0*P;            // REENTRY coast to first perigee burn-up
   return mapRev+selWindow+rendezvous+detumble+transit+pushVerify+coastBurn;
 }
+function irisVideoNominal(mode){
+  // TYPICAL (not worst-case) mission budget — picks the single locked warp
+  // so a normal run fills ~86s wall (mission) + ~8s aftermath, landing right
+  // at 90s. Worst-case paddings are left out on purpose: a long run gets a
+  // gentle squeeze, a short run a slight stretch, via the exact-90s fit pass.
+  const P=irisVideoPeriod();
+  if(mode==='sim') return 2*P+12;
+  let tumble=1.65, push=180, verRevs=1;
+  try{ tumble=case1Tumble(CASE1.target||CASE1.targetSel)||1.65; }catch(_){}
+  try{ const C=CASE_1_CONFIG||{}; push=Math.max(60,(C.burn||{}).pushDurSec||180); verRevs=(C.verify||{}).postBurnRevs||1; }catch(_){}
+  const mapRev=2*P;                 // OBSERVING rev 1+2 (deterministic)
+  const select=0.3*P;               // typical quick selection
+  const rendezvous=0.6*P;           // typical offset-hold closure
+  const detumble=Math.max(150, Math.min(3000, tumble/0.0005))+60;
+  const transit=120;                // DOCKING thruster flight
+  const pushVerify=push+verRevs*P;  // POST_BURN push + verification revs
+  const coastBurn=1.0*P;            // REENTRY coast to burn-up
+  return mapRev+select+rendezvous+detumble+transit+pushVerify+coastBurn;
+}
 function irisVideoSetWarp(w, force){
-  // All speed writes funnel here (slider, controller, console). Clamped 1–60.
-  // Slider UI is skipped while you are actively dragging it (focus guard) so
-  // the controller never fights your hand — timeScale itself still updates.
+  // All speed writes funnel here outside REC. During REC this is called
+  // exactly ONCE (locked single speed) — the TIME slider is disabled so
+  // nothing else can change speed mid-recording.
   w=Math.max(1,Math.min(60,w));
   timeScale=w;
   try{
@@ -6378,12 +6406,12 @@ function irisVideoDraw(force){
     x.fillStyle=blink?'#ef4444':'#7f1d1d';
     x.beginPath(); x.arc(W/2-bw/2+Math.round(22*S),10*S+bh/2,Math.round(8*S),0,7); x.fill();
     x.fillStyle='#fecaca'; x.font='bold '+Math.round(17*S)+'px monospace';
-    x.fillText('REC '+mm+':'+ss+' / 01:30',W/2-bw/2+Math.round(40*S),10*S+Math.round(6*S));
+    x.fillText('REC '+mm+':'+ss+' \u00b7 FULL MISSION',W/2-bw/2+Math.round(40*S),10*S+Math.round(6*S));
     x.fillStyle='rgba(239,68,68,0.25)'; x.fillRect(W/2-bw/2,10*S+bh, bw,Math.round(4*S));
-    x.fillStyle='#ef4444'; x.fillRect(W/2-bw/2,10*S+bh, bw*Math.min(1,el/IRIS_VIDEO.len),Math.round(4*S));
+    x.fillStyle='#ef4444'; x.fillRect(W/2-bw/2,10*S+bh, bw,Math.round(4*S));
     // BOTTOM-CENTER: sim clock + uniform-speed proof
     try{
-      const lab='T+'+Math.round(simT)+'s · '+((typeof timeScale!=='undefined')?timeScale:1).toFixed(1)+'× auto-fit · Full HD 1080p60';
+      const lab='T+'+Math.round(simT)+'s · '+((typeof timeScale!=='undefined')?timeScale:1).toFixed(1)+'× locked · Full HD 1080p60';
       x.font=Math.round(12*S)+'px monospace';
       const tw=x.measureText(lab).width;
       x.fillStyle='rgba(2,6,23,0.80)'; x.fillRect(W/2-tw/2-10*S,H-34*S,tw+20*S,22*S);
@@ -6408,6 +6436,13 @@ function irisVideoWrapRender(){
     }
   }catch(_){}
 }
+function irisVideoIsDone(){
+  try{
+    const mode=IRIS_VIDEO.mode;
+    if(mode==='case1') return (typeof CASE1!=='undefined')&&(CASE1.state==='CASE_1_COMPLETE'||CASE1.state==='ABORTED');
+    return !!window._ccsDone;
+  }catch(_){ return false; }
+}
 function irisVideoStart(mode){
   if(IRIS_VIDEO.recording) return;
   const cv=document.getElementById('irisVideoCanvas');
@@ -6417,10 +6452,12 @@ function irisVideoStart(mode){
   IRIS_VIDEO.prevWarp=(typeof timeScale!=='undefined')?timeScale:1;
   IRIS_VIDEO.totalSimEst=irisVideoEstimate(mode);
   IRIS_VIDEO.simT0=(window._simT||0);
-  // Opening warp from the mission budget (burn-up ~84s + 6s aftermath).
-  // It stays ADJUSTABLE: drag TIME anytime — the controller below rebalances
-  // fast/slow segments so the total still lands at exactly 90s.
-  IRIS_VIDEO.lockedWarp=Math.max(1,Math.min(60,IRIS_VIDEO.totalSimEst/(84*(typeof SIM_WARP!=='undefined'?SIM_WARP:18))));
+  IRIS_VIDEO.doneWallT0=0;
+  // SINGLE locked speed, picked ONCE: mission budget mapped to a watchable
+  // constant warp (no continuous re-counting, no mid-rec changes).
+  // Recording does NOT stop on any timer — only on mission completion.
+  IRIS_VIDEO.totalSimNom=irisVideoNominal(mode);
+  IRIS_VIDEO.lockedWarp=Math.max(1,Math.min(60,IRIS_VIDEO.totalSimNom/(86*(typeof SIM_WARP!=='undefined'?SIM_WARP:18))));
   irisVideoSetWarp(IRIS_VIDEO.lockedWarp, true);
   // MAXIMUM Full-HD source: force pixelRatio 2 during REC (supersampled backing
   // store on DPR-1 screens too) so the 1080p export gets the sharpest possible
@@ -6438,11 +6475,12 @@ function irisVideoStart(mode){
     if(vt&&typeof setAutoFollow==='function') setAutoFollow(vt, true);
   }catch(_){}
   try{ document.body.classList.add('iris-video'); }catch(_){}
-  // Everything stays functional during REC — TIME included. The badge shows
-  // the live auto-fit speed so you can see fast parts ease down / slow parts up.
+  // TIME LOCKED at the single constant speed for the whole recording.
   try{
     const sl=document.getElementById('timeSlider');
-    if(sl){ sl.disabled=false; sl.style.opacity=''; sl.title='REC auto-fit to 90s — you can still change speed'; }
+    if(sl){ sl.disabled=true; sl.style.opacity='0.4'; sl.title='Locked at '+IRIS_VIDEO.lockedWarp.toFixed(1)+'× during REC — whole mission, no cutoff'; }
+    const lb=document.getElementById('timeLabel');
+    if(lb) lb.textContent=IRIS_VIDEO.lockedWarp.toFixed(1)+'×';
   }catch(_){}
   // Background-proofing: silent audio + wake lock so switching tabs never stops
   // the sim, the render, or the recorder.
@@ -6466,40 +6504,28 @@ function irisVideoStart(mode){
     try{
       const el=(performance.now()-IRIS_VIDEO.t0wall)/1000;
       const t=document.getElementById('irisRecTime');
-      if(t) t.textContent=String(Math.floor(el/60)).padStart(2,'0')+':'+String(Math.floor(el%60)).padStart(2,'0')+' / 01:30';
-      const f=document.getElementById('irisRecFill');
-      if(f) f.style.width=Math.min(100,el/IRIS_VIDEO.len*100)+'%';
+      if(t) t.textContent=String(Math.floor(el/60)).padStart(2,'0')+':'+String(Math.floor(el%60)).padStart(2,'0');
     }catch(_){}
   },250);
-  // AUTO-FIT controller (1s): continuously rebalances speed so the mission lands
-  // at exactly 90s. Raised speed? fast segments ease down. Lowered it? slow
-  // segments ease up. Finished early? gentle scenic drift. Near the end and not
-  // done? last-resort max so burn-up is never missed. Slew-limited (±~30%) so
-  // changes are smooth, never jumps. Stop timer below still fires at exactly 90s.
-  IRIS_VIDEO.normTimer=setInterval(()=>{
+  // COMPLETION WATCHER (1s): no speed changes, no pre-count cutoff.
+  // Stops only when the whole mission is done + 8s aftermath so burn-up
+  // is fully in the file. Failsafe timer below is 60 min, manual ■ STOP anytime.
+  IRIS_VIDEO.watchTimer=setInterval(()=>{
     try{
       if(!IRIS_VIDEO.recording) return;
-      const el=(performance.now()-IRIS_VIDEO.t0wall)/1000, rem=Math.max(1,IRIS_VIDEO.len-el);
-      const mode=IRIS_VIDEO.mode;
-      let done=false;
-      try{ done=(mode==='case1')?(CASE1.state==='CASE_1_COMPLETE'):(!!window._ccsDone); }catch(_){}
-      const cur=(typeof timeScale!=='undefined')?timeScale:1;
-      if(done){ if(cur>2.6) irisVideoSetWarp(Math.max(2.5,cur*0.93), true); return; }
-      if(el>=84){ if(cur<60) irisVideoSetWarp(60, true); return; }
-      const simDone=Math.max(0,(window._simT||0)-IRIS_VIDEO.simT0);
-      const simLeft=Math.max(120,IRIS_VIDEO.totalSimEst-simDone);
-      const need=Math.max(1,Math.min(60,simLeft/(rem*(typeof SIM_WARP!=='undefined'?SIM_WARP:18))));
-      if(need<cur*0.92) irisVideoSetWarp(Math.max(need,cur*0.93), true);
-      else if(need>cur*1.25) irisVideoSetWarp(Math.min(60,Math.max(cur*1.07,Math.min(need,cur*1.35))), true);
+      if(irisVideoIsDone()){
+        if(!IRIS_VIDEO.doneWallT0) IRIS_VIDEO.doneWallT0=performance.now();
+        if((performance.now()-IRIS_VIDEO.doneWallT0)/1000>=8) irisVideoStop();
+      } else { IRIS_VIDEO.doneWallT0=0; }
     }catch(_){}
   },1000);
-  IRIS_VIDEO.stopTimer=setTimeout(irisVideoStop, IRIS_VIDEO.len*1000);
-  try{ fleetNotice('● REC — <b>90s Full HD 1080p60</b> · speed auto-fits to 90s · switch tabs freely, it keeps running'); }catch(_){}
+  IRIS_VIDEO.stopTimer=setTimeout(()=>{ try{ fleetNotice('■ REC FAILSAFE — 60 min reached, downloading full video'); }catch(_){} irisVideoStop(); }, IRIS_VIDEO.FAILSAFE_S*1000);
+  try{ fleetNotice('● REC — <b>Full-mission Full HD 1080p60</b> · locked '+IRIS_VIDEO.lockedWarp.toFixed(1)+'× · TIME disabled · stops only when mission completes · fits to exactly 90s at the end · ■ STOP anytime'); }catch(_){}
 }
 function irisVideoStop(){
   if(!IRIS_VIDEO.recording) return;
   IRIS_VIDEO.recording=false;
-  try{ clearInterval(IRIS_VIDEO.uiTimer); clearInterval(IRIS_VIDEO.normTimer); clearTimeout(IRIS_VIDEO.stopTimer); }catch(_){}
+  try{ clearInterval(IRIS_VIDEO.uiTimer); clearInterval(IRIS_VIDEO.watchTimer); clearTimeout(IRIS_VIDEO.stopTimer); }catch(_){}
   try{ if(IRIS_VIDEO.rec&&IRIS_VIDEO.rec.state!=='inactive') IRIS_VIDEO.rec.stop(); else irisVideoFinish(); }catch(_){ try{ irisVideoFinish(); }catch(__){} }
   try{ irisVideoDraw(true); }catch(_){}
 }
@@ -6508,12 +6534,14 @@ function irisVideoFinish(){
     document.body.classList.remove('iris-video');
     const b=document.getElementById('irisRecBadge'); if(b) b.classList.remove('show');
   }catch(_){}
-  // Restore your pre-REC speed + slider hint + pixel ratio, stop keep-alive.
+  // Restore your pre-REC speed + re-enable slider + pixel ratio, stop keep-alive.
   try{ irisVideoSetWarp(IRIS_VIDEO.prevWarp||1, true); }catch(_){}
   try{ irisAudioKeepalive(false); }catch(_){}
   try{
     const sl=document.getElementById('timeSlider');
-    if(sl){ sl.disabled=false; sl.style.opacity=''; sl.title=''; }
+    if(sl){ sl.disabled=false; sl.style.opacity=''; sl.title=''; try{ sl.value=Math.max(0,Math.min(100,Math.round(18*Math.sqrt(Math.min(IRIS_VIDEO.prevWarp||1,30.8))))); }catch(_){} }
+    const lb=document.getElementById('timeLabel');
+    if(lb) lb.textContent=(IRIS_VIDEO.prevWarp||1).toFixed(1)+'×';
   }catch(_){}
   try{
     if(IRIS_VIDEO.prevPixelRatio) renderer.setPixelRatio(IRIS_VIDEO.prevPixelRatio);
@@ -6530,19 +6558,127 @@ function irisVideoFinish(){
       const url=URL.createObjectURL(blob);
       const a=document.createElement('a');
       const ts=new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
-      a.href=url; a.download='IRIS-'+(IRIS_VIDEO.mode||'case1')+'-90s-1080p-'+ts+'.webm';
-      document.body.appendChild(a); a.click();
-      setTimeout(()=>{ try{ URL.revokeObjectURL(url); a.remove(); }catch(_){} },4000);
-      try{ fleetNotice('■ REC DONE — <b>90s Full-HD 1080p60 video downloaded</b> ('+(blob.size/1048576).toFixed(1)+' MB)'); }catch(_){}
+      const durS=Math.max(1,Math.round((performance.now()-(IRIS_VIDEO.t0wall||performance.now()))/1000));
+      try{ URL.revokeObjectURL(url); a.remove(); }catch(_){}
+      try{ fleetNotice('■ REC DONE — full mission captured ('+durS+'s) — <b>fitting to exactly 90s…</b> keep this tab visible'); }catch(_){}
+      irisVideoSqueeze(blob, durS);
+      IRIS_VIDEO.chunks=[]; IRIS_VIDEO.rec=null; IRIS_VIDEO.doneWallT0=0;
+      return;
     } else { try{ fleetNotice('REC DONE — no frames captured'); }catch(_){} }
   }catch(_){}
-  IRIS_VIDEO.chunks=[]; IRIS_VIDEO.rec=null;
+  IRIS_VIDEO.chunks=[]; IRIS_VIDEO.rec=null; IRIS_VIDEO.doneWallT0=0;
+}
+// ---- squeeze full-mission capture down to exactly 90s (post-process) ----
+let PASS_DUR=90;
+function irisProcShow(on, txt){
+  try{
+    const b=document.getElementById('irisProcBadge');
+    if(b) b.classList.toggle('show', !!on);
+    if(txt!=null){ const t=document.getElementById('irisProcTxt'); if(t) t.textContent=txt; }
+  }catch(_){}
+}
+function irisProcBar(f, pass, rate){
+  try{
+    const fl=document.getElementById('irisProcFill');
+    if(fl) fl.style.width=Math.round(Math.max(0,Math.min(1,f))*100)+'%';
+    const t=document.getElementById('irisProcTxt');
+    if(t) t.textContent='pass '+pass+' \u00b7 '+rate.toFixed(1)+'x \u00b7 '+Math.round(Math.max(0,Math.min(1,f))*100)+'%';
+  }catch(_){}
+}
+function irisVideoPass(srcBlob, rate, pass){
+  // one re-encode pass: play src at `rate`, capture 1920x1080 @60fps realtime
+  return new Promise((resolve)=>{
+    const url=URL.createObjectURL(srcBlob);
+    const v=document.createElement('video');
+    v.muted=true; v.playsInline=true; v.preload='auto';
+    try{ v.playbackRate=rate; }catch(_){}
+    v.src=url;
+    const cv=document.createElement('canvas'); cv.width=1920; cv.height=1080;
+    const x=cv.getContext('2d');
+    x.fillStyle='#020617'; x.fillRect(0,0,1920,1080);
+    let stream=null, rec=null;
+    const chunks=[];
+    let raf=0, stopped=false;
+    const t0=performance.now();
+    const passThru=()=>{ try{ URL.revokeObjectURL(url); }catch(_){} resolve(srcBlob); };
+    const done=()=>{ try{ URL.revokeObjectURL(url); }catch(_){} resolve(new Blob(chunks,{type:'video/webm'})); };
+    const finish=()=>{
+      if(stopped) return; stopped=true;
+      try{ cancelAnimationFrame(raf); }catch(_){}
+      try{ v.pause(); }catch(_){}
+      setTimeout(()=>{ try{ if(rec&&rec.state!=='inactive') rec.stop(); else passThru(); }catch(_){ passThru(); } }, 400);
+    };
+    const draw=()=>{
+      if(stopped) return;
+      try{ if(v.videoWidth) x.drawImage(v,0,0,1920,1080); }catch(_){}
+      const wall=(performance.now()-t0)/1000;
+      try{ irisProcBar(wall/Math.max(1,(PASS_DUR||90)), pass, rate); }catch(_){}
+      if(v.ended||wall>(PASS_DUR||90)+3){ finish(); return; }
+      raf=requestAnimationFrame(draw);
+    };
+    try{
+      stream=cv.captureStream(60);
+      const mime=irisVideoMime();
+      rec=new MediaRecorder(stream, mime?{mimeType:mime,videoBitsPerSecond:30000000}:{videoBitsPerSecond:30000000});
+    }catch(_){ passThru(); return; }
+    rec.ondataavailable=(e)=>{ if(e.data&&e.data.size) chunks.push(e.data); };
+    rec.onstop=done;
+    v.onended=()=>finish();
+    v.onerror=()=>finish();
+    setTimeout(()=>finish(), (PASS_DUR||90)*1000+20000);
+    try{ v.play().then(()=>{ try{rec.start(1000);}catch(_){} raf=requestAnimationFrame(draw); }).catch(()=>{ finish(); }); }
+    catch(_){ finish(); }
+  });
+}
+async function irisVideoSqueeze(blob, durS){
+  irisAudioKeepalive(true);
+  irisProcShow(true, 'starting\u2026');
+  try{
+    let cur=blob, curDur=durS, pass=0;
+    while(curDur>93&&pass<4){
+      pass++;
+      const rate=Math.min(16, curDur/90);
+      PASS_DUR=curDur/rate;
+      try{ fleetNotice('■ SQUEEZE pass '+pass+' — <b>'+rate.toFixed(1)+'x</b> ('+Math.round(curDur)+'s \u2192 ~'+Math.round(PASS_DUR)+'s)\u2026 keep this tab visible'); }catch(_){}
+      cur=await irisVideoPass(cur, rate, pass);
+      if(!cur||!cur.size) throw new Error('pass failed');
+      curDur=PASS_DUR;
+    }
+    if(curDur<89.5||curDur>90.5){
+      pass++;
+      const rate2=Math.max(0.05, Math.min(16, curDur/90));
+      PASS_DUR=90;
+      try{ fleetNotice('■ FINAL FIT — <b>'+rate2.toFixed(2)+'x</b> ('+Math.round(curDur)+'s \u2192 90s)… keep this tab visible'); }catch(_){}
+      cur=await irisVideoPass(cur, rate2, pass);
+      if(!cur||!cur.size) throw new Error('pass failed');
+      curDur=90;
+    }
+    const url=URL.createObjectURL(cur);
+    const a=document.createElement('a');
+    const ts=new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+    a.href=url; a.download='IRIS-'+(IRIS_VIDEO.mode||'case1')+'-90s-1080p-'+ts+'.webm';
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ try{ URL.revokeObjectURL(url); a.remove(); }catch(_){} },4000);
+    try{ fleetNotice('■ <b>90-second Full-HD 1080p60 video downloaded</b> ('+(cur.size/1048576).toFixed(1)+' MB) — full mission, nothing cut'); }catch(_){}
+  }catch(__sec){
+    try{
+      const url2=URL.createObjectURL(blob);
+      const a2=document.createElement('a');
+      const ts2=new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+      a2.href=url2; a2.download='IRIS-'+(IRIS_VIDEO.mode||'case1')+'-full-'+durS+'s-1080p-'+ts2+'.webm';
+      document.body.appendChild(a2); a2.click();
+      setTimeout(()=>{ try{ URL.revokeObjectURL(url2); a2.remove(); }catch(_){} },4000);
+      try{ fleetNotice('■ SQUEEZE FAILED — <b>full-length video downloaded instead</b> ('+durS+'s)'); }catch(_){}
+    }catch(_){}
+  }
+  irisProcShow(false);
+  try{ irisAudioKeepalive(false); }catch(_){}
 }
 // ---- background-tab keep-alive: wall-clock sim advance + render + REC frame ----
 // Runs at 10Hz so a hidden tab keeps the sim, the 3D render AND the recorder
 // fed with fresh frames (rAF is paused by the browser when hidden). Combined
 // with the silent-audio keep-alive above, switching tabs no longer stops or
-// freezes anything — the 90s stop timer and auto-download still fire on time.
+// freezes anything — completion stop and auto-download still fire on time.
 setInterval(()=>{
   try{
     if(!document.hidden) { IRIS_VIDEO.bgLast=performance.now(); return; }
@@ -6571,8 +6707,9 @@ setInterval(()=>{
   }catch(_){ try{ IRIS_VIDEO.bgLast=performance.now(); }catch(__){} }
 },100);
 document.addEventListener('visibilitychange', ()=>{ try{ IRIS_VIDEO.bgLast=performance.now(); if(clock) clock.getDelta(); }catch(_){} });
+document.getElementById('irisRecStop')?.addEventListener('click', ()=>{ try{ fleetNotice('■ REC STOPPED MANUALLY \u2014 downloading full video so far'); }catch(_){} irisVideoStop(); });
 // ---- prompt plumbing: ask on START SIMULATION / START CASE 1 ----
-let irisPendingRun=null;
+let irisPendingRun=null, irisPendingWant=null;
 function irisAskVideo(text, runFn){
   irisPendingRun=runFn;
   try{
@@ -6584,11 +6721,13 @@ function irisAskVideo(text, runFn){
 document.getElementById('irisVideoYes')?.addEventListener('click', async ()=>{
   try{ document.getElementById('irisVideoPrompt').classList.remove('show'); }catch(_){}
   const run=irisPendingRun; irisPendingRun=null;
+  const want=irisPendingWant; irisPendingWant=null;
   try{ if(run) await run(); }catch(_){}
   try{
     const st=(typeof CASE1!=='undefined')?CASE1.state:'IDLE';
     const okCase1=['INITIALIZING_CASE_1','ARRANGING_SCENARIO','OBSERVING_REVOLUTION_1','OBSERVING_REVOLUTION_2','CALCULATING_DECAY','PREDICTING_REVOLUTION_3','SELECTING_ACTION_BOT','RENDEZVOUS','SHEPHERD','DOCKING','SAFETY_VALIDATION','POST_BURN_VERIFICATION','REENTRY_TRACKING'].indexOf(st)>=0;
     const hasDebris=sats.some(s=>s.type==='debris');
+    if(want==='case1'&&!okCase1){ try{ fleetNotice('VIDEO SKIPPED \u2014 Case 1 did not start (<b>'+st+'</b>) \u2014 fix fleet validation first, then record again'); }catch(_){} return; }
     if(okCase1) irisVideoStart('case1');
     else if(hasDebris) irisVideoStart('sim');
     else try{ fleetNotice('VIDEO SKIPPED — scenario did not start'); }catch(_){}
@@ -6596,7 +6735,7 @@ document.getElementById('irisVideoYes')?.addEventListener('click', async ()=>{
 });
 document.getElementById('irisVideoNo')?.addEventListener('click', async ()=>{
   try{ document.getElementById('irisVideoPrompt').classList.remove('show'); }catch(_){}
-  const run=irisPendingRun; irisPendingRun=null;
+  const run=irisPendingRun; irisPendingRun=null; irisPendingWant=null;
   try{ if(run) await run(); }catch(_){}
 });
 setTimeout(()=>updTel(),200);
