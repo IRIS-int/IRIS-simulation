@@ -6630,8 +6630,13 @@ function irisVideoPass(srcBlob, rate, pass){
       lastFrame=performance.now();
       try{ if(v.videoWidth) x.drawImage(v,0,0,1920,1080); }catch(_){}
       const wall=(performance.now()-t0)/1000;
-      try{ irisProcBar(wall/Math.max(1,(PASS_DUR||90)), pass, rate); }catch(_){}
-      if(v.ended||wall>(PASS_DUR||90)+3){ finish(); return; }
+      try{ irisProcBar(Math.min(1, wall/Math.max(1,(PASS_DUR||90))), pass, rate); }catch(_){}
+      // TAIL GUARD: the real end-of-video wins. The old +3s wall cutoff fired
+      // while a struggling video element was still decoding the tail (heavy
+      // 1080p60 decode at high playbackRate) — slicing the burn-up off. Now the
+      // wall cutoff is a generous failsafe only (+60s); v.ended does the job.
+      if(v.ended){ finish(); return; }
+      if(wall>(PASS_DUR||90)+60){ finish(); return; }
       raf=requestAnimationFrame(draw);
     };
     // TIMER PUMP: rAF pauses in hidden tabs which used to freeze the 90s fit
@@ -6646,7 +6651,7 @@ function irisVideoPass(srcBlob, rate, pass){
     rec.onstop=done;
     v.onended=()=>finish();
     v.onerror=()=>finish();
-    setTimeout(()=>finish(), (PASS_DUR||90)*1000+20000);
+    setTimeout(()=>finish(), (PASS_DUR||90)*1000+60000);
     try{ v.play().then(()=>{ try{rec.start(1000);}catch(_){} raf=requestAnimationFrame(draw); }).catch(()=>{ finish(); }); }
     catch(_){ finish(); }
   });
