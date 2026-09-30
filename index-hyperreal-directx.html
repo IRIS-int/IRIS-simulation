@@ -268,7 +268,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
 </div>
 <div id="tooltip"></div>
 <div id="irisRecBadge"><span id="irisRecDot"></span><span>● REC</span><span id="irisRecTime">00:00</span><button id="irisRecStop" title="Stop recording now and download" style="cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;padding:4px 10px;border-radius:999px;border:1px solid rgba(248,113,113,0.6);background:rgba(127,29,29,0.8);color:#fecaca;">STOP</button></div>
-<div id="irisVideoPrompt"><div id="irisVideoCard"><h2>RECORD FULL-MISSION VIDEO?</h2><p id="irisVideoPromptText">Clean export — no buttons · <b>Full HD 1080p60, max quality</b>.<br>Only <b>Case-1 sequence (left)</b> + <b>telemetry (right)</b>.<br>Records the <b>WHOLE mission however long it takes</b> (TIME locked at one speed — nothing cut off).<br>When done it <b>fits to exactly 90 seconds</b> and auto-downloads.<br>Keep this tab visible during the final squeeze.</p><div class="row"><button class="btn" id="irisVideoYes">● YES — RECORD</button><button class="btn ghost" id="irisVideoNo">JUST RUN</button></div></div></div>
+<div id="irisVideoPrompt"><div id="irisVideoCard"><h2>RECORD FULL-MISSION VIDEO?</h2><p id="irisVideoPromptText">Clean export — no buttons · <b>Full HD 1080p30 smooth, high quality</b>.<br>Only <b>Case-1 sequence (left)</b> + <b>telemetry (right)</b>.<br>Records the <b>WHOLE mission however long it takes</b> (TIME locked at one speed — nothing cut off).<br>When done it <b>fits to exactly 90 seconds</b> and auto-downloads.<br>Keep this tab visible during the final squeeze.</p><div class="row"><button class="btn" id="irisVideoYes">● YES — RECORD</button><button class="btn ghost" id="irisVideoNo">JUST RUN</button></div></div></div>
 <canvas id="irisVideoCanvas" width="1920" height="1080" style="display:none"></canvas>
 <div id="irisProcBadge"><span>FITTING TO 90s</span><span id="irisProcBar"><span id="irisProcFill"></span></span><span id="irisProcTxt">0%</span></div>
 <div class="hud">
@@ -292,7 +292,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
   </div>
   <div class="panel-toggle" id="panelToggle"><button id="btnTogglePanels">◧ PANELS</button></div>
   <div class="panel" id="simCentrePanel" style="position:absolute;left:50%;top:70px;transform:translateX(-50%);padding:10px 16px;text-align:center;z-index:4;display:none;min-width:280px;">
-    <div class="kicker" style="margin:0;justify-content:center;">SIMULATION CENTRE · CCS blind</div>
+    <div class="kicker" style="margin:0;justify-content:center;">SIMULATION CENTRE</div>
     <button class="btn" id="btnStartSim" style="margin-top:8px;width:100%;">▶ START SIMULATION</button>
     <div style="border-top:1px solid rgba(96,165,250,0.18);margin:12px 0 10px;"></div>
     <div style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:0.65;letter-spacing:0.08em;">CASE 1 · CONTROLLED SCENARIO (uses your fleet)</div>
@@ -307,30 +307,6 @@ window.addEventListener('DOMContentLoaded', ()=>{
       <button class="btn ghost" id="btnAbortCase1" style="flex:1;">■ ABORT</button>
     </div>
     <div id="case1Status" style="font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.6;opacity:0.85;margin-top:8px;text-align:left;">IDLE — no Case 1 running.</div>
-  </div>
-  <div class="panel" id="ccsPanel" style="position:absolute;left:50%;top:335px;transform:translateX(-50%);padding:12px 14px;z-index:4;display:none;min-width:360px;max-width:94vw;max-height:46vh;overflow-y:auto;">
-    <div class="kicker" style="margin:0 0 6px;justify-content:center;">CCS PANEL · STAGE 1 COLLECT/STORE — <span id="ccsTarget">—</span><button id="btnCcsMin" title="Minimize panel" style="margin-left:8px;cursor:pointer;font-family:'Space Grotesk',system-ui,sans-serif;font-size:10px;padding:2px 8px;border-radius:0;border:1px solid rgba(96,165,250,0.3);background:rgba(15,23,42,0.8);color:#cbd5e1;">–</button></div>
-    <div id="ccsBody">
-    <div id="ccsStatus" style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;opacity:0.75;margin-bottom:8px;">waiting for target…</div>
-    <div class="grid2">
-      <div class="stat"><label>ALT SEA LEVEL</label><b id="ccsAlt">—</b><i>km</i></div>
-      <div class="stat"><label>SPEED raw</label><b id="ccsVel">—</b><i>km/s</i></div>
-      <div class="stat"><label>MASS raw</label><b id="ccsMass">—</b><i>kg</i></div>
-      <div class="stat"><label>SIZE raw</label><b id="ccsSize">—</b><i>m</i></div>
-      <div class="stat"><label>TUMBLE raw</label><b id="ccsTumble">—</b><i>rad/s</i></div>
-      <div class="stat"><label>DECAY tot raw</label><b id="ccsDecay">—</b><i>km/day</i></div>
-      <div class="stat"><label>ANG MOMENTUM</label><b id="ccsAngMom">—</b><i>km²/s</i></div>
-      <div class="stat"><label>PERP DIST</label><b id="ccsPerp">—</b><i>km</i></div>
-    </div>
-    <div class="coords" style="margin-top:8px;">
-      <span>POS / ECI (km):</span> <b id="ccsTraj">—</b><br>
-      <span>TRAJECTORY:</span> <b id="ccsOrbit">—</b><br>
-      <span>AIR / HEAT:</span> <b id="ccsAir">—</b><br>
-      <span>ORIENT:</span> <b id="ccsOrient">—</b><br>
-      <span>SWARM NODE:</span> <b id="ccsSwarm">—</b><br>
-      <span>STORE:</span> <b id="ccsSensors">—</b>
-    </div>
-    </div>
   </div>
   <div class="enter-notify" id="enterNotify"><span>🛰</span> <span id="enterText">ENTERING <b>LEO</b></span></div>
   <div class="drag-hint" id="dragHint">🖱 DRAG 360° · ←→↑↓ ARROWS rotate · SCROLL zoom · WASD roam · Q/E/C up/down · SHIFT+WASD ⚡INSANE ×25 · F roam · X intercept sat</div>
@@ -3555,7 +3531,7 @@ document.getElementById('btnAddSensory')?.addEventListener('click', ()=>{
   const b=attachBot(null,'sensory',{});
   if(b) fleetNotice(`ATTACHED <b>${b.id}</b> → <b>${b.parent.label||'ACTIVE'}</b>`);
 });
-document.getElementById('btnClearFleet')?.addEventListener('click', ()=>{ try{ restoreCcsMark(); }catch(_){} try{ clearCcsMappedOrbit(); }catch(_){} try{ if(typeof case1Abort==='function') case1Abort('fleet cleared'); }catch(_){} try{ CASE1.live={pos:null,vel:null,alt:0,t:-1e12,observer:'—'}; }catch(_){} clearFleet(); window._targetDebris=null; window._ccsStore=[]; window._ccsDots=[]; window._ccsInside={}; window._ccsPrevRel={}; window._ccsPrevSimT=null; window._ccsLastPass=null; window._ccsDone=false; window._ccsPhase='collect'; try{ document.getElementById('debrisTargetSelect').innerHTML='<option value="">— start sim first —</option>'; }catch(_){} try{ case1RenderValidation(null); }catch(_){} try{ if(typeof case1Render==='function') case1Render(); }catch(_){} fleetNotice('FLEET CLEARED — <b>0 OBJECTS</b>'); });
+document.getElementById('btnClearFleet')?.addEventListener('click', ()=>{ try{ if(typeof case1Abort==='function') case1Abort('fleet cleared'); }catch(_){} try{ CASE1.live={pos:null,vel:null,alt:0,t:-1e12,observer:'—'}; }catch(_){} clearFleet(); try{ case1RenderValidation(null); }catch(_){} try{ if(typeof case1Render==='function') case1Render(); }catch(_){} fleetNotice('FLEET CLEARED — <b>0 OBJECTS</b>'); });
 // SIMULATION CENTRE — demo fleet across whole LEO (160–2000km), fully random each run, ≥5km apart.
 // 40 active + 40 sensory (1 per active) + action + debris. Preallocated trail buffers +
 // bulk DOM updates keep this smooth; 100+ is where O(n²) conjunction + nameplates hurt.
@@ -3568,9 +3544,6 @@ async function startSimulationDemo(){
   const btn=document.getElementById('btnStartSim');
   const TOTAL=SIM_FLEET.active+SIM_FLEET.action;
   try{ if(btn){ btn.disabled=true; btn.textContent=`LAUNCHING… 0/${TOTAL}`; } }catch(_){}
-  try{ restoreCcsMark(); }catch(_){}
-  try{ clearCcsMappedOrbit(); }catch(_){}
-  window._targetDebris=null; window._ccsStore=[]; window._ccsDots=[]; window._ccsInside={}; window._ccsPrevRel={}; window._ccsPrevSimT=null; window._ccsLastPass=null; window._ccsDone=false; window._ccsPhase='collect';
   clearFleet();
   fleetNotice(`LAUNCHING fleet… 0/${TOTAL}`);
   const tick=()=>new Promise(r=>requestAnimationFrame(()=>setTimeout(r,0)));
@@ -3618,277 +3591,17 @@ async function startSimulationDemo(){
   window._bulkLoading=false;
   try{ updateFleetCounts(); }catch(_){}
   try{ deselectSat(true); }catch(_){}
-  window._targetDebris=null;
-  try{
-    const sel=document.getElementById('debrisTargetSelect');
-    if(sel){
-      const debris=sats.filter(s=>s.type==='debris');
-      sel.innerHTML=debris.length?debris.map(s=>`<option value="${s.label}">${s.label} · ${(s.currentAlt??(s.a-KM_PER_UNIT)).toFixed(0)}km</option>`).join(''):'<option value="">— no debris —</option>';
-    }
-  }catch(_){}
   fleetNotice(`SIMULATION STARTED — <b>${spawned} SATS + ${spawnedA} ACTION + ${spawnedS} SENSORY + ${spawnedD} DEBRIS</b> · <b>WHICH DEBRIS TO TARGET?</b> pick below ↓`);
   try{ if(btn){ btn.disabled=false; btn.textContent='▶ START SIMULATION'; } }catch(_){}
   window._launching=false;
 }
-function restoreCcsMark(){
-  const o=window._targetDebris;
-  try{
-    if(o&&o.userData&&o.userData._ccsMark){
-      o.mesh.material.emissive.setHex(o.userData._ccsMark.hex);
-      o.mesh.material.emissiveIntensity=o.userData._ccsMark.i;
-      o.userData._ccsMark=null;
-    }
-  }catch(_){}
-}
-function clearCcsMappedOrbit(){
-  try{
-    if(window._ccsMappedOrbit){ scene.remove(window._ccsMappedOrbit); window._ccsMappedOrbit.geometry.dispose(); window._ccsMappedOrbit.material.dispose(); window._ccsMappedOrbit=null; }
-  }catch(_){}
-}
-function buildCcsMappedOrbit(s,fA){
-  try{
-    clearCcsMappedOrbit();
-    const pts=[];
-    const jr=(typeof j2Rates==='function')?j2Rates(fA,s.e,s.inc):{n:Math.sqrt(MU/Math.pow(fA,3)),raanDot:0,argPDot:0,mDot:0};
-    const n=jr.n, tNow=(window._simT||0);
-    // osculating orientation at now (J2-propagated), so the gold estimate overlays the true track
-    const raanNow=s.raan+(s.raanDot||0)*tNow, argPNow=s.argP+(s.argPDot||0)*tNow;
-    for(let ad=0;ad<=360;ad+=2){
-      const dt=(ad/360)*(2*Math.PI/n);
-      const M=s.M0+(n+(jr.mDot||0))*tNow+(n+(jr.mDot||0))*dt - n*0; // phase from now forward
-      const raan=raanNow+(jr.raanDot||0)*dt, argP=argPNow+(jr.argPDot||0)*dt;
-      const Mm=((M%(2*Math.PI))+2*Math.PI)%(2*Math.PI);
-      let r,nu;
-      if(s.e<1e-4){ r=fA; nu=Mm; }
-      else{ const E=solveKepler(Mm,s.e); nu=2*Math.atan2(Math.sqrt(1+s.e)*Math.sin(E/2),Math.sqrt(1-s.e)*Math.cos(E/2)); r=fA*(1-s.e*Math.cos(E)); }
-      const p=r*Math.cos(nu), q=r*Math.sin(nu);
-      const co=Math.cos(raan),so=Math.sin(raan),ci=Math.cos(s.inc),si=Math.sin(s.inc),cw=Math.cos(argP),sw=Math.sin(argP);
-      const x=(co*cw-so*sw*ci)*p+(-co*sw-so*cw*ci)*q, y=(so*cw+co*sw*ci)*p+(-so*sw+co*cw*ci)*q, z=(sw*si)*p+(cw*si)*q;
-      const rk=Math.sqrt(x*x+y*y+z*z), exR=sceneRadius(rk-KM_PER_UNIT), sc=exR/rk;
-      pts.push(new THREE.Vector3(x*sc,z*sc,y*sc));
-    }
-    const g=new THREE.BufferGeometry().setFromPoints(pts);
-    window._ccsMappedOrbit=new THREE.Line(g,new THREE.LineBasicMaterial({color:0xfacc15,transparent:true,opacity:0.95,depthWrite:false}));
-    window._ccsMappedOrbit.renderOrder=7;
-    scene.add(window._ccsMappedOrbit);
-  }catch(_){}
-}
-function targetDebrisByLabel(label){
-  const s=sats.find(x=>x.type==='debris'&&x.label===label)||sats.find(x=>x.type==='debris');
-  if(!s){ fleetNotice('NO DEBRIS — start simulation first'); return null; }
-  try{ restoreCcsMark(); }catch(_){}
-  try{ clearCcsMappedOrbit(); }catch(_){}
-  try{ deselectSat(true); }catch(_){} // never highlight true orbit — we don't know it yet
-  window._targetDebris=s;
-  window._ccsT0=Date.now(); window._ccsDone=false; window._ccsFinal=null; window._ccsStore=[];
-  window._ccsDots=[]; window._ccsInside={}; window._ccsPrevRel={}; window._ccsPrevSimT=(window._simT||0); window._ccsLastPass=null;
-  window._ccsPhase='collect'; window._ccsProcessT0=0;
-  window._ccsSimT0=(window._simT||0);
-  window._ccsPeriod=(2*Math.PI*Math.sqrt(Math.pow(s.a,3)/MU)); // Kepler 3rd law — same a ⇒ same period
-  // mesh-only marker (gold pulse), orbit untouched/unknown
-  try{
-    s.userData=s.userData||{};
-    s.userData._ccsMark={hex:s.mesh.material.emissive.getHex(),i:s.mesh.material.emissiveIntensity};
-    s.mesh.material.emissive.setHex(0xfacc15); s.mesh.material.emissiveIntensity=1.2;
-  }catch(_){}
-  try{ document.getElementById('ccsPanel').style.display='block'; }catch(_){}
-  try{ document.getElementById('ccsBody').style.display=''; document.getElementById('btnCcsMin').textContent='–'; }catch(_){}
-  try{ focusSat(s); }catch(_){}
-  fleetNotice(`TARGET LOCKED — <b>${s.label}</b> · CCS blind · null info until 2 orbits observed`);
-  return s;
-}
-// CCS PANEL — STAGE 1: null until 2 sim-time orbits observed → PROCESSING → one unified result.
-function _gauss(){ return (Math.random()+Math.random()+Math.random()-1.5)*0.816; }
-window._ccsStore=[];
-function updateCCSPanel(){
-  const p=document.getElementById('ccsPanel');
-  const s=window._targetDebris;
-  if(!s||sats.indexOf(s)<0){ if(p) p.style.display='none'; try{ clearCcsMappedOrbit(); }catch(_){} return; }
-  if(p) p.style.display='block';
-  const set=(id,v)=>{ try{ document.getElementById(id).textContent=v; }catch(_){} };
-  const st=document.getElementById('ccsStatus');
-  const simT=(window._simT||0), t0=(window._ccsSimT0||0), period=(window._ccsPeriod||5400);
-  const orbits=Math.max(0,(simT-t0)/period);
-  set('ccsTarget',s.label);
-  // --- phase 1: COLLECT over 2 orbits — passes only, null info otherwise ---
-  // Warp-invariant: detection is integrated in SIM time (sub-stepped bubble-entry scan over
-  // the exact sim interval elapsed since the last tick), so TIME warp changes only how fast
-  // sim orbits elapse — never how many passes are found per orbit.
-  if(orbits<2&&window._ccsPhase!=='processing'&&!window._ccsDone){
-    window._ccsDots=window._ccsDots||[]; window._ccsInside=window._ccsInside||{}; window._ccsPrevRel=window._ccsPrevRel||{};
-    if(window._ccsPrevSimT==null) window._ccsPrevSimT=t0;
-    const tPrev=Math.min(window._ccsPrevSimT, simT);
-    const span=Math.max(0, simT-tPrev);
-    // Warp-invariant: fixed ≤5 sim-s sub-steps (not 30s). At 15 km/s head-on a step
-    // moves ≤75 km << 1800 km bubble diameter, so a full crossing always yields
-    // inside samples. Cap 1200 covers ~100 min sim jump (background-tab throttle).
-    // Plus a segment–sphere crossing test catches ultra-shallow grazes (<75 km chord)
-    // where both samples land just outside. Keys are bot.id (stable across adds).
-    const K=Math.min(1200,Math.max(1,Math.ceil(span/5)));
-    const BUB=900;
-    let newPass=null;
-    try{
-      // seed previous relative vectors at tPrev so k=1 segment is valid
-      try{
-        const s0=s.eciKm(tPrev);
-        for(let bi=0;bi<bots.length;bi++){
-          const b0=bots[bi]; if(!b0||!b0.id) continue;
-          if(window._ccsPrevRel[b0.id]===undefined){
-            try{
-              if(!b0.parent||sats.indexOf(b0.parent)<0){ window._ccsInside[b0.id]=false; window._ccsPrevRel[b0.id]=null; continue; }
-              const p0=b0.parent.eciKm(tPrev);
-              window._ccsPrevRel[b0.id]=[p0[0]-s0[0],p0[1]-s0[1],p0[2]-s0[2]];
-              if(window._ccsInside[b0.id]===undefined) window._ccsInside[b0.id]=Math.hypot(window._ccsPrevRel[b0.id][0],window._ccsPrevRel[b0.id][1],window._ccsPrevRel[b0.id][2])<BUB;
-            }catch(_){ window._ccsPrevRel[b0.id]=null; }
-          }
-        }
-      }catch(_){}
-      for(let k=1;k<=K;k++){
-        const ts=(K===1)?simT:(tPrev+span*k/K);
-        let sEci=null; try{ sEci=s.eciKm(ts); }catch(_){ continue; }
-        const rMag=Math.hypot(sEci[0],sEci[1],sEci[2])||s.a;
-        const tsAlt=rMag-R_EARTH_KM;
-        let tsV=7.5; try{ tsV=Math.sqrt(Math.max(1e-9,MU*(2/rMag-1/s.a))); }catch(_){}
-        for(let bi=0;bi<bots.length;bi++){
-          const b=bots[bi]; if(!b||!b.id||!b.parent||sats.indexOf(b.parent)<0) { if(b&&b.id){ window._ccsInside[b.id]=false; window._ccsPrevRel[b.id]=null; } continue; }
-          let pEci=null; try{ pEci=b.parent.eciKm(ts); }catch(_){ continue; }
-          const dx=pEci[0]-sEci[0], dy=pEci[1]-sEci[1], dz=pEci[2]-sEci[2];
-          const dReal=Math.sqrt(dx*dx+dy*dy+dz*dz);
-          const inside=dReal<BUB;
-          const wasInside=!!window._ccsInside[b.id];
-          // segment–sphere: did relative path prev->curr cross the bubble even if both ends outside?
-          let crossed=false;
-          try{
-            const pr=window._ccsPrevRel[b.id];
-            if(pr&&!wasInside&&!inside){
-              const rx=dx-pr[0], ry=dy-pr[1], rz=dz-pr[2];
-              const aSeg=rx*rx+ry*ry+rz*rz;
-              if(aSeg>1e-9){
-                let u=-(pr[0]*rx+pr[1]*ry+pr[2]*rz)/aSeg; u=Math.max(0,Math.min(1,u));
-                const cx=pr[0]+rx*u, cy=pr[1]+ry*u, cz=pr[2]+rz*u;
-                crossed=Math.hypot(cx,cy,cz)<BUB;
-              }
-            }
-          }catch(_){}
-          window._ccsInside[b.id]=inside||crossed;
-          // count ENTRY once; segment graze counts with closest-approach distance
-          if((inside&&!wasInside)||crossed){
-            let dStore=dReal;
-            try{
-              if(crossed&&!inside){
-                const pr=window._ccsPrevRel[b.id];
-                const rx=dx-pr[0], ry=dy-pr[1], rz=dz-pr[2];
-                const aSeg=rx*rx+ry*ry+rz*rz;
-                let u=-(pr[0]*rx+pr[1]*ry+pr[2]*rz)/Math.max(1e-9,aSeg); u=Math.max(0,Math.min(1,u));
-                dStore=Math.hypot(pr[0]+rx*u,pr[1]+ry*u,pr[2]+rz*u);
-              }
-            }catch(_){}
-            // bubble ENTRY at sim time ts: one pass, no duplicates, no real-time cooldown
-            window._ccsStore.push({bot:b.id,alt:tsAlt+3*_gauss(),v:tsV+0.03*_gauss(),
-              mass:(s.mass||5)*(1+0.05*_gauss()),size:Math.max(0.05,(s.realSizeM||0.5)+0.15*_gauss()),
-              spin:Math.max(0,(s.spin||1)+0.2*_gauss()),decay:Math.max(0,((s.decayKmPerSimSec||0)*86400)*(1+0.1*_gauss())),
-              debrisECI:sEci.slice(),swarmECI:pEci.slice(),dReal:dStore,simT:ts});
-            window._ccsDots.push(sEci.slice());
-            newPass={bot:b.id,debrisECI:sEci.slice(),swarmECI:pEci.slice(),v:tsV,dReal:dStore,simT:ts};
-            window._ccsLastPass=newPass;
-          }
-          window._ccsPrevRel[b.id]=[dx,dy,dz];
-          // leaving bubble resets to outside so next entry counts fresh
-          if(!inside&&!crossed) window._ccsInside[b.id]=false;
-          else if(inside) window._ccsInside[b.id]=true;
-        }
-      }
-    }catch(_){}
-    window._ccsPrevSimT=simT;
-    if(window._ccsStore.length>5000) window._ccsStore.splice(0,window._ccsStore.length-5000);
-    // live coordinate display: current ECI + vis-viva speed at simT
-    let debECI=[0,0,0], truthV=7.5, truthAlt=(s.currentAlt??(s.a-KM_PER_UNIT));
-    try{
-      debECI=s.eciKm(simT);
-      const rm=Math.hypot(debECI[0],debECI[1],debECI[2])||s.a;
-      truthAlt=rm-R_EARTH_KM; truthV=Math.sqrt(Math.max(1e-9,MU*(2/rm-1/s.a)));
-    }catch(_){ try{ truthV=s.visVivaAt(simT); }catch(__){} }
-    // live coordinate updation: propagate last pass via speed+trajectory (current ECI shown live)
-    let propTxt=`live ECI ${debECI.map(v=>v.toFixed(0)).join(', ')} (propagated via speed ${truthV.toFixed(2)}km/s + trajectory)`;
-    let swarmTxt=window._ccsLastPass?`${window._ccsLastPass.bot} pass d=${window._ccsLastPass.dReal.toFixed(0)}km · dots ${window._ccsDots.length}`:'waiting for first pass…';
-    ['ccsAlt','ccsVel','ccsMass','ccsSize','ccsTumble','ccsDecay','ccsAngMom','ccsPerp','ccsOrbit','ccsAir','ccsOrient'].forEach(id=>set(id,'NULL'));
-    set('ccsTraj',propTxt); set('ccsSwarm',swarmTxt);
-    set('ccsSensors',`${window._ccsDots.length} passes · ${window._ccsStore.length} packets stored`);
-    if(st) st.innerHTML=`COLLECTING… <b>ORBIT ${orbits.toFixed(2)}/2</b> · null info · ${window._ccsDots.length} passes / ${window._ccsStore.length} stored${newPass?` · <b>PASS ${newPass.bot} d=${newPass.dReal.toFixed(0)}km → STORED</b>`:''} · raise TIME ⏱ to fast-forward`;
-    return;
-  }
-  // --- phase 2: PROCESSING (first tick after 2 orbits) ---
-  if(!window._ccsDone&&window._ccsPhase!=='processing'){
-    window._ccsPhase='processing'; window._ccsProcessT0=Date.now();
-    if(st) st.innerHTML=`PROCESSING… fusing ${window._ccsStore.length} packets into one unified result…`;
-    ['ccsAlt','ccsVel','ccsMass','ccsSize','ccsTumble','ccsDecay','ccsAngMom','ccsPerp','ccsTraj','ccsOrbit','ccsAir','ccsOrient','ccsSwarm'].forEach(id=>set(id,'…'));
-    set('ccsSensors',`${window._ccsStore.length} packets · processing…`);
-    return;
-  }
-  if(!window._ccsDone){
-    if(Date.now()-(window._ccsProcessT0||Date.now())<3500){
-      if(st) st.innerHTML=`PROCESSING… fusing ${window._ccsStore.length} packets into one unified result…`;
-      return;
-    }
-    // --- phase 3: one unified result from stored packets ---
-    const N=Math.max(1,window._ccsStore.length);
-    const avg=k=>window._ccsStore.reduce((a,r)=>a+(r[k]||0),0)/N;
-    const fAlt=avg('alt'), fV=avg('v'), fMass=avg('mass'), fSize=avg('size'), fSpin=avg('spin'), fDecay=avg('decay');
-    const fA=R_EARTH_KM+fAlt, fT=(2*Math.PI*Math.sqrt(Math.pow(fA,3)/MU)/60);
-    window._ccsFinal={alt:fAlt,v:fV,mass:fMass,size:fSize,spin:fSpin,decay:fDecay,a:fA,period:fT};
-    window._ccsDone=true;
-    try{ buildCcsMappedOrbit(s,fA); }catch(_){}
-    fleetNotice(`UNIFIED DETAILS — <b>${s.label}</b> · mapped orbit highlighted gold · a ${fA.toFixed(0)}km · decay ${fDecay.toFixed(3)}km/day`);
-  }
-  const F=window._ccsFinal;
-  if(!F) return;
-  try{
-    let nearest=1e9;
-    let _sE=null; try{ _sE=s.eciKm(window._simT||0); }catch(_){ _sE=null; }
-    for(const o of sats){ if(o===s) continue; try{
-      let dkm=1e9;
-      if(_sE){ const _oE=o.eciKm(window._simT||0); const ddx=_oE[0]-_sE[0], ddy=_oE[1]-_sE[1], ddz=_oE[2]-_sE[2]; dkm=Math.sqrt(ddx*ddx+ddy*ddy+ddz*ddz); }
-      else dkm=o.group.position.distanceTo(s.group.position)*KM_PER_UNIT/ALT_EXAG;
-      if(dkm<nearest) nearest=dkm;
-    }catch(_){} }
-    window._ccsNearest=nearest;
-  }catch(_){}
-  set('ccsAlt',F.alt.toFixed(1)); set('ccsVel',F.v.toFixed(3));
-  set('ccsMass',F.mass.toFixed(1)); set('ccsSize',F.size.toFixed(2));
-  set('ccsTumble',F.spin.toFixed(2)); set('ccsDecay',F.decay.toFixed(3));
-  set('ccsAngMom',Math.abs(F.a*F.v).toFixed(0)); set('ccsPerp',(window._ccsNearest??0).toFixed(1));
-  try{
-    const gp=s.group.position, L=gp.length()||1;
-    document.getElementById('ccsTraj').textContent=`${(gp.x/L*F.a).toFixed(0)}, ${(gp.z/L*F.a).toFixed(0)}, ${(gp.y/L*F.a).toFixed(0)}`;
-    document.getElementById('ccsOrbit').textContent=`FINAL orbit a ${F.a.toFixed(0)}km · e ${s.e.toFixed(4)} · i ${(s.inc/RAD).toFixed(1)}° · T ${F.period.toFixed(1)}min · ${(window._ccsDots||[]).length} dots connected`;
-    document.getElementById('ccsAir').textContent=`FINAL decay ${F.decay.toFixed(3)}km/day (drag+SRP+tumble fused)`;
-    document.getElementById('ccsOrient').textContent=`${s.mesh.rotation.x.toFixed(2)}/${s.mesh.rotation.y.toFixed(2)}/${s.mesh.rotation.z.toFixed(2)}`;
-    document.getElementById('ccsSwarm').textContent=`${(window._ccsDots||[]).length} passes · ${bots.length} observers · ${window._ccsStore.length} packets · 2 orbits`;
-    document.getElementById('ccsSensors').textContent=`UNIFIED from ${window._ccsStore.length} packets · ORBITS 2/2 ✓`;
-  }catch(_){}
-  if(st) st.innerHTML=`UNIFIED DETAILS ✓ — final orbit + final decay from 2 orbits · ${window._ccsStore.length} packets fused`;
-}
-setInterval(updateCCSPanel,500);
+// (CCS panel removed — target selection lives in the Simulation Centre / Case 1 flow.)
+// (CCS collect/store observation removed.)
+// (CCS processing/result display removed.)
 document.getElementById('btnStartSim')?.addEventListener('click', async ()=>{
   // START SIMULATION just runs — no video prompt (prompt lives on START CASE 1 only)
   irisPendingWant='sim';
   await startSimulationDemo();
-  try{
-    const ds=sats.filter(s=>s.type==='debris');
-    if(ds.length&&!window._targetDebris) targetDebrisByLabel(ds[0].label);
-  }catch(_){}
-});
-document.getElementById('btnTargetDebris')?.addEventListener('click', ()=>{
-  const sel=document.getElementById('debrisTargetSelect');
-  targetDebrisByLabel(sel&&sel.value?sel.value:'');
-});
-document.getElementById('btnCcsMin')?.addEventListener('click', (e)=>{
-  e.stopPropagation();
-  const b=document.getElementById('ccsBody'), btn=document.getElementById('btnCcsMin');
-  if(!b||!btn) return;
-  const min=b.style.display==='none';
-  b.style.display=min?'':'none';
-  btn.textContent=min?'–':'+';
 });
 document.getElementById('btnSimCentre')?.addEventListener('click', ()=>{
   const p=document.getElementById('simCentrePanel');
@@ -6268,14 +5981,14 @@ document.getElementById('labAdd')?.addEventListener('click', ()=>{
 //  - TIME slider is DISABLED during REC — no mid-rec speed changes, no
 //    continuous re-counting / auto-fit controller.
 //  - Recording NEVER stops on a timer. It stops only when the whole mission
-//    is done (CASE_1_COMPLETE / _ccsDone + aftermath), then restores your
+//    is done (CASE_1_COMPLETE / sim observation budget + aftermath), then restores your
 //    speed, squeezes the capture to exactly 90s, and auto-downloads.
 // BACKGROUND-PROOF: silent-audio keep-alive + wall-clock pump keep the sim,
 // render and recorder running even when you switch tabs; file auto-downloads.
 const IRIS_VIDEO={recording:false, mode:null, t0wall:0, simT0:0, chunks:[],
   rec:null, stream:null, uiTimer:0, stopTimer:0, watchTimer:0,
   prevWarp:1, prevPixelRatio:0, lockedWarp:1, totalSimEst:15000, renderWrapped:false, bgLast:0, _dt:0,
-  doneWallT0:0, FAILSAFE_S:3600};
+  doneWallT0:0, FAILSAFE_S:3600, _lastDraw:0, _ctx:null, _ext:'webm'};
 // Silent-audio keep-alive: browsers throttle hidden-tab timers (which would
 // freeze the sim + recorder when you switch tabs). An active audio pipeline
 // exempts the page, so the background pump keeps running. Effectively silent.
@@ -6298,10 +6011,13 @@ function irisAudioKeepalive(on){
   }catch(_){}
 }
 function irisVideoMime(){
-  // Best-quality first: VP9 (reliable realtime 1080p60 HW encode), then AV1
-  // (better compression, heavier CPU), then fallbacks.
-  const c=['video/webm;codecs=vp9','video/webm;codecs=av1','video/webm;codecs=vp8','video/webm'];
-  for(const m of c){ try{ if(window.MediaRecorder&&MediaRecorder.isTypeSupported(m)) return m; }catch(_){} }
+  // SMOOTH-REC FIX: prefer hardware-accelerated codecs first (H264 mp4 on
+  // Windows/Chrome), because software VP9 @30Mbps was overloading the CPU and
+  // producing stuck-then-jump video. Order: H264 > VP8 > VP9 > default.
+  // H264 has dedicated HW encode on almost every laptop/iGPU.
+  const c=['video/mp4;codecs=avc1.42E01E','video/webm;codecs=h264','video/webm;codecs=vp8','video/webm;codecs=vp9','video/webm','video/mp4'];
+  for(const m of c){ try{ if(window.MediaRecorder&&MediaRecorder.isTypeSupported(m)){ IRIS_VIDEO._ext=(m.indexOf('mp4')>=0)?'mp4':'webm'; return m; } }catch(_){} }
+  IRIS_VIDEO._ext='webm';
   return '';
 }
 function irisVideoPeriod(){
@@ -6376,10 +6092,21 @@ function irisVideoCard(x, px,py,pw,ph){
 function irisVideoDraw(force){
   try{
     if(!IRIS_VIDEO.recording) return;
-    // FULL 60fps capture — every finished frame goes to the 1080p recorder (no skipping).
+    // SMOOTH-REC FIX: cap the 1080p composite at ~30fps. It used to run after
+    // EVERY composer.render (60Hz) with a full GPU->CPU drawImage readback +
+    // overlay text, which blocked the next 3D frame and collapsed FPS, so the
+    // recorder starved (freeze ... jump ... freeze). 30fps halves that cost
+    // and matches the 30fps captureStream below — zero dropped timestamps.
+    const now=performance.now();
+    if(!force && now-(IRIS_VIDEO._lastDraw||0)<33) return;
+    IRIS_VIDEO._lastDraw=now;
     const cv=document.getElementById('irisVideoCanvas');
     if(!cv||!renderer||!renderer.domElement) return;
-    const W=cv.width, H=cv.height, x=cv.getContext('2d');
+    const W=cv.width, H=cv.height;
+    // cache the 2d context — getContext() every frame adds overhead
+    let x=IRIS_VIDEO._ctx;
+    if(!x){ x=cv.getContext('2d'); IRIS_VIDEO._ctx=x; }
+    if(!x) return;
     const src=renderer.domElement;
     // FULL-BLEED scene — no side bands, cards float on top
     if(src.width&&src.height){
@@ -6451,7 +6178,7 @@ function irisVideoDraw(force){
     x.fillStyle='#ef4444'; x.fillRect(W/2-bw/2,10*S+bh, bw,Math.round(4*S));
     // BOTTOM-CENTER: sim clock + uniform-speed proof
     try{
-      const lab='T+'+Math.round(simT)+'s · '+((typeof timeScale!=='undefined')?timeScale:1).toFixed(1)+'× locked · Full HD 1080p60';
+      const lab='T+'+Math.round(simT)+'s · '+((typeof timeScale!=='undefined')?timeScale:1).toFixed(1)+'× locked · Full HD 1080p';
       x.font=Math.round(12*S)+'px monospace';
       const tw=x.measureText(lab).width;
       x.fillStyle='rgba(2,6,23,0.80)'; x.fillRect(W/2-tw/2-10*S,H-34*S,tw+20*S,22*S);
@@ -6480,7 +6207,9 @@ function irisVideoIsDone(){
   try{
     const mode=IRIS_VIDEO.mode;
     if(mode==='case1') return (typeof CASE1!=='undefined')&&(CASE1.state==='CASE_1_COMPLETE'||CASE1.state==='ABORTED');
-    return !!window._ccsDone;
+    // sim mode (no CCS panel): done once the 2-orbit observation budget elapses in sim time
+    const est=(IRIS_VIDEO.totalSimEst||irisVideoEstimate('sim'));
+    return ((window._simT||0)-(IRIS_VIDEO.simT0||0))>=est;
   }catch(_){ return false; }
 }
 function irisVideoStart(mode){
@@ -6499,14 +6228,17 @@ function irisVideoStart(mode){
   IRIS_VIDEO.totalSimNom=irisVideoNominal(mode);
   IRIS_VIDEO.lockedWarp=Math.max(1,Math.min(60,IRIS_VIDEO.totalSimNom/(86*(typeof SIM_WARP!=='undefined'?SIM_WARP:18))));
   irisVideoSetWarp(IRIS_VIDEO.lockedWarp, true);
-  // MAXIMUM Full-HD source: force pixelRatio 2 during REC (supersampled backing
-  // store on DPR-1 screens too) so the 1080p export gets the sharpest possible
-  // detail, then restore after download.
+  // SMOOTH-REC FIX: do NOT force pixelRatio 2 during REC. That quadrupled the
+  // backing store (e.g. 1920x1080 -> 3840x2160) + UnrealBloom blur cost, which
+  // melted laptop iGPUs: main-loop FPS collapsed, captureStream starved, and
+  // the video came out stuck/start/stuck. Keep the pre-REC ratio capped at 1
+  // (already supersampled for most screens, still tack-sharp at 1080p).
   try{
     IRIS_VIDEO.prevPixelRatio=renderer.getPixelRatio?renderer.getPixelRatio():0;
-    renderer.setPixelRatio(2);
+    const capPR=Math.min(IRIS_VIDEO.prevPixelRatio||1, 1);
+    renderer.setPixelRatio(capPR);
     try{ if(composer&&composer.setSize) composer.setSize(innerWidth,innerHeight); }catch(_){}
-    try{ if(composer&&composer.setPixelRatio) composer.setPixelRatio(2); }catch(_){}
+    try{ if(composer&&composer.setPixelRatio) composer.setPixelRatio(capPR); }catch(_){}
   }catch(_){}
   // ~55km framing for the video: debris + bot + beam clearly visible with
   // full context — not a close-up macro, not far away.
@@ -6531,9 +6263,13 @@ function irisVideoStart(mode){
   }catch(_){}
   IRIS_VIDEO.recording=true; IRIS_VIDEO.t0wall=performance.now(); IRIS_VIDEO.bgLast=performance.now();
   try{
-    IRIS_VIDEO.stream=cv.captureStream(60);
+    // SMOOTH-REC FIX: 30fps capture + 12 Mbps HW-friendly bitrate. 60fps +
+    // 30Mbps VP9 needed software encoding most laptops can't sustain, so the
+    // encoder dropped frames (freeze ... jump). 12 Mbps H264/VP8 at 1080p30
+    // is visually near-lossless and encodes in real time on iGPUs.
+    IRIS_VIDEO.stream=cv.captureStream(30);
     const mime=irisVideoMime();
-    const HD_BITS=30000000; // 30 Mbps — maximum practical Full-HD quality (visually lossless 1080p60)
+    const HD_BITS=12000000; // 12 Mbps — smooth realtime 1080p30, still crisp
     IRIS_VIDEO.rec=new MediaRecorder(IRIS_VIDEO.stream, mime?{mimeType:mime,videoBitsPerSecond:HD_BITS}:{videoBitsPerSecond:HD_BITS});
     IRIS_VIDEO.rec.ondataavailable=(e)=>{ if(e.data&&e.data.size) IRIS_VIDEO.chunks.push(e.data); };
     IRIS_VIDEO.rec.onstop=irisVideoFinish;
@@ -6560,7 +6296,7 @@ function irisVideoStart(mode){
     }catch(_){}
   },1000);
   IRIS_VIDEO.stopTimer=setTimeout(()=>{ try{ fleetNotice('■ REC FAILSAFE — 60 min reached, downloading full video'); }catch(_){} irisVideoStop(); }, IRIS_VIDEO.FAILSAFE_S*1000);
-  try{ fleetNotice('● REC — <b>Full-mission Full HD 1080p60</b> · locked '+IRIS_VIDEO.lockedWarp.toFixed(1)+'× · TIME disabled · stops only when mission completes · fits to exactly 90s at the end · ■ STOP anytime'); }catch(_){}
+  try{ fleetNotice('● REC — <b>Full-mission Full HD 1080p30 smooth</b> · locked '+IRIS_VIDEO.lockedWarp.toFixed(1)+'× · TIME disabled · stops only when mission completes · fits to exactly 90s at the end · ■ STOP anytime'); }catch(_){}
 }
 function irisVideoStop(){
   if(!IRIS_VIDEO.recording) return;
@@ -6594,7 +6330,8 @@ function irisVideoFinish(){
   }catch(_){}
   try{
     if(IRIS_VIDEO.chunks&&IRIS_VIDEO.chunks.length){
-      const blob=new Blob(IRIS_VIDEO.chunks,{type:'video/webm'});
+      const mimeType=(IRIS_VIDEO._ext==='mp4')?'video/mp4':'video/webm';
+      const blob=new Blob(IRIS_VIDEO.chunks,{type:mimeType});
       const url=URL.createObjectURL(blob);
       const a=document.createElement('a');
       const ts=new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
@@ -6626,7 +6363,8 @@ function irisProcBar(f, pass, rate){
   }catch(_){}
 }
 function irisVideoPass(srcBlob, rate, pass){
-  // one re-encode pass: play src at `rate`, capture 1920x1080 @60fps realtime
+  // one re-encode pass: play src at `rate`, capture 1920x1080 @30fps realtime
+  // (SMOOTH-REC FIX: was 60fps + 30Mbps, same encoder-overload stutter)
   return new Promise((resolve)=>{
     const url=URL.createObjectURL(srcBlob);
     const v=document.createElement('video');
@@ -6641,7 +6379,7 @@ function irisVideoPass(srcBlob, rate, pass){
     let raf=0, stopped=false, pumpTimer=0, lastFrame=performance.now();
     const t0=performance.now();
     const passThru=()=>{ try{ clearInterval(pumpTimer); }catch(_){} try{ URL.revokeObjectURL(url); }catch(_){} resolve(srcBlob); };
-    const done=()=>{ try{ clearInterval(pumpTimer); }catch(_){} try{ URL.revokeObjectURL(url); }catch(_){} resolve(new Blob(chunks,{type:'video/webm'})); };
+    const done=()=>{ try{ clearInterval(pumpTimer); }catch(_){} try{ URL.revokeObjectURL(url); }catch(_){} resolve(new Blob(chunks,{type:(IRIS_VIDEO._ext==='mp4')?'video/mp4':'video/webm'})); };
     const finish=()=>{
       if(stopped) return; stopped=true;
       try{ cancelAnimationFrame(raf); }catch(_){}
@@ -6662,9 +6400,9 @@ function irisVideoPass(srcBlob, rate, pass){
     // mid-pass forever — this keeps frames flowing so the pass always finishes.
     pumpTimer=setInterval(()=>{ try{ if(!stopped&&performance.now()-lastFrame>500) draw(); }catch(_){} }, 300);
     try{
-      stream=cv.captureStream(60);
+      stream=cv.captureStream(30);
       const mime=irisVideoMime();
-      rec=new MediaRecorder(stream, mime?{mimeType:mime,videoBitsPerSecond:30000000}:{videoBitsPerSecond:30000000});
+      rec=new MediaRecorder(stream, mime?{mimeType:mime,videoBitsPerSecond:12000000}:{videoBitsPerSecond:12000000});
     }catch(_){ passThru(); return; }
     rec.ondataavailable=(e)=>{ if(e.data&&e.data.size) chunks.push(e.data); };
     rec.onstop=done;
@@ -6701,10 +6439,10 @@ async function irisVideoSqueeze(blob, durS){
     const url=URL.createObjectURL(cur);
     const a=document.createElement('a');
     const ts=new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
-    a.href=url; a.download='IRIS-'+(IRIS_VIDEO.mode||'case1')+'-90s-1080p-'+ts+'.webm';
+    a.href=url; a.download='IRIS-'+(IRIS_VIDEO.mode||'case1')+'-90s-1080p-'+ts+'.'+(IRIS_VIDEO._ext||'webm');
     document.body.appendChild(a); a.click();
     setTimeout(()=>{ try{ URL.revokeObjectURL(url); a.remove(); }catch(_){} },4000);
-    try{ fleetNotice('■ <b>90-second Full-HD 1080p60 video downloaded</b> ('+(cur.size/1048576).toFixed(1)+' MB) — full mission, nothing cut'); }catch(_){}
+    try{ fleetNotice('■ <b>90-second Full-HD 1080p video downloaded</b> ('+(cur.size/1048576).toFixed(1)+' MB) — full mission, nothing cut'); }catch(_){}
   }catch(__sec){
     try{
       const url2=URL.createObjectURL(blob);
