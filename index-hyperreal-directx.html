@@ -4855,20 +4855,27 @@ function case1NormalizeArrange(){
     s.precision=Math.max(0.8, C.action.precisionBase-i*C.action.precisionStep);
     s.case1Unavailable=false; s.needsDisposal=false;
     try{ s.envLifetimeYr=lifetimeYears(C.action.alt, s.B); }catch(_){ s.envLifetimeYr=5; }
-    // RANDOM FLEET, PHYSICAL APPROACH: every action bot gets a random orbit —
-    // random shell (15–100km either side), random phase (full circle), plane
-    // near the target's (RAAN ±1°, same inc family so the plane change stays
-    // inside the 0.6km/s budget — a fully random plane would need up to
-    // ~15km/s to match, physically impossible, so no bot could ever be picked).
-    // After mapping + selection, the winner physically flies to the debris
-    // (rate-limited phase chase + orbit match, all fuel-costed) instead of
-    // starting parked next to it. Nearest valid bot by CURRENT distance wins.
+    // EVEN RANDOM TAILING: bots split round-robin across ALL debris (not stacked
+    // on the single target) — each gets a random slot around its assigned debris:
+    // random shell (15–100km either side), random phase (full circle), plane near
+    // its anchor's (RAAN ±1°, same inc family so the plane change stays inside
+    // the 0.6km/s budget — a fully random plane would need up to ~15km/s,
+    // physically impossible, so no bot could ever be picked).
+    // From that slot the winner physically flies to the debris (rate-limited
+    // phase chase + orbit match, all fuel-costed). Nearest valid bot by CURRENT
+    // distance wins — nothing starts parked next to the debris.
+    const _anchor=(CASE1.debris.length?CASE1.debris[i%CASE1.debris.length]:_tgt)||_tgt;
+    s._assignedDebris=_anchor;
+    const _aRaan=((((_anchor.raan+(_anchor.raanDot||0)*t)/RAD)%360+360)%360);
+    const _aM0=((((_anchor.M0+((_anchor.n0||0)+(_anchor.mDot||0))*t)/RAD)%360+360)%360);
+    const _aAlt=(_anchor.a!=null?(_anchor.a-KM_PER_UNIT):C.debris.alt);
+    const _aInc=(_anchor.inc!=null?(_anchor.inc/RAD):C.debris.inc);
     const _side=(Math.random()<0.5)?1:-1;
     const _signedOff=_side*(15+Math.random()*85);
-    const _rRaan=tRaan+(Math.random()*2-1)*1.0;
-    const _rM0=tM0+Math.random()*360;
-    case1SetElements(s, C.debris.alt+_signedOff, 0,
-      C.debris.inc+(C.action.incOffsetDeg||0.05),
+    const _rRaan=_aRaan+(Math.random()*2-1)*1.0;
+    const _rM0=_aM0+Math.random()*360;
+    case1SetElements(s, _aAlt+_signedOff, 0,
+      _aInc+(C.action.incOffsetDeg||0.05),
       _rRaan, C.debris.argP,
       _rM0);
   });
@@ -4887,29 +4894,30 @@ function case1NormalizeArrange(){
     b.baseOffset=new THREE.Vector3(Math.cos(a)*0.055*SZ, 0.045*SZ, Math.sin(a)*0.055*SZ);
     b.bobPhase=k*1.1; b.mesh.position.copy(b.baseOffset);
   });
-  // formation slots: each action bot's ahead-gap vs the target, frozen from here on
-  // by the phase HOLD (case1HoldFormation) so differential drift can never collapse
-  // the viewable separation mid-mission. Ahead = positive M0 delta (bot in front).
+  // formation slots: each action bot's ahead-gap vs its ASSIGNED debris, frozen
+  // from here on by the phase HOLD (case1HoldFormation) so differential drift can
+  // never collapse the viewable separation mid-mission. Ahead = positive M0 delta.
   try{
     const TAU=2*Math.PI;
     if(CASE1.target&&sats.indexOf(CASE1.target)>=0){
       const t0=case1Now();
-      const nT=(CASE1.target.n0||Math.sqrt(MU/Math.pow(CASE1.target.a,3)))+(CASE1.target.mDot||0);
       for(const s of CASE1.actions){
-        let d=(s.M0-CASE1.target.M0)%TAU;
+        const _ref=(s._assignedDebris&&sats.indexOf(s._assignedDebris)>=0)?s._assignedDebris:CASE1.target;
+        const nT=(_ref.n0||Math.sqrt(MU/Math.pow(_ref.a,3)))+(_ref.mDot||0);
+        let d=(s.M0-_ref.M0)%TAU;
         if(d>Math.PI) d-=TAU; if(d<-Math.PI) d+=TAU;
         s._holdDelta=d;
         // mean-anomaly gap at layout (the actual viewable separation) — HOLD freezes
         // THIS, not the epoch M0 diff, so differential mean motion can't inflate relVel.
         try{
           const nS=(s.n0||Math.sqrt(MU/Math.pow(s.a,3)))+(s.mDot||0);
-          let dMt=((s.M0+nS*t0)-(CASE1.target.M0+nT*t0))%TAU;
+          let dMt=((s.M0+nS*t0)-(_ref.M0+nT*t0))%TAU;
           if(dMt>Math.PI) dMt-=TAU; if(dMt<-Math.PI) dMt+=TAU;
           s._holdDeltaMt=dMt;
         }catch(_){ s._holdDeltaMt=d; }
         // true along-track gap (debris-ahead convention) — the value HOLD
         // actually freezes; immune to argP/M ~180deg flips from later burns.
-        try{ s._holdTrue=case1AlongDeg(CASE1.target,s,t0); }catch(_){ s._holdTrue=null; }
+        try{ s._holdTrue=case1AlongDeg(_ref,s,t0); }catch(_){ s._holdTrue=null; }
       }
     }
     CASE1._lastHoldT=case1Now();
@@ -4942,17 +4950,19 @@ function case1HoldFormation(t){
       // rides docked — HOLD must not fight it or it gets yanked back, then
       // overshoots past, then hands off back to SELECTING in a loop.
       if(b===CASE1.bot&&(CASE1.state==='SHEPHERD'||CASE1.state==='SAFETY_VALIDATION'||CASE1.state==='DOCKING'||CASE1.docked)) continue;
+      // Hold vs assigned debris (even tailing) — falls back to the mission target.
+      const _ref=(b._assignedDebris&&sats.indexOf(b._assignedDebris)>=0)?b._assignedDebris:deb;
       // Freeze the TRUE along-track gap (actual separation from real geometry).
       // Epoch-M0 / mean-motion proxies corrupt the moment any radial burn flips
       // argP/M ~180deg on a near-circular orbit, so HOLD now measures the real
       // angle and nudges M0 (which moves true position ~1:1) to preserve it.
       const des=(b._holdTrue!=null&&isFinite(b._holdTrue))?b._holdTrue*RAD:((b._holdDeltaMt!=null&&isFinite(b._holdDeltaMt))?b._holdDeltaMt:((b._holdDelta!=null&&isFinite(b._holdDelta))?b._holdDelta:0));
       let cur;
-      if(b._holdTrue!=null&&isFinite(b._holdTrue)){ cur=case1AlongDeg(deb,b,t)*RAD; }
+      if(b._holdTrue!=null&&isFinite(b._holdTrue)){ cur=case1AlongDeg(_ref,b,t)*RAD; }
       else{
         const nB=(b.n0||Math.sqrt(MU/Math.pow(b.a,3)))+(b.mDot||0);
-        const nD=(deb.n0||Math.sqrt(MU/Math.pow(deb.a,3)))+(deb.mDot||0);
-        cur=((b.M0+nB*t)-(deb.M0+nD*t))%TAU;
+        const nD=(_ref.n0||Math.sqrt(MU/Math.pow(_ref.a,3)))+(_ref.mDot||0);
+        cur=((b.M0+nB*t)-(_ref.M0+nD*t))%TAU;
         if(cur>Math.PI) cur-=TAU; if(cur<-Math.PI) cur+=TAU;
       }
       let err=cur-des;
