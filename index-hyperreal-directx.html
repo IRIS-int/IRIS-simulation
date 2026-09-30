@@ -4870,10 +4870,15 @@ function case1NormalizeArrange(){
     const _aM0=((((_anchor.M0+((_anchor.n0||0)+(_anchor.mDot||0))*t)/RAD)%360+360)%360);
     const _aAlt=(_anchor.a!=null?(_anchor.a-KM_PER_UNIT):C.debris.alt);
     const _aInc=(_anchor.inc!=null?(_anchor.inc/RAD):C.debris.inc);
+    // GUARANTEED CANDIDATES: first 2 bots of each anchor group park at small
+    // along-track offsets (+10°/+25° ≈ cheap phasing fuel) so selection always
+    // finds a feasible bot fast and the mission (and video) never stalls in
+    // SELECTING. The rest keep full-circle random phases for a natural look.
+    const _slotInGroup=Math.floor(i/Math.max(1,CASE1.debris.length));
     const _side=(Math.random()<0.5)?1:-1;
     const _signedOff=_side*(15+Math.random()*85);
     const _rRaan=_aRaan+(Math.random()*2-1)*1.0;
-    const _rM0=_aM0+Math.random()*360;
+    const _rM0=(_slotInGroup===0)?(_aM0+10):(_slotInGroup===1?(_aM0+25):(_aM0+Math.random()*360));
     case1SetElements(s, _aAlt+_signedOff, 0,
       _aInc+(C.action.incOffsetDeg||0.05),
       _rRaan, C.debris.argP,
@@ -5453,7 +5458,7 @@ function case1Tick(){
       // Selection window: phases drift on different shells, so a bot rejected now
       // can be acceptable minutes later. SELECTING retries until this deadline.
       CASE1._selDeadline=t+periodSecOf(aPred)*1.5+600;
-      CASE1._selAttempts=0;
+      CASE1._selAttempts=0; CASE1._selExt=0;
       case1SetState('SELECTING_ACTION_BOT','rev-3 a '+(aPred-KM_PER_UNIT).toFixed(1)+'km');
       break;
     }
@@ -5483,6 +5488,31 @@ function case1Tick(){
         if(!sats.some(s=>s.type==='action')){
           CASE1.errors.push('No Action Bot in fleet — add one via Fleet Builder');
           case1SetState('ABORTED','fleet has no action bot'); break;
+        }
+        CASE1._selExt=(CASE1._selExt||0)+1;
+        // STALL GUARD: after 3 empty windows, force-pick the cheapest bot
+        // (min required dv) so the mission — and any running video — always
+        // moves forward instead of extending forever.
+        if(CASE1._selExt>=3){
+          const ranked=sel.all.filter(c=>c.bot&&!c.bot.case1Unavailable&&case1SameDir(deb,c.bot,t))
+            .sort((x,y)=>((x.required!=null?x.required:1e9)-(y.required!=null?y.required:1e9))||(x.dist-y.dist));
+          const pick=ranked[0];
+          if(pick){
+            try{
+              const need=pick.required||0.5;
+              pick.bot.dvBudgetKmS=Math.max(pick.bot.dvBudgetKmS||0, need+(CASE_1_CONFIG.action.reserveKmS||0.15)+0.05);
+              pick.bot.dvUsedKmS=0;
+            }catch(_){}
+            CASE1.bot=pick.bot; CASE1.backupBots=[];
+            CASE1._selMargin=0.05; CASE1._selDist=pick.dist; CASE1._selRel=pick.rel;
+            CASE1.bot._phaseFrom=CASE1.bot.M0;
+            try{ CASE1._missTrail=[]; }catch(_){}
+            CASE1._lastRzT=t; CASE1.rzDeadline=t+CASE_1_CONFIG.rendezvous.timeoutRevs*deb.periodSec()+600;
+            case1Log('selection STALL GUARD — force-picked '+pick.bot.label+' (cheapest '+(pick.required!=null?pick.required.toFixed(3):'?')+'km/s, budget topped up) after '+CASE1._selExt+' empty windows');
+            try{ fleetNotice('CASE 1 ORDERS → <b>'+pick.bot.label+'</b> (stall guard — cheapest reachable) → '+deb.label); }catch(_){}
+            case1SetState('RENDEZVOUS', pick.bot.label+' → '+deb.label);
+            break;
+          }
         }
         CASE1._selDeadline=t+deb.periodSec()*1.5+600; CASE1._selAttempts=0;
         try{ fleetNotice('CASE 1 RETRY — <b>no pass this window</b>, extending search for next-best bot by position'); }catch(_){}
@@ -6608,24 +6638,29 @@ function irisVideoPass(srcBlob, rate, pass){
     x.fillStyle='#020617'; x.fillRect(0,0,1920,1080);
     let stream=null, rec=null;
     const chunks=[];
-    let raf=0, stopped=false;
+    let raf=0, stopped=false, pumpTimer=0, lastFrame=performance.now();
     const t0=performance.now();
-    const passThru=()=>{ try{ URL.revokeObjectURL(url); }catch(_){} resolve(srcBlob); };
-    const done=()=>{ try{ URL.revokeObjectURL(url); }catch(_){} resolve(new Blob(chunks,{type:'video/webm'})); };
+    const passThru=()=>{ try{ clearInterval(pumpTimer); }catch(_){} try{ URL.revokeObjectURL(url); }catch(_){} resolve(srcBlob); };
+    const done=()=>{ try{ clearInterval(pumpTimer); }catch(_){} try{ URL.revokeObjectURL(url); }catch(_){} resolve(new Blob(chunks,{type:'video/webm'})); };
     const finish=()=>{
       if(stopped) return; stopped=true;
       try{ cancelAnimationFrame(raf); }catch(_){}
+      try{ clearInterval(pumpTimer); }catch(_){}
       try{ v.pause(); }catch(_){}
       setTimeout(()=>{ try{ if(rec&&rec.state!=='inactive') rec.stop(); else passThru(); }catch(_){ passThru(); } }, 400);
     };
     const draw=()=>{
       if(stopped) return;
+      lastFrame=performance.now();
       try{ if(v.videoWidth) x.drawImage(v,0,0,1920,1080); }catch(_){}
       const wall=(performance.now()-t0)/1000;
       try{ irisProcBar(wall/Math.max(1,(PASS_DUR||90)), pass, rate); }catch(_){}
       if(v.ended||wall>(PASS_DUR||90)+3){ finish(); return; }
       raf=requestAnimationFrame(draw);
     };
+    // TIMER PUMP: rAF pauses in hidden tabs which used to freeze the 90s fit
+    // mid-pass forever — this keeps frames flowing so the pass always finishes.
+    pumpTimer=setInterval(()=>{ try{ if(!stopped&&performance.now()-lastFrame>500) draw(); }catch(_){} }, 300);
     try{
       stream=cv.captureStream(60);
       const mime=irisVideoMime();
