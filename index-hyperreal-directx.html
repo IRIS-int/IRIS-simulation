@@ -6656,9 +6656,13 @@ async function irisVideoSqueeze(blob, durS){
   irisProcShow(true, 'starting\u2026');
   try{
     let cur=blob, curDur=durS, pass=0;
-    while(curDur>93&&pass<4){
+    // SPEED-UP ONLY, never cut: each pass re-records the FULL footage at a
+    // capped 4x. Above ~4x browsers drop/decimate frames to keep up, which is
+    // what made the 90s file look chopped. 4x keeps every frame, so the whole
+    // mission survives — just faster. More passes allowed to compensate.
+    while(curDur>93&&pass<8){
       pass++;
-      const rate=Math.min(16, curDur/90);
+      const rate=Math.min(4, curDur/90);
       PASS_DUR=curDur/rate;
       try{ fleetNotice('■ SQUEEZE pass '+pass+' — <b>'+rate.toFixed(1)+'x</b> ('+Math.round(curDur)+'s \u2192 ~'+Math.round(PASS_DUR)+'s)\u2026 keep this tab visible'); }catch(_){}
       cur=await irisVideoPass(cur, rate, pass);
@@ -6667,7 +6671,7 @@ async function irisVideoSqueeze(blob, durS){
     }
     if(curDur<89.5||curDur>90.5){
       pass++;
-      const rate2=Math.max(0.05, Math.min(16, curDur/90));
+      const rate2=Math.max(0.05, Math.min(4, curDur/90));
       PASS_DUR=90;
       try{ fleetNotice('■ FINAL FIT — <b>'+rate2.toFixed(2)+'x</b> ('+Math.round(curDur)+'s \u2192 90s)… keep this tab visible'); }catch(_){}
       cur=await irisVideoPass(cur, rate2, pass);
